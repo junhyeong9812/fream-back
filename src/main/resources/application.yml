@@ -1,0 +1,41 @@
+spring:
+  profiles:
+    active: local # 로컬 설정 파일 활성화
+  datasource:
+    url: jdbc:h2:tcp://localhost/~/datajpa
+    username: sa
+    password:   # 비밀번호가 있을 경우 추가
+    driver-class-name: org.h2.Driver
+  servlet:
+    multipart:
+      max-file-size: 1GB  # 업로드 가능한 최대 파일 크기
+      max-request-size: 1GB  # 요청의 전체 크기
+
+  jpa:
+    hibernate:
+      ddl-auto: create
+    properties:
+      hibernate:
+        # show_sql: true  # 필요하면 주석 해제
+        format_sql: true
+
+  data:
+    web:
+      pageable:
+        default-page-size: 10
+        max-page-size: 2000
+        one-indexed-parameters: true
+  redis:
+    host: localhost
+    port: 6379
+    # password:   # 비밀번호가 있을 경우 추가
+    # database: 0
+
+logging.level:
+  org.hibernate.SQL: debug
+  # org.hibernate.type: trace  # 필요하면 주석 해제
+
+jwt:
+  secret: your-secret-key  # JWT 서명에 사용할 비밀 키
+  expiration: 3600000      # JWT 만료 시간 (밀리초 단위, 예: 1시간)
+
