@@ -1,4 +1,4 @@
-package com.fream.fream_back;
+package com.fream.back;
 
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;

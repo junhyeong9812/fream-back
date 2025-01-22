@@ -1,0 +1,16 @@
+FROM docker.elastic.co/elasticsearch/elasticsearch:8.13.4
+
+# nori 플러그인 설치
+RUN elasticsearch-plugin install analysis-nori
+
+# 사용자 사전, synonyms COPY
+RUN mkdir -p /usr/share/elasticsearch/config/analysis
+COPY ./docker/elasticsearch/userdict_ko.txt /usr/share/elasticsearch/config/analysis/userdict_ko.txt
+COPY ./docker/elasticsearch/synonyms.txt /usr/share/elasticsearch/config/analysis/synonyms.txt
+
+# 단일노드 모드, 보안 비활성
+ENV discovery.type=single-node
+ENV xpack.security.enabled=false
+ENV ES_JAVA_OPTS "-Dfile.encoding=UTF-8 -Dclient.encoding.override=UTF-8"
+
+# 추가 JVM 설정이 필요하면 ENV ES_JAVA_OPTS="-Xms512m -Xmx512m" 등 지정
