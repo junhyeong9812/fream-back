@@ -1,4 +1,4 @@
-# 1) Nginx 소스 + 모듈 빌드 (alpine)
+# 1) Nginx + cache purge 모듈 빌드
 FROM alpine:3.18 AS builder
 
 RUN apk add --no-cache \
@@ -27,7 +27,7 @@ RUN ./configure \
 
 RUN make && make install
 
-# 2) 런타임 이미지
+# 2) 런타임
 FROM alpine:3.18
 RUN apk add --no-cache pcre openssl zlib
 RUN addgroup -S nginx && adduser -S -G nginx -h /nonexistent -s /sbin/nologin nginx
@@ -35,9 +35,11 @@ RUN addgroup -S nginx && adduser -S -G nginx -h /nonexistent -s /sbin/nologin ng
 COPY --from=builder /etc/nginx /etc/nginx
 COPY --from=builder /usr/local/sbin/nginx /usr/local/sbin/nginx
 
-RUN mkdir -p /var/cache/nginx /var/log/nginx && chown -R nginx:nginx /var/cache/nginx /var/log/nginx
+# 로그/캐시 디렉토리
+RUN mkdir -p /var/cache/nginx /var/log/nginx && \
+    chown -R nginx:nginx /var/cache/nginx /var/log/nginx
 
-# nginx.conf COPY
+# dev용 nginx.conf COPY
 COPY nginx.conf /etc/nginx/nginx.conf
 
 EXPOSE 80

@@ -1,9 +1,10 @@
 version: '3.8'
 services:
-  # 운영용 MySQL
   mysql:
-    image: mysql:8.0
-    container_name: mysql-container
+    build:
+      context: ../..
+      dockerfile: docker/mysql/Dockerfile-mysql
+    container_name: mysql_prod
     environment:
       MYSQL_ROOT_PASSWORD: rootpass
       MYSQL_DATABASE: freamdb
@@ -12,17 +13,21 @@ services:
     ports:
       - "3306:3306"
     volumes:
-      - mysql_data:/var/lib/mysql
+      - mysql_data_prod:/var/lib/mysql
 
   redis:
-    image: redis:7.0
-    container_name: redis
+    build:
+      context: ../..
+      dockerfile: docker/redis/Dockerfile-redis
+    container_name: redis_prod
     ports:
       - "6379:6379"
 
   zookeeper:
-    image: confluentinc/cp-zookeeper:7.4.0
-    container_name: zookeeper
+    build:
+      context: ../..
+      dockerfile: docker/kafka/Dockerfile-zookeeper
+    container_name: zookeeper_prod
     environment:
       ZOOKEEPER_CLIENT_PORT: 2181
       ZOOKEEPER_TICK_TIME: 2000
@@ -30,14 +35,16 @@ services:
       - "2181:2181"
 
   kafka:
-    image: confluentinc/cp-kafka:7.4.0
-    container_name: kafka
+    build:
+      context: ../..
+      dockerfile: docker/kafka/Dockerfile-kafka
+    container_name: kafka_prod
     depends_on:
-      - zookeeper
+      - zookeeper_prod
     environment:
-      KAFKA_ZOOKEEPER_CONNECT: zookeeper:2181
+      KAFKA_ZOOKEEPER_CONNECT: zookeeper_prod:2181
       KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: PLAINTEXT:PLAINTEXT
-      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka:9092
+      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka_prod:9092
       KAFKA_LISTENERS: PLAINTEXT://0.0.0.0:9092
       KAFKA_INTER_BROKER_LISTENER_NAME: PLAINTEXT
       KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
@@ -46,12 +53,12 @@ services:
 
   elasticsearch:
     build:
-      context: ../../
+      context: ../..
       dockerfile: docker/elasticsearch/Dockerfile-elasticsearch
-    container_name: elasticsearch
+    container_name: es_prod
     environment:
-      - discovery.type=single-node
-      - xpack.security.enabled=false
+      discovery.type: single-node
+      xpack.security.enabled: 'false'
     ulimits:
       memlock:
         soft: -1
@@ -64,42 +71,65 @@ services:
       - "9300:9300"
 
   kibana:
-    image: docker.elastic.co/kibana/kibana:8.10.2
-    container_name: kibana
+    build:
+      context: ../..
+      dockerfile: docker/elasticsearch/Dockerfile-kibana
+    container_name: kibana_prod
     depends_on:
-      - elasticsearch
+      - es_prod
     environment:
-      - ELASTICSEARCH_HOSTS=http://elasticsearch:9200
+      ELASTICSEARCH_HOSTS: http://es_prod:9200
     ports:
       - "5601:5601"
 
   nginx:
     build:
-      context: ../../
+      context: ../..
       dockerfile: docker/nginx/Dockerfile-nginx
-    image: custom-nginx:1.0
-    container_name: nginx_server
+    container_name: nginx_prod
     ports:
       - "80:80"
+      - "443:443"
     extra_hosts:
       - "host.docker.internal:host-gateway"
+    depends_on:
+      - mysql_prod
+      - redis_prod
+      - kafka_prod
+      - es_prod
 
-  # 실제 운영용 Spring Boot 컨테이너
   app:
     build:
-      context: ../../
-      dockerfile: docker/Dockerfile
-    container_name: spring_boot_app
+      context: ../..
+      dockerfile: Dockerfile
+    container_name: spring_boot_app_prod
     ports:
       - "8080:8080"
     environment:
-      - SPRING_PROFILES_ACTIVE=prod
+      SPRING_PROFILES_ACTIVE: prod
     depends_on:
-      - mysql
-      - redis
-      - kafka
-      - elasticsearch
+      - mysql_prod
+      - redis_prod
+      - kafka_prod
+      - es_prod
+
+  # certbot (선택)
+  certbot:
+    build:
+      context: ../..
+      dockerfile: docker/nginx/certbot/Dockerfile-certbot
+    container_name: certbot_prod
+    volumes:
+      - letsencrypt_data:/etc/letsencrypt
+      - certbot_www:/var/www/certbot
+    entrypoint: >
+      sh -c "trap exit TERM;
+      certbot certonly --webroot --webroot-path=/var/www/certbot
+      -d yourdomain.com --email you@example.com --agree-tos --no-eff-email --force-renewal;
+      while :; do sleep 12h; certbot renew -q; done"
 
 volumes:
-  mysql_data:
+  mysql_data_prod:
   es_data_prod:
+  letsencrypt_data:
+  certbot_www:
