@@ -132,7 +132,7 @@ services:
     entrypoint: >
       sh -c "trap exit TERM;
       certbot certonly --webroot --webroot-path=/var/www/certbot
-      -d pinjun.xyz --email pickjog@naver.com --agree-tos --no-eff-email --force-renewal;
+      -d www.pinjun.xyz --email pickjog@naver.com --agree-tos --no-eff-email --force-renewal;
       while :; do sleep 12h; certbot renew -q; done"
 
 volumes:
