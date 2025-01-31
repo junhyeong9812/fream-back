@@ -85,7 +85,7 @@ services:
   nginx:
     build:
       context: ../..
-      dockerfile: docker/nginx/Dockerfile-nginx
+      dockerfile: docker/prod/nginx/Dockerfile-nginx
     container_name: nginx_prod
     ports:
       - "80:80"
