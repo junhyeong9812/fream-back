@@ -100,6 +100,8 @@ services:
       - front
       - app
       - certbot
+    volumes:
+      - letsencrypt_data:/etc/letsencrypt  # <-- 추가
 
   app:
     image: ghcr.io/junhyeong9812/fream-back:latest

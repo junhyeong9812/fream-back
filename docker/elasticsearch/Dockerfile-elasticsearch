@@ -7,7 +7,8 @@ RUN elasticsearch-plugin install analysis-nori
 USER root
 
 # 디렉토리 권한 변경
-RUN chown -R elasticsearch:elasticsearch /usr/share/elasticsearch/logs
+RUN chown -R elasticsearch:elasticsearch /usr/share/elasticsearch/logs \
+    && chmod -R 775 /usr/share/elasticsearch/logs
 
 # --- 다시 elasticsearch 유저로 전환 ---
 USER elasticsearch
