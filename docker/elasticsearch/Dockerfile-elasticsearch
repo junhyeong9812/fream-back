@@ -2,7 +2,15 @@ FROM docker.elastic.co/elasticsearch/elasticsearch:8.13.4
 
 # nori 플러그인 설치
 RUN elasticsearch-plugin install analysis-nori
+
+# --- 필요하다면 root 권한으로 전환 ---
+USER root
+
+# 디렉토리 권한 변경
 RUN chown -R elasticsearch:elasticsearch /usr/share/elasticsearch/logs
+
+# --- 다시 elasticsearch 유저로 전환 ---
+USER elasticsearch
 
 # 사용자 사전, synonyms COPY
 RUN mkdir -p /usr/share/elasticsearch/config/analysis
