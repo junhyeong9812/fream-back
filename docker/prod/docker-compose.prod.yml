@@ -101,7 +101,7 @@ services:
       - app
       - certbot
     volumes:
-      - letsencrypt_data:/etc/letsencrypt  # <-- 추가
+      - letsencrypt_data:/etc/letsencrypt
       - certbot_www:/var/www/certbot
 
   app:
