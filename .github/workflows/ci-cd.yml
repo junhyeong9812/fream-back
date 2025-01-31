@@ -1,0 +1,56 @@
+name: CI/CD for fream-back
+
+on:
+  push:
+    branches: [ "main" ]
+  pull_request:
+    branches: [ "main" ]
+
+jobs:
+  build-and-push:
+    runs-on: ubuntu-latest
+    steps:
+      # 1) Checkout
+      - name: Check out the repository
+        uses: actions/checkout@v3
+
+      # 2) Set up JDK
+      - name: Set up JDK 17
+        uses: actions/setup-java@v3
+        with:
+          java-version: 17
+
+      # 3) Gradle build
+      - name: Build and Test
+        run: |
+          ./gradlew clean build
+
+      # 4) Login to GHCR
+      - name: Log in to GitHub Container Registry
+        run: echo ${{ secrets.GHCR_TOKEN }} | docker login ghcr.io -u $GITHUB_ACTOR --password-stdin
+
+      # 5) Docker build
+      - name: Build Docker Image
+        run: |
+          docker build -t ghcr.io/junhyeong9812/fream-back:latest .
+
+      # 6) Docker push
+      - name: Push Docker Image
+        run: |
+          docker push ghcr.io/junhyeong9812/fream-back:latest
+
+  deploy:
+    needs: [build-and-push]
+    runs-on: ubuntu-latest
+    if: github.ref == 'refs/heads/main'
+    steps:
+      - name: SSH to EC2
+        uses: appleboy/ssh-action@v0.1.8
+        with:
+          host: ${{ secrets.EC2_HOST }}
+          username: ${{ secrets.EC2_USER }}
+          key: ${{ secrets.EC2_SSH_KEY }}
+          script: |
+            cd /home/ec2-user/fream-back/docker/prod
+            docker-compose pull app   # pull ghcr.io/junhyeong9812/fream-back:latest
+            docker-compose up -d app

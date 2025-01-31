@@ -2,8 +2,8 @@ spring:
   datasource:
     url: jdbc:mysql://mysql-container:3306/freamdb?serverTimezone=UTC
     driver-class-name: com.mysql.cj.jdbc.Driver
-    username: fream
-    password: fream
+    username: ${DB_USERNAME}
+    password: ${DB_PASSWORD}
   jpa:
     hibernate:
       ddl-auto: none  # 운영환경은 보통 직접 DDL 관리
@@ -19,8 +19,8 @@ spring:
   mail:
     host: smtp.gmail.com
     port: 587
-    username: pickjog1@gmail.com
-    password: pwxi mlsn hhio mxmk
+    username: ${MAIL_USERNAME}
+    password: ${MAIL_PASSWORD}
     protocol: smtp
     properties:
       mail:
@@ -49,10 +49,10 @@ logging:
     org.hibernate.SQL: debug
 
 jwt:
-  secret: Fream
+  secret: ${JWT_SECRET}
 
 imp:
-  key: 4555333718886873
-  secret: 2Raan0iV6120mQVtfLwp69dssm8KWfiPcYpyaZE9QIT6TjPpdNVBjaBzrOMJsBd1pUfYzQ8rCirhPGzU
-  pg: nicepay.iamport01m # PG사와 가맹점 ID
-  storeId: store-599b4645-0d6c-45a7-a08e-3f3dd3957b6e
+  key: ${IMP_KEY}
+  secret: ${IMP_SECRET}
+  pg: ${IMP_PG} # PG사와 가맹점 ID
+  storeId: ${IMP_STOREID}

@@ -97,22 +97,29 @@ services:
       - redis_prod
       - kafka_prod
       - es_prod
+      - front
+      - app
+      - certbot
 
   app:
-    build:
-      context: ../..
-      dockerfile: Dockerfile
+    image: ghcr.io/junhyeong9812/fream-back:latest
     container_name: spring_boot_app_prod
     ports:
       - "8080:8080"
     environment:
       SPRING_PROFILES_ACTIVE: prod
+    env_file:
+      - .env
     depends_on:
       - mysql_prod
       - redis_prod
       - kafka_prod
       - es_prod
-
+  front:
+    image: ghcr.io/junhyeong9812/fream-front:latest
+    container_name: fream_front_prod
+    depends_on:
+      - app  # optional
   # certbot (선택)
   certbot:
     build:
@@ -125,7 +132,7 @@ services:
     entrypoint: >
       sh -c "trap exit TERM;
       certbot certonly --webroot --webroot-path=/var/www/certbot
-      -d yourdomain.com --email you@example.com --agree-tos --no-eff-email --force-renewal;
+      -d pinjun.xyz --email pickjog@naver.com --agree-tos --no-eff-email --force-renewal;
       while :; do sleep 12h; certbot renew -q; done"
 
 volumes:

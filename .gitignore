@@ -6,8 +6,7 @@ build/
 !**/src/test/**/build/
 application.properties
 /src/main/resources/application-local.yml
-/src/main/resources/application-prod.yml
-/src/main/resources/GeoLite2-City.mmdb
+.env
 
 ### STS ###
 .apt_generated
