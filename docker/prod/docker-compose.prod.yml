@@ -40,7 +40,7 @@ services:
       dockerfile: docker/kafka/Dockerfile-kafka
     container_name: kafka_prod
     depends_on:
-      - zookeeper_prod
+      - zookeeper
     environment:
       KAFKA_ZOOKEEPER_CONNECT: zookeeper_prod:2181
       KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: PLAINTEXT:PLAINTEXT
@@ -76,7 +76,7 @@ services:
       dockerfile: docker/elasticsearch/Dockerfile-kibana
     container_name: kibana_prod
     depends_on:
-      - es_prod
+      - elasticsearch
     environment:
       ELASTICSEARCH_HOSTS: http://es_prod:9200
     ports:
@@ -93,10 +93,10 @@ services:
     extra_hosts:
       - "host.docker.internal:host-gateway"
     depends_on:
-      - mysql_prod
-      - redis_prod
-      - kafka_prod
-      - es_prod
+      - mysql
+      - redis
+      - kafka
+      - elasticsearch
       - front
       - app
       - certbot
@@ -111,10 +111,10 @@ services:
     env_file:
       - .env
     depends_on:
-      - mysql_prod
-      - redis_prod
-      - kafka_prod
-      - es_prod
+      - mysql
+      - redis
+      - kafka
+      - elasticsearch
   front:
     image: ghcr.io/junhyeong9812/fream-front:latest
     container_name: fream_front_prod
