@@ -39,7 +39,7 @@ jobs:
       # 5) Docker build
       - name: Build Docker Image
         run: |
-          docker build -f fream-back/Dockerfile -t ghcr.io/junhyeong9812/fream-back:latest .
+          docker build -f fream-back/docker/Dockerfile -t ghcr.io/junhyeong9812/fream-back:latest .
 
       # 6) Docker push
       - name: Push Docker Image
