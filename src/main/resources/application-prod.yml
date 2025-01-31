@@ -6,7 +6,7 @@ spring:
     password: ${DB_PASSWORD}
   jpa:
     hibernate:
-      ddl-auto: none  # 운영환경은 보통 직접 DDL 관리
+      ddl-auto: create  # 운영환경은 보통 직접 DDL 관리
     properties:
       hibernate:
         format_sql: true
