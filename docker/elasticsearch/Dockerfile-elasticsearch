@@ -2,6 +2,7 @@ FROM docker.elastic.co/elasticsearch/elasticsearch:8.13.4
 
 # nori 플러그인 설치
 RUN elasticsearch-plugin install analysis-nori
+RUN chown -R elasticsearch:elasticsearch /usr/share/elasticsearch/logs
 
 # 사용자 사전, synonyms COPY
 RUN mkdir -p /usr/share/elasticsearch/config/analysis

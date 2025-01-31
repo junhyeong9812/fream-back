@@ -22,6 +22,7 @@ RUN ./configure \
     --with-http_ssl_module \
     --with-http_gzip_static_module \
     --with-http_realip_module \
+    --with-http_v2_module \
     --add-module=/tmp/ngx_cache_purge-${NGINX_PURGE_MODULE_VERSION}
 
 RUN make && make install
