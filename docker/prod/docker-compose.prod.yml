@@ -102,6 +102,7 @@ services:
       - certbot
     volumes:
       - letsencrypt_data:/etc/letsencrypt  # <-- 추가
+      - certbot_www:/var/www/certbot
 
   app:
     image: ghcr.io/junhyeong9812/fream-back:latest
