@@ -85,7 +85,7 @@ services:
   nginx:
     build:
       context: ../..
-      dockerfile: docker/prod/nginx/Dockerfile-nginx
+      dockerfile: docker/prod/nginx/Dockerfile-nginx-prod
     container_name: nginx_prod
     ports:
       - "80:80"
@@ -124,7 +124,7 @@ services:
   certbot:
     build:
       context: ../..
-      dockerfile: docker/nginx/certbot/Dockerfile-certbot
+      dockerfile: docker/prod/nginx/certbot/Dockerfile-certbot
     container_name: certbot_prod
     volumes:
       - letsencrypt_data:/etc/letsencrypt
