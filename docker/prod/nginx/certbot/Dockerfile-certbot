@@ -1,7 +1,7 @@
 FROM certbot/certbot:latest
 RUN apk add --no-cache bash openssl
 
-COPY scripts/renew_cert.sh /usr/local/bin/renew_cert.sh
+COPY docker/prod/nginx/certbot/scripts/renew_cert.sh /usr/local/bin/renew_cert.sh
 RUN chmod +x /usr/local/bin/renew_cert.sh
 
 CMD ["bash"]
