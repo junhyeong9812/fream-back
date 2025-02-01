@@ -15,7 +15,7 @@ public class WebMvcConfig implements WebMvcConfigurer {
         // 모든 경로 허용
         registry.addMapping("/**")
                 // 모든 Origin 허용(개발용)
-                .allowedOrigins("*")
+                .allowedOrigins("https://www.pinjun.xyz")
                 // 모든 HTTP 메서드 허용
                 .allowedMethods("GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS", "HEAD")
                 // 쿠키/헤더 전송 허용
