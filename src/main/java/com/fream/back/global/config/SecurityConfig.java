@@ -33,7 +33,7 @@ public class SecurityConfig {
                 // 또는 .formLogin(FormLoginConfigurer::disable)
 
                 // 3) csrf 비활성화
-                .csrf(csrf -> csrf.disable())
+                .csrf(csrf -> csrf.disable());
 
                 // 4) CORS 활성화 (기본 설정)
 //                .cors(withDefaults());
