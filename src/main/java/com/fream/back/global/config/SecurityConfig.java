@@ -9,12 +9,6 @@ import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
 import org.springframework.security.web.SecurityFilterChain;
 
-import static org.springframework.security.config.Customizer.withDefaults;
-/**
- * 기본적인 Security 설정 (개발용/임시)
- * - 모든 요청 허용
- * - CORS 설정
- */
 @Configuration
 @EnableWebSecurity
 @RequiredArgsConstructor
@@ -23,26 +17,27 @@ public class SecurityConfig {
     @Bean
     public SecurityFilterChain securityfilterChain(HttpSecurity http) throws Exception {
         http
-                // 1) 요청 권한 설정
+                // 1) 모든 요청 허용
                 .authorizeHttpRequests(auth -> auth
-                        .requestMatchers("/**").permitAll()
                         .anyRequest().permitAll()
                 )
-                // 2) formLogin 비활성화 (옛날 http.formLogin().disable() 대신)
+                // 2) formLogin 비활성화 (기본 로그인 페이지 제거)
                 .formLogin(form -> form.disable())
-                // 또는 .formLogin(FormLoginConfigurer::disable)
 
-                // 3) csrf 비활성화
-                .csrf(csrf -> csrf.disable());
+                // 3) CSRF 비활성화 (REST API에서 필요 없음)
+                .csrf(csrf -> csrf.disable())
 
-                // 4) CORS 활성화 (기본 설정)
-//                .cors(withDefaults());
+                // 4) 세션 비활성화 (Stateful 인증 제거)
+                .sessionManagement(session -> session.disable())
+
+                // 5) 모든 Security 필터 해제 (필요하면 주석 제거)
+                .securityMatcher("/**");
 
         return http.build();
     }
+
     @Bean
     public AuthenticationManager authenticationManager(AuthenticationConfiguration config) throws Exception {
         return config.getAuthenticationManager();
     }
-
 }
