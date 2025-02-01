@@ -1,7 +1,7 @@
 spring:
   # 기본 프로필을 local로 활성화 (원하면 주석 처리하고, 실행 시 -Dspring.profiles.active=local 로 설정해도 됨)
   profiles:
-    active: local
+    active: prod
 
   # 공통으로 사용하는 설정들
   servlet:
