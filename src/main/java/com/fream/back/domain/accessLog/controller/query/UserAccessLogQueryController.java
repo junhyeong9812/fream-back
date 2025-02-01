@@ -11,7 +11,7 @@ import java.util.List;
  * 접근 로그 조회를 위한 Query 전용 컨트롤러
  */
 @RestController
-@RequestMapping("/api/access-log/queries")
+@RequestMapping("/access-log/queries")
 @RequiredArgsConstructor
 public class UserAccessLogQueryController {
 

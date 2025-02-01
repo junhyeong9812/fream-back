@@ -12,7 +12,7 @@ import java.util.List;
  * 날씨 "조회"와 관련된 HTTP API 컨트롤러
  */
 @RestController
-@RequestMapping("/api/weather")
+@RequestMapping("/weather")
 @RequiredArgsConstructor
 public class WeatherQueryController {
 

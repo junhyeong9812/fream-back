@@ -11,7 +11,7 @@ import org.springframework.web.bind.annotation.*;
  * Command 전용 컨트롤러
  */
 @RestController
-@RequestMapping("/api/access-log/commands")
+@RequestMapping("/access-log/commands")
 @RequiredArgsConstructor
 public class UserAccessLogCommandController {
 
