@@ -5,10 +5,12 @@ import com.maxmind.geoip2.model.CityResponse;
 import com.maxmind.geoip2.record.City;
 import com.maxmind.geoip2.record.Country;
 import com.maxmind.geoip2.record.Subdivision;
+import org.springframework.core.io.ClassPathResource;
 import org.springframework.stereotype.Service;
 
 import java.io.File;
 import java.io.IOException;
+import java.io.InputStream;
 import java.net.InetAddress;
 
 /**
@@ -18,11 +20,21 @@ import java.net.InetAddress;
 public class GeoIPService {
 
     private final DatabaseReader databaseReader;
+    //run전용
+//    public GeoIPService() throws IOException {
+//        File database = new File(getClass().getClassLoader().getResource("GeoLite2-City.mmdb").getFile());
+//        this.databaseReader = new DatabaseReader.Builder(database).build();
+//    }
+    //build전용
+public GeoIPService() throws IOException {
+    // (1) ClassPathResource로 mmdb 파일을 가져옴
+    ClassPathResource resource = new ClassPathResource("GeoLite2-City.mmdb");
 
-    public GeoIPService() throws IOException {
-        File database = new File(getClass().getClassLoader().getResource("GeoLite2-City.mmdb").getFile());
-        this.databaseReader = new DatabaseReader.Builder(database).build();
+    // (2) InputStream 으로 DatabaseReader 생성
+    try (InputStream inputStream = resource.getInputStream()) {
+        this.databaseReader = new DatabaseReader.Builder(inputStream).build();
     }
+}
 
     public Location getLocation(String ip) {
         try {
