@@ -19,10 +19,10 @@ public class SecurityConfig {
         http
                 // 1) 모든 요청 허용
                 .authorizeHttpRequests(auth -> auth
-                        .requestMatchers("/weather/**").permitAll()   // weather API 경로에 대한 허용
-                        .anyRequest().permitAll())
+                        .requestMatchers("/**").permitAll()
+                        .anyRequest().authenticated())
 
-                // 2) CSRF 비활성화 (REST API의 경우)
+                        // 2) CSRF 비활성화 (REST API의 경우)
                 .csrf(csrf -> csrf.disable())
 
                 // 3) 폼 로그인 비활성화
