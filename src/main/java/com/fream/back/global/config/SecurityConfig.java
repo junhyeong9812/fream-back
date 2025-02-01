@@ -15,22 +15,24 @@ import org.springframework.security.web.SecurityFilterChain;
 public class SecurityConfig {
 
     @Bean
-    public SecurityFilterChain securityfilterChain(HttpSecurity http) throws Exception {
+    public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
         http
                 // 1) 모든 요청 허용
-                .authorizeHttpRequests(auth -> auth
-                        .anyRequest().permitAll()
-                )
-                // 2) formLogin 비활성화 (기본 로그인 페이지 제거)
-                .formLogin(form -> form.disable())
+                .authorizeHttpRequests(auth -> auth.anyRequest().permitAll())
 
-                // 3) CSRF 비활성화 (REST API에서 필요 없음)
+                // 2) CSRF 비활성화 (REST API의 경우)
                 .csrf(csrf -> csrf.disable())
 
-                // 4) 세션 비활성화 (Stateful 인증 제거)
+                // 3) 폼 로그인 비활성화
+                .formLogin(form -> form.disable())
+
+                // 4) HTTP 기본 인증 비활성화 (Basic Auth 비활성화)
+                .httpBasic(httpBasic -> httpBasic.disable())
+
+                // 5) 세션을 사용하지 않도록 설정 (STATELESS)
                 .sessionManagement(session -> session.disable())
 
-                // 5) 모든 Security 필터 해제 (필요하면 주석 제거)
+                // 6) Security 필터 완전히 제거 (필요하면 주석 해제)
                 .securityMatcher("/**");
 
         return http.build();
