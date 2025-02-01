@@ -25,3 +25,9 @@ logging:
 jwt:
   expiration: 3600000      # (예시) 1시간
   refreshExpiration: 3600000
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: "*"
