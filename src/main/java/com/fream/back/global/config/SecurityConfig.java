@@ -24,7 +24,8 @@ public class SecurityConfig {
     public SecurityFilterChain securityfilterChain(HttpSecurity http) throws Exception {
         http
                 // 1) 요청 권한 설정
-                .authorizeHttpRequests(authorize -> authorize
+                .authorizeHttpRequests(auth -> auth
+                        .requestMatchers("/**").permitAll()
                         .anyRequest().permitAll()
                 )
                 // 2) formLogin 비활성화 (옛날 http.formLogin().disable() 대신)
