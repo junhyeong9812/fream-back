@@ -56,3 +56,6 @@ imp:
   secret: ${IMP_SECRET}
   pg: ${IMP_PG} # PG사와 가맹점 ID
   storeId: ${IMP_STOREID}
+
+server:
+  use-forward-headers: true
