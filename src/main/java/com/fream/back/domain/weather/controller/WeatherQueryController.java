@@ -26,7 +26,7 @@ public class WeatherQueryController {
     public ResponseEntity<WeatherDataDto> getClosestWeatherData() {
         return weatherQueryService.getClosestWeatherData()
                 .map(ResponseEntity::ok)
-                .orElse(ResponseEntity.notFound().build());
+                .orElse(ResponseEntity.noContent().build());  // 204 No Content
     }
 
     /**
