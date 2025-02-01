@@ -18,7 +18,9 @@ public class SecurityConfig {
     public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
         http
                 // 1) 모든 요청 허용
-                .authorizeHttpRequests(auth -> auth.anyRequest().permitAll())
+                .authorizeHttpRequests(auth -> auth
+                        .requestMatchers("/weather/**").permitAll()   // weather API 경로에 대한 허용
+                        .anyRequest().permitAll())
 
                 // 2) CSRF 비활성화 (REST API의 경우)
                 .csrf(csrf -> csrf.disable())
