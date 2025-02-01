@@ -36,7 +36,7 @@ public class SecurityConfig {
                 .csrf(csrf -> csrf.disable())
 
                 // 4) CORS 활성화 (기본 설정)
-                .cors(withDefaults());
+//                .cors(withDefaults());
 
         return http.build();
     }
