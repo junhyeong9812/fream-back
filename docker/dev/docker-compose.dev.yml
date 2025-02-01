@@ -1,8 +1,10 @@
 version: '3.8'
 services:
   redis:
-    image: redis:7.0
-    container_name: redis_server
+    build:
+      context: ../..
+      dockerfile: docker/redis/Dockerfile-redis
+    container_name: redis_prod
     ports:
       - "6379:6379"
 
