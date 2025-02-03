@@ -2,6 +2,7 @@ package com.fream.back.domain.weather.config;
 
 import com.fream.back.domain.weather.service.command.WeatherDataCommandService;
 import lombok.RequiredArgsConstructor;
+import org.springframework.scheduling.annotation.EnableScheduling;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
 
@@ -9,6 +10,7 @@ import org.springframework.stereotype.Component;
  * 정기적으로 날씨 데이터를 업데이트하기 위한 스케줄러
  */
 @Component
+@EnableScheduling  // 스케줄 기능 활성화
 @RequiredArgsConstructor
 public class WeatherDataScheduler {
 
