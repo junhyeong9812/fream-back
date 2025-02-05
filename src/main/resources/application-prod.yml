@@ -38,7 +38,7 @@ spring:
       auto-offset-reset: "earliest"
 
   elasticsearch:
-    uris: http://es_prod:9200
+    uris: http://elasticsearch:9200
 
   batch:
     jdbc:

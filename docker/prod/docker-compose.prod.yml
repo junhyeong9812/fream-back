@@ -85,7 +85,7 @@ services:
       - elasticsearch
     environment:
       TZ: Asia/Seoul
-      ELASTICSEARCH_HOSTS: http://es_prod:9200
+      ELASTICSEARCH_HOSTS: http://elasticsearch:9200
     ports:
       - "5601:5601"
 
