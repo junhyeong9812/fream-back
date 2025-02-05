@@ -35,26 +35,26 @@ public class UserQueryController {
     private final UserCommandService userCommandService;
     private final AuthRedisService redisService;
 
-    @PostMapping("/register")
-    public ResponseEntity<Map<String, String>> registerUser(@RequestBody @Validated UserRegistrationDto dto) {
-        try {
-            // 1) DTO 검증
-            UserControllerValidator.validateUserRegistrationDto(dto);
-
-            // 2) 검증 통과 시 Service 로직
-            User user = userCommandService.registerUser(dto);
-            return ResponseEntity.status(HttpStatus.CREATED)
-                    .body(Map.of("status", "success", "userEmail", user.getEmail()));
-        } catch (IllegalArgumentException e) {
-            // 사용자 입력이 잘못된 경우 - 400 Bad Request
-            return ResponseEntity.badRequest()
-                    .body(Map.of("status", "error", "message", e.getMessage()));
-        } catch (Exception e) {
-            // 서버 내부 오류 - 500 Internal Server Error
-            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
-                    .body(Map.of("status", "error", "message", "회원가입 처리 중 문제가 발생했습니다."));
-        }
-    }
+//    @PostMapping("/register")
+//    public ResponseEntity<Map<String, String>> registerUser(@RequestBody @Validated UserRegistrationDto dto) {
+//        try {
+//            // 1) DTO 검증
+//            UserControllerValidator.validateUserRegistrationDto(dto);
+//
+//            // 2) 검증 통과 시 Service 로직
+//            User user = userCommandService.registerUser(dto);
+//            return ResponseEntity.status(HttpStatus.CREATED)
+//                    .body(Map.of("status", "success", "userEmail", user.getEmail()));
+//        } catch (IllegalArgumentException e) {
+//            // 사용자 입력이 잘못된 경우 - 400 Bad Request
+//            return ResponseEntity.badRequest()
+//                    .body(Map.of("status", "error", "message", e.getMessage()));
+//        } catch (Exception e) {
+//            // 서버 내부 오류 - 500 Internal Server Error
+//            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+//                    .body(Map.of("status", "error", "message", "회원가입 처리 중 문제가 발생했습니다."));
+//        }
+//    }
 
     //로그인
     @PostMapping("/login")
