@@ -71,7 +71,7 @@ services:
         hard: -1
     volumes:
       - es_data_prod:/usr/share/elasticsearch/data
-      - ./es_logs:/usr/share/elasticsearch/logs
+      - /home/ubuntu/es_logs:/usr/share/elasticsearch/logs
     ports:
       - "9200:9200"
       - "9300:9300"

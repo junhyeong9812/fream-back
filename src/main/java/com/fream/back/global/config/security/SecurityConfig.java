@@ -1,5 +1,6 @@
-package com.fream.back.global.config;
+package com.fream.back.global.config.security;
 
+import com.fream.back.domain.user.redis.AuthRedisService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -8,18 +9,25 @@ import org.springframework.security.config.annotation.authentication.configurati
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
 import org.springframework.security.web.SecurityFilterChain;
+import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
 
 @Configuration
 @EnableWebSecurity
 @RequiredArgsConstructor
 public class SecurityConfig {
+    private final JwtTokenProvider jwtTokenProvider;
+    private final AuthRedisService authRedisService;
+    // CustomUserDetailsService도 필요하다면 주입
 
     @Bean
     public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
+        //JWT 필터 생성
+        JwtAuthenticationFilter jwtFilter = new JwtAuthenticationFilter(jwtTokenProvider, authRedisService);
+
         http
                 // 1) 모든 요청 허용
                 .authorizeHttpRequests(auth -> auth
-                        .requestMatchers("/**").permitAll()
+                        .requestMatchers(whiteListPaths()).permitAll()
                         .anyRequest().authenticated())
 
                         // 2) CSRF 비활성화 (REST API의 경우)
@@ -34,10 +42,26 @@ public class SecurityConfig {
                 // 5) 세션을 사용하지 않도록 설정 (STATELESS)
                 .sessionManagement(session -> session.disable())
 
+                //커스텀 JWT필터 추가
+                .addFilterBefore(jwtFilter, UsernamePasswordAuthenticationFilter.class);
                 // 6) Security 필터 완전히 제거 (필요하면 주석 해제)
-                .securityMatcher("/**");
+//                .securityMatcher("/**");
+
 
         return http.build();
+    }
+
+    /**
+     * [Whitelist] - 인증 없이 접근 가능한 경로들
+     */
+    private String[] whiteListPaths() {
+        return new String[] {
+                "/**"
+//                "/auth/**",       // 로그인, 회원가입, 리프레시, 로그아웃 등
+//                "/api/public/**", // 예시: 공개 API
+//                "/swagger-ui/**", // 예시: Swagger 문서
+//                "/v3/api-docs/**" // 예시: Swagger OpenAPI
+        };
     }
 
     @Bean

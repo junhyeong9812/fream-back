@@ -70,7 +70,7 @@ dependencies {
 	implementation 'org.jsoup:jsoup:1.16.1'
 	implementation 'com.maxmind.geoip2:geoip2:3.0.1'
 	implementation 'com.microsoft.playwright:playwright:1.38.0'
-
+	implementation 'co.elastic.clients:elasticsearch-java:8.9.1'
 	// ---------------------------
 	// QueryDSL
 	// ---------------------------
