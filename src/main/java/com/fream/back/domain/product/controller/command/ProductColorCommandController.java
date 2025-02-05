@@ -2,7 +2,7 @@ package com.fream.back.domain.product.controller.command;
 
 import com.fream.back.domain.product.dto.ProductColorCreateRequestDto;
 import com.fream.back.domain.product.dto.ProductColorUpdateRequestDto;
-import com.fream.back.domain.product.elasticsearch.service.ProductColorIndexingService;
+//import com.fream.back.domain.product.elasticsearch.service.ProductColorIndexingService;
 import com.fream.back.domain.product.service.productColor.ProductColorCommandService;
 import com.fream.back.domain.user.service.query.UserQueryService;
 import com.fream.back.global.utils.NginxCachePurgeUtil;
@@ -23,7 +23,7 @@ public class ProductColorCommandController {
     private final ProductColorCommandService productColorCommandService;
     private final UserQueryService userQueryService; // 권한 확인 서비스
     private final NginxCachePurgeUtil nginxCachePurgeUtil;
-    private final ProductColorIndexingService productColorIndexingService;
+//    private final ProductColorIndexingService productColorIndexingService;
 
     // SecurityContext에서 이메일 추출
     private String extractEmailFromSecurityContext() {
@@ -46,7 +46,7 @@ public class ProductColorCommandController {
         userQueryService.checkAdminRole(email); // 관리자 권한 확인
 
         Long newColorId = productColorCommandService.createProductColor(requestDto, thumbnailImage, images, detailImages, productId);
-        productColorIndexingService.indexColorById(newColorId);
+//        productColorIndexingService.indexColorById(newColorId);
         nginxCachePurgeUtil.purgeProductCache();
         nginxCachePurgeUtil.purgeEsCache();
         return ResponseEntity.ok().build();
@@ -76,7 +76,7 @@ public class ProductColorCommandController {
 
         productColorCommandService.deleteProductColor(productColorId);
         // 2) ES 인덱스에서도 삭제
-        productColorIndexingService.deleteColorFromIndex(productColorId);
+//        productColorIndexingService.deleteColorFromIndex(productColorId);
         // 3) Nginx 캐시 Purge
         nginxCachePurgeUtil.purgeProductCache();
         nginxCachePurgeUtil.purgeEsCache();
