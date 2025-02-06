@@ -35,61 +35,40 @@ public class UserQueryController {
     private final UserCommandService userCommandService;
     private final AuthRedisService redisService;
 
-//    @PostMapping("/register")
-//    public ResponseEntity<Map<String, String>> registerUser(@RequestBody @Validated UserRegistrationDto dto) {
+//    //로그인
+//    @PostMapping("/login")
+//    public ResponseEntity<Map<String, String>> login(
+//            @RequestBody LoginRequestDto loginRequestDto,
+//            HttpServletRequest request
+//    ) {
 //        try {
-//            // 1) DTO 검증
-//            UserControllerValidator.validateUserRegistrationDto(dto);
+//            // "X-Forwarded-For" 헤더 확인 (프록시나 로드 밸런서가 설정한 IP)
+//            String ip = request.getHeader("X-Forwarded-For");
+//            if (ip == null || ip.isEmpty()) {
+//                // 2) Fallback: 직접 연결된 소켓의 IP
+//                ip = request.getRemoteAddr();
+//            }
 //
-//            // 2) 검증 통과 시 Service 로직
-//            User user = userCommandService.registerUser(dto);
-//            return ResponseEntity.status(HttpStatus.CREATED)
-//                    .body(Map.of("status", "success", "userEmail", user.getEmail()));
+//            // 검증
+//            UserControllerValidator.validateLoginRequestDto(loginRequestDto);
+//
+//            // 로직 -> 여기서 TokenDto 받기
+//            TokenDto tokenDto = authService.login(loginRequestDto,ip);
+//
+//            // JSON 응답으로 accessToken, refreshToken 모두 내려주기
+//            Map<String, String> responseBody = new HashMap<>();
+//            responseBody.put("accessToken", tokenDto.getAccessToken());
+//            responseBody.put("refreshToken", tokenDto.getRefreshToken());
+//
+//            return ResponseEntity.ok(responseBody);
 //        } catch (IllegalArgumentException e) {
-//            // 사용자 입력이 잘못된 경우 - 400 Bad Request
-//            return ResponseEntity.badRequest()
+//            return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
 //                    .body(Map.of("status", "error", "message", e.getMessage()));
 //        } catch (Exception e) {
-//            // 서버 내부 오류 - 500 Internal Server Error
 //            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
-//                    .body(Map.of("status", "error", "message", "회원가입 처리 중 문제가 발생했습니다."));
+//                    .body(Map.of("status", "error", "message", "로그인 처리 중 문제가 발생했습니다."));
 //        }
 //    }
-
-    //로그인
-    @PostMapping("/login")
-    public ResponseEntity<Map<String, String>> login(
-            @RequestBody LoginRequestDto loginRequestDto,
-            HttpServletRequest request
-    ) {
-        try {
-            // "X-Forwarded-For" 헤더 확인 (프록시나 로드 밸런서가 설정한 IP)
-            String ip = request.getHeader("X-Forwarded-For");
-            if (ip == null || ip.isEmpty()) {
-                // 2) Fallback: 직접 연결된 소켓의 IP
-                ip = request.getRemoteAddr();
-            }
-
-            // 검증
-            UserControllerValidator.validateLoginRequestDto(loginRequestDto);
-
-            // 로직 -> 여기서 TokenDto 받기
-            TokenDto tokenDto = authService.login(loginRequestDto,ip);
-
-            // JSON 응답으로 accessToken, refreshToken 모두 내려주기
-            Map<String, String> responseBody = new HashMap<>();
-            responseBody.put("accessToken", tokenDto.getAccessToken());
-            responseBody.put("refreshToken", tokenDto.getRefreshToken());
-
-            return ResponseEntity.ok(responseBody);
-        } catch (IllegalArgumentException e) {
-            return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
-                    .body(Map.of("status", "error", "message", e.getMessage()));
-        } catch (Exception e) {
-            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
-                    .body(Map.of("status", "error", "message", "로그인 처리 중 문제가 발생했습니다."));
-        }
-    }
     
     //이메일 찾기 
     @PostMapping("/find-email")

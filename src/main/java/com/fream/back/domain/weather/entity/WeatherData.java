@@ -26,4 +26,48 @@ public class WeatherData {
 
     @Column(name = "retrieved_at")
     private LocalDateTime retrievedAt; // 데이터가 저장된 시간
+    /**
+     * 엔티티 생성용 private 생성자 ( 또는 Builder 사용 가능 )
+     */
+    @Builder
+    private WeatherData(
+            Long id,
+            LocalDateTime timestamp,
+            double temperature,
+            double precipitationProbability,
+            double precipitation,
+            double rain,
+            double snowfall,
+            LocalDateTime retrievedAt
+    ) {
+        this.id = id;
+        this.timestamp = timestamp;
+        this.temperature = temperature;
+        this.precipitationProbability = precipitationProbability;
+        this.precipitation = precipitation;
+        this.rain = rain;
+        this.snowfall = snowfall;
+        this.retrievedAt = retrievedAt;
+    }
+
+    /**
+     * 업데이트용 비즈니스 메서드
+     * - setter가 아닌, 필요한 필드만 업데이트
+     */
+    public void updateWeatherData(
+            double temperature,
+            double precipitationProbability,
+            double precipitation,
+            double rain,
+            double snowfall,
+            LocalDateTime retrievedAt
+    ) {
+        // timestamp는 고유 식별 개념이므로 변경 X (원한다면 로직 추가 가능)
+        this.temperature = temperature;
+        this.precipitationProbability = precipitationProbability;
+        this.precipitation = precipitation;
+        this.rain = rain;
+        this.snowfall = snowfall;
+        this.retrievedAt = retrievedAt;
+    }
 }
