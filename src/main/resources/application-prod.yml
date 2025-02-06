@@ -37,8 +37,9 @@ spring:
       group-id: "my-group"
       auto-offset-reset: "earliest"
 
-#  elasticsearch:
+  elasticsearch:
 #    uris: http://elasticsearch:9200
+    uris: http://13.125.230.26:9200
 
   batch:
     jdbc:
