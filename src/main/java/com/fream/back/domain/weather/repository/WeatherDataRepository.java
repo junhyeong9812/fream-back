@@ -28,7 +28,7 @@ public interface WeatherDataRepository extends JpaRepository<WeatherData, Long> 
             @Param("endTime") LocalDateTime endTime
     );
 
-
+    Optional<WeatherData> findByTimestamp(LocalDateTime timestamp);
     // 특정 날짜 범위 데이터 찾기
     List<WeatherData> findByTimestampBetween(LocalDateTime start, LocalDateTime end);
 
