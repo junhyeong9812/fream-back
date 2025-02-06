@@ -106,7 +106,7 @@ services:
       - redis
       - kafka
 #      - elasticsearch
-#      - front
+      - front
       - app
       - certbot
     volumes:
@@ -130,13 +130,13 @@ services:
 #      - elasticsearch
     volumes:
       - /home/ubuntu/fream:/home/ubuntu/fream
-#  front:
-#    image: ghcr.io/junhyeong9812/fream-front:latest
-#    environment:
-#      TZ: Asia/Seoul
-#    container_name: fream_front_prod
-#    depends_on:
-#      - app  # optional
+  front:
+    image: ghcr.io/junhyeong9812/fream-front:latest
+    environment:
+      TZ: Asia/Seoul
+    container_name: fream_front_prod
+    depends_on:
+      - app  # optional
   # certbot (선택)
   certbot:
     build:
