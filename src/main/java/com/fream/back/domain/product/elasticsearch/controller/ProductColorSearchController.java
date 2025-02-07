@@ -12,10 +12,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.http.ResponseEntity;
-import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.ModelAttribute;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.bind.annotation.*;
 
 import java.util.Collections;
 import java.util.List;
@@ -23,7 +20,7 @@ import java.util.stream.Collectors;
 
 @RestController
 @RequiredArgsConstructor
-@RequestMapping("/api/es/products")
+@RequestMapping("/es/products")
 public class ProductColorSearchController {
 
     private final ProductColorSearchService productColorSearchService;
@@ -62,6 +59,28 @@ public class ProductColorSearchController {
                 pageResult.getSize()
         );
     }
+
+    /**
+     * 1) 자동완성(Autocomplete)용 엔드포인트
+     *    - ?q=키워드
+     *    - 최대 10건
+     */
+    @GetMapping("/autocomplete")
+    public ResponseEntity<List<String>> autocompleteProducts(
+            @RequestParam(name = "q", required = false) String query
+    ) {
+        // q가 null 또는 빈 문자열이면 빈 배열 반환
+        if (query == null || query.isBlank()) {
+            return ResponseEntity.ok(List.of());
+        }
+
+        // 서비스 호출
+        List<String> suggestions = productColorSearchService.autocomplete(query, 10);
+
+        // 문자열 리스트(자동완성용) 반환
+        return ResponseEntity.ok(suggestions);
+    }
+
 
 //    @GetMapping
 //    public ResponseEntity<Page<ProductColorIndex>> esSearchProducts(

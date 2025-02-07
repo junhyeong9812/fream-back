@@ -10,9 +10,9 @@ spring:
     properties:
       hibernate:
         format_sql: true
-#  redis:
-#    host: redis
-#    port: 6379
+  redis:
+    host: redis
+    port: 6379
     # password: # 운영 Redis 비번
   mail:
     host: smtp.gmail.com
@@ -34,7 +34,7 @@ spring:
       group-id: "my-group"
       auto-offset-reset: "earliest"
   elasticsearch:
-#    uris: http://elasticsearch:9200
+    # uris: http://elasticsearch:9200
     uris: http://13.125.230.26:9200
   batch:
     jdbc:
@@ -48,8 +48,6 @@ logging:
   level:
     org.hibernate.SQL: debug
     org.springframework.security: DEBUG
-
-
 
 jwt:
   secret: ${JWT_SECRET}

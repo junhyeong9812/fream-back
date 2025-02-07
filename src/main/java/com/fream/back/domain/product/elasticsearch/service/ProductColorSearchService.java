@@ -344,4 +344,61 @@ public class ProductColorSearchService {
                 .interestCount(idx.getInterestCount())
                 .build();
     }
+
+    //==============================================================================
+    // **아래가 "자동완성"용 메서드**
+    //==============================================================================
+    public List<String> autocomplete(String query, int limit) {
+        // 1) MultiMatchQuery: 여러 필드에 대해 검색 (오타 자동 보정 위해 fuzziness)
+        MultiMatchQuery.Builder multiMatchBuilder = new MultiMatchQuery.Builder()
+                .fields("productName", "productEnglishName", "brandName", "collectionName", "colorName")
+                .query(query)
+                .fuzziness("AUTO")       // 오타 자동 보정
+                .maxExpansions(50)
+                .prefixLength(1);
+
+        // 2) BoolQuery.must(multiMatch)
+        BoolQuery.Builder boolBuilder = new BoolQuery.Builder();
+        boolBuilder.must(new Query.Builder().multiMatch(multiMatchBuilder.build()).build());
+
+        // 3) 최종 Query
+        Query finalQuery = new Query.Builder().bool(boolBuilder.build()).build();
+
+        // 4) NativeQuery 빌드
+        NativeQuery nativeQuery = NativeQuery.builder()
+                .withQuery(finalQuery)
+                .withSort(s -> s.field(f -> f.field("productId")    // 간단히 productId 기준 정렬
+                        .order(co.elastic.clients.elasticsearch._types.SortOrder.Asc))
+                )
+                .withPageable(PageRequest.of(0, limit)) // 첫 페이지, size=limit
+                .build();
+
+        // 5) 검색 실행
+        SearchHits<ProductColorIndex> searchHits = esOperations.search(nativeQuery, ProductColorIndex.class);
+
+        // 6) 결과 -> List<ProductColorIndex>
+        List<ProductColorIndex> results = searchHits.getSearchHits().stream()
+                .map(hit -> hit.getContent())
+                .collect(Collectors.toList());
+
+        // 7) 문자열로 매핑
+        //    예: "brandName + productName + colorName" 등을 합쳐서 자동완성 문자열로 사용
+        return results.stream()
+                .map(this::makeAutocompleteString)
+                .collect(Collectors.toList());
+    }
+
+    /**
+     * 자동완성용으로 보여줄 문자열 생성 로직
+     * 예) "나이키 Nike Air Max / 화이트" 등
+     */
+    private String makeAutocompleteString(ProductColorIndex idx) {
+        // 원하면 다양한 조합으로!
+        // 여기서는 "브랜드명 - 상품명 (컬러명)" 형태로 예시
+        String brand = idx.getBrandName() != null ? idx.getBrandName() : "";
+        String productName = idx.getProductName() != null ? idx.getProductName() : "";
+        String colorName = idx.getColorName() != null ? idx.getColorName() : "";
+
+        return String.format("%s - %s (%s)", brand, productName, colorName);
+    }
 }

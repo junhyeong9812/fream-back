@@ -13,10 +13,6 @@ spring:
         default-page-size: 10
         max-page-size: 2000
         one-indexed-parameters: true
-  redis:
-    host: redis
-    port: 6379
-
 logging:
   level:
     org.hibernate.SQL: debug
