@@ -165,7 +165,7 @@ public class AuthController {
     private void setCookie(HttpServletResponse response, String name, String value, long maxAgeSeconds) {
         ResponseCookie cookie = ResponseCookie.from(name, value)
                 .httpOnly(true)            // JS로 접근 불가
-                .secure(false)             // HTTPS 사용시 true
+                .secure(true)             // HTTPS 사용시 true
                 .sameSite("None")          // CrossSite 요청 고려 시 "None"
                 .path("/")
                 .maxAge(Duration.ofSeconds(maxAgeSeconds))
