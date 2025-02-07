@@ -10,9 +10,9 @@ spring:
     properties:
       hibernate:
         format_sql: true
-  redis:
-    host: redis
-    port: 6379
+#  redis:
+#    host: redis
+#    port: 6379
     # password: # 운영 Redis 비번
   mail:
     host: smtp.gmail.com
