@@ -10,12 +10,10 @@ spring:
     properties:
       hibernate:
         format_sql: true
-
   redis:
     host: redis
     port: 6379
     # password: # 운영 Redis 비번
-
   mail:
     host: smtp.gmail.com
     port: 587
@@ -30,17 +28,14 @@ spring:
             enable: true
           ssl:
             trust: smtp.gmail.com
-
   kafka:
     bootstrap-servers: kafka:9092
     consumer:
       group-id: "my-group"
       auto-offset-reset: "earliest"
-
   elasticsearch:
 #    uris: http://elasticsearch:9200
     uris: http://13.125.230.26:9200
-
   batch:
     jdbc:
       initialize-schema: never # 운영에선 직접 관리
