@@ -56,6 +56,7 @@ public class AuthController {
         } catch (IllegalArgumentException e) {
             return ResponseEntity.status(401).body(e.getMessage());
         } catch (Exception e) {
+            e.printStackTrace();
             return ResponseEntity.status(500).body("로그인 처리 중 오류 발생");
         }
     }
