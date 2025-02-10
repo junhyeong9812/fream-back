@@ -21,7 +21,7 @@ import java.nio.file.Files;
 import java.nio.file.Paths;
 
 @RestController
-@RequestMapping("/products")
+@RequestMapping("/products/query")
 @RequiredArgsConstructor
 public class ProductQueryController {
 
