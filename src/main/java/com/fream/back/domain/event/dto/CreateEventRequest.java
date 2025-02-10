@@ -1,4 +1,4 @@
-package com.fream.back.event.dto;
+package com.fream.back.domain.event.dto;
 
 import lombok.Getter;
 import lombok.Setter;

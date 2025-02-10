@@ -1,6 +1,6 @@
-package com.fream.back.event.repository;
+package com.fream.back.domain.event.repository;
 
-import com.fream.back.event.entity.SimpleImage;
+import com.fream.back.domain.event.entity.SimpleImage;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;

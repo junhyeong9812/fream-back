@@ -1,13 +1,13 @@
-package com.fream.back.event.service.command;
+package com.fream.back.domain.event.service.command;
 
+import com.fream.back.domain.event.dto.UpdateEventRequest;
+import com.fream.back.domain.event.entity.Event;
+import com.fream.back.domain.event.service.query.SimpleImageQueryService;
 import com.fream.back.domain.product.entity.Brand;
 import com.fream.back.domain.product.service.brand.BrandQueryService;
-import com.fream.back.event.dto.CreateEventRequest;
-import com.fream.back.event.dto.UpdateEventRequest;
-import com.fream.back.event.entity.Event;
-import com.fream.back.event.entity.SimpleImage;
-import com.fream.back.event.repository.EventRepository;
-import com.fream.back.event.service.query.SimpleImageQueryService;
+import com.fream.back.domain.event.dto.CreateEventRequest;
+import com.fream.back.domain.event.entity.SimpleImage;
+import com.fream.back.domain.event.repository.EventRepository;
 import com.fream.back.global.utils.FileUtils;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;

@@ -16,7 +16,7 @@ import org.springframework.web.multipart.MultipartFile;
 import java.util.List;
 
 @RestController
-@RequestMapping("/api/product-colors")
+@RequestMapping("/product-colors")
 @RequiredArgsConstructor
 public class ProductColorCommandController {
 

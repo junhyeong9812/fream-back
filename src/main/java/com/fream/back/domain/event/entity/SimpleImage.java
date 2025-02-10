@@ -1,4 +1,4 @@
-package com.fream.back.event.entity;
+package com.fream.back.domain.event.entity;
 
 import jakarta.persistence.*;
 import lombok.AllArgsConstructor;

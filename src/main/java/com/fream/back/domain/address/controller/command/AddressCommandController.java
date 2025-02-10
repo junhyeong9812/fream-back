@@ -10,7 +10,7 @@ import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.*;
 
 @RestController
-@RequestMapping("/api/addresses")
+@RequestMapping("/addresses")
 @RequiredArgsConstructor
 public class AddressCommandController {
 

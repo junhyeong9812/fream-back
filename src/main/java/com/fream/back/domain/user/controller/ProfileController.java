@@ -18,7 +18,7 @@ import java.nio.file.Files;
 import java.nio.file.Paths;
 
 @RestController
-@RequestMapping("/api/profiles")
+@RequestMapping("/profiles")
 @RequiredArgsConstructor
 public class ProfileController {
 

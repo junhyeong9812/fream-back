@@ -1,8 +1,8 @@
-package com.fream.back.event.service.command;
+package com.fream.back.domain.event.service.command;
 
-import com.fream.back.event.entity.Event;
-import com.fream.back.event.entity.SimpleImage;
-import com.fream.back.event.repository.SimpleImageRepository;
+import com.fream.back.domain.event.entity.Event;
+import com.fream.back.domain.event.entity.SimpleImage;
+import com.fream.back.domain.event.repository.SimpleImageRepository;
 import com.fream.back.global.utils.FileUtils;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;

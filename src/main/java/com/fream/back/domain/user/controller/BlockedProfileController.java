@@ -13,7 +13,7 @@ import java.util.List;
 import java.util.Map;
 
 @RestController
-@RequestMapping("/api/profiles/blocked")
+@RequestMapping("/profiles/blocked")
 @RequiredArgsConstructor
 public class BlockedProfileController {
 

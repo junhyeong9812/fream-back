@@ -13,7 +13,7 @@ import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.web.bind.annotation.*;
 
 @RestController
-@RequestMapping("/api/bank-account")
+@RequestMapping("/bank-account")
 @RequiredArgsConstructor
 public class BankAccountController {
     private final BankAccountCommandService bankAccountCommandService;

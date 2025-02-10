@@ -1,7 +1,7 @@
-package com.fream.back.event.service.query;
+package com.fream.back.domain.event.service.query;
 
-import com.fream.back.event.entity.SimpleImage;
-import com.fream.back.event.repository.SimpleImageRepository;
+import com.fream.back.domain.event.entity.SimpleImage;
+import com.fream.back.domain.event.repository.SimpleImageRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;

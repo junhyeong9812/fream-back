@@ -1,9 +1,9 @@
-package com.fream.back.event.controller.command;
+package com.fream.back.domain.event.controller.command;
 
+import com.fream.back.domain.event.dto.CreateEventRequest;
+import com.fream.back.domain.event.dto.UpdateEventRequest;
+import com.fream.back.domain.event.service.command.EventCommandService;
 import com.fream.back.domain.user.service.query.UserQueryService;
-import com.fream.back.event.dto.CreateEventRequest;
-import com.fream.back.event.dto.UpdateEventRequest;
-import com.fream.back.event.service.command.EventCommandService;
 import com.fream.back.global.utils.SecurityUtils;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpHeaders;
@@ -16,7 +16,7 @@ import java.util.List;
 
 @RestController
 @RequiredArgsConstructor
-@RequestMapping("/api/events")
+@RequestMapping("/events")
 public class EventCommandController {
 
     private final EventCommandService eventCommandService;

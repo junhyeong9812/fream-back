@@ -1,8 +1,8 @@
-package com.fream.back.event.repository;
+package com.fream.back.domain.event.repository;
 
 
+import com.fream.back.domain.event.entity.Event;
 import com.fream.back.domain.product.entity.Brand;
-import com.fream.back.event.entity.Event;
 import org.springframework.data.jpa.repository.JpaRepository;
 
 import java.time.LocalDateTime;
