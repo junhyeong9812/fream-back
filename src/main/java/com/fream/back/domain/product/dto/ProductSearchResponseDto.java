@@ -13,6 +13,7 @@ public class ProductSearchResponseDto {
     private Long id;
     private String name;
     private String englishName;
+    private String brandName;    // 브랜드명 추가
     private int releasePrice;
     private String thumbnailImageUrl; // 대표 이미지 URL
     private Integer price; // 가장 낮은 구매가 추가

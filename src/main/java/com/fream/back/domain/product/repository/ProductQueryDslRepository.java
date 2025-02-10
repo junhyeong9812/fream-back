@@ -65,6 +65,7 @@ public class ProductQueryDslRepository {
         QProductColor productColor = QProductColor.productColor;
         QProductSize productSize = QProductSize.productSize;
         QInterest interest = QInterest.interest;
+        QBrand brand = QBrand.brand;
 
         System.out.println("Keyword: " + keyword);
         System.out.println("Category IDs: " + categoryIds);
@@ -86,10 +87,12 @@ public class ProductQueryDslRepository {
                         productColor.colorName,
                         productColor.thumbnailImage.imageUrl,
                         productSize.purchasePrice.min(), // 최소 구매가
-                        interest.count() // 관심 수
+                        interest.count(), // 관심 수
+                        product.brand.name
                 )
                 .from(product)
                 .leftJoin(product.colors, productColor)
+                .leftJoin(product.brand, brand)  // 브랜드 조인
                 .leftJoin(productColor.thumbnailImage, QProductImage.productImage) // Thumbnail 이미지 조인 추가
                 .leftJoin(productColor.sizes, productSize)
                 .leftJoin(productColor.interests, interest)
@@ -166,6 +169,7 @@ public class ProductQueryDslRepository {
                         .colorName(tuple.get(productColor.colorName))
                         .price(tuple.get(productSize.purchasePrice.min()))
                         .interestCount(tuple.get(interest.count()))
+                        .brandName(tuple.get(product.brand.name))
                         .build())
                 .toList();
         System.out.println("content = " + content);
@@ -378,7 +382,8 @@ public class ProductQueryDslRepository {
                         productColor.colorName,
                         productColor.thumbnailImage.imageUrl,
                         productSize.purchasePrice.min(), // 최저 구매가
-                        interest.count()                 // 관심 수
+                        interest.count(),                 // 관심 수
+                        product.brand.name
                 )
                 .from(product)
                 .leftJoin(product.colors, productColor)
@@ -429,6 +434,7 @@ public class ProductQueryDslRepository {
                         .thumbnailImageUrl(tuple.get(productColor.thumbnailImage.imageUrl))
                         .price(tuple.get(productSize.purchasePrice.min()))
                         .interestCount(tuple.get(interest.count()))
+                        .brandName(tuple.get(product.brand.name))
                         .build())
                 .toList();
 

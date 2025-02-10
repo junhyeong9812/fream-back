@@ -318,10 +318,10 @@ public class DataInitializer implements CommandLineRunner {
                                     .build()
                     );
 
-                    String imageName = "thumbnail_" + product.getId() + "_" + color.name().toLowerCase() + ".jpg";
+                    String imageName = "thumbnail_" + product.getId() + "_" + color.name().toUpperCase() + ".jpg";
                     ProductImage thumbnail = productImageRepository.save(
                             ProductImage.builder()
-                                    .imageUrl("/api/products/" + product.getId() + "/images?imageName=" + imageName)
+                                    .imageUrl("https://www.pinjun.xyz/api/products/query/" + product.getId() + "/images?imageName=" + imageName)
                                     .productColor(productColor)
                                     .build()
                     );
