@@ -110,7 +110,6 @@ public class DataInitializer implements CommandLineRunner {
         createFAQData();
         createInspectionStandardData();
         createNotificationData(user1, user2, admin);
-        createProductData();
 
         List<ProductSize> productSizes = productSizeRepository.findAll();
 
