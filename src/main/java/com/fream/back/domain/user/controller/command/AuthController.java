@@ -12,6 +12,7 @@ import jakarta.servlet.http.Cookie;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import lombok.RequiredArgsConstructor;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseCookie;
 import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Controller;
@@ -59,6 +60,14 @@ public class AuthController {
             e.printStackTrace();
             return ResponseEntity.status(500).body("로그인 처리 중 오류 발생");
         }
+    }
+    @GetMapping("/email")
+    public ResponseEntity<String> getUserEmail(@CookieValue(name = "ACCESS_TOKEN") String accessToken) {
+        if (!jwtTokenProvider.validateToken(accessToken)) {
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body("Invalid token");
+        }
+        String email = jwtTokenProvider.getEmailFromToken(accessToken);
+        return ResponseEntity.ok(email);
     }
 
     /**
