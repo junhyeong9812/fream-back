@@ -263,6 +263,7 @@ public class ProductQueryDslRepository {
         QProductSize productSize = QProductSize.productSize;
         QProductImage productImage = QProductImage.productImage;
         QInterest interest = QInterest.interest;
+        QBrand brand = QBrand.brand;
 
         // 기본 정보와 썸네일 이미지 조인
         Tuple result = queryFactory.select(
@@ -274,10 +275,12 @@ public class ProductQueryDslRepository {
                         productColor.colorName,
                         productImage.imageUrl, // 썸네일 이미지 URL
                         productColor.content,
-                        interest.count()
+                        interest.count(),
+                        product.brand.name
                 )
                 .from(product)
                 .leftJoin(product.colors, productColor)
+                .leftJoin(product.brand, brand)
                 .leftJoin(productColor.thumbnailImage, productImage) // 썸네일 이미지 조인
                 .leftJoin(productColor.interests, interest)
                 .where(
@@ -303,6 +306,7 @@ public class ProductQueryDslRepository {
         String thumbnailImageUrl = result.get(productImage.imageUrl); // 썸네일 이미지 URL 가져오기
         String content = result.get(productColor.content);
         Long interestCount = result.get(interest.count());
+        String brandName=result.get(product.brand.name);
 
         // ProductSize 정보 리스트 생성
         List<ProductDetailResponseDto.SizeDetailDto> sizeDetails = queryFactory
@@ -348,6 +352,7 @@ public class ProductQueryDslRepository {
                 .englishName(englishName)
                 .releasePrice(releasePrice)
                 .thumbnailImageUrl(thumbnailImageUrl)
+                .brandName(brandName)
                 .colorId(colorId)
                 .colorName(colorName)
                 .content(content)
