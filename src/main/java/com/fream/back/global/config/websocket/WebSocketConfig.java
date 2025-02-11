@@ -33,7 +33,7 @@ public class WebSocketConfig implements WebSocketMessageBrokerConfigurer {
     @Override
     public void registerStompEndpoints(StompEndpointRegistry registry) {
         registry.addEndpoint("/ws")
-                .setAllowedOrigins("*")
+                .setAllowedOrigins("https://www.pinjun.xyz")
                 .addInterceptors(new WebSocketAuthInterceptor(userRepository, jwtTokenProvider, redisTemplate))
                 .withSockJS();
     }
