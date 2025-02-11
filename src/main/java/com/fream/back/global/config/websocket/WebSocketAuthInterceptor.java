@@ -2,6 +2,8 @@ package com.fream.back.global.config.websocket;
 
 import com.fream.back.domain.user.repository.UserRepository;
 import com.fream.back.global.config.security.JwtTokenProvider;
+import jakarta.servlet.http.Cookie;
+import jakarta.servlet.http.HttpServletRequest;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.data.redis.core.RedisTemplate;
@@ -38,13 +40,30 @@ public class WebSocketAuthInterceptor implements HandshakeInterceptor {
             Map<String, Object> attributes) throws Exception {
 
         try {
-            // JWT 토큰에서 이메일 추출
-            String token = ((ServletServerHttpRequest) request).getServletRequest().getParameter("token");
-            if (token == null || !jwtTokenProvider.validateToken(token)) {
+            // 쿠키에서 Access Token 추출
+            String accessToken = null;
+            if (request instanceof ServletServerHttpRequest) {
+                HttpServletRequest servletRequest =
+                        ((ServletServerHttpRequest) request).getServletRequest();
+
+                Cookie[] cookies = servletRequest.getCookies();
+                if (cookies != null) {
+                    for (Cookie cookie : cookies) {
+                        if ("ACCESS_TOKEN".equals(cookie.getName())) {
+                            accessToken = cookie.getValue();
+                            break;
+                        }
+                    }
+                }
+            }
+
+            // 토큰 유효성 검증
+            if (accessToken == null || !jwtTokenProvider.validateToken(accessToken)) {
                 throw new IllegalArgumentException("유효하지 않은 토큰입니다.");
             }
 
-            String email = jwtTokenProvider.getEmailFromToken(token);
+            // 토큰에서 이메일 추출
+            String email = jwtTokenProvider.getEmailFromToken(accessToken);
 
             // 이메일이 존재하는지 확인
             userRepository.findByEmail(email)
