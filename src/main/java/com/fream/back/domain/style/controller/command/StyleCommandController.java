@@ -12,7 +12,7 @@ import org.springframework.web.multipart.MultipartFile;
 import java.util.List;
 
 @RestController
-@RequestMapping("/api/styles/commands")
+@RequestMapping("/styles/commands")
 @RequiredArgsConstructor
 public class StyleCommandController {
 

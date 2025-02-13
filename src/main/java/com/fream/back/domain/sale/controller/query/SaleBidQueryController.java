@@ -10,7 +10,7 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.web.bind.annotation.*;
 
 @RestController
-@RequestMapping("/api/sale-bids") // 공통 경로를 클래스 레벨로 이동
+@RequestMapping("/sale-bids") // 공통 경로를 클래스 레벨로 이동
 @RequiredArgsConstructor
 public class SaleBidQueryController {
 

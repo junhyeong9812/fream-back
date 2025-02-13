@@ -10,7 +10,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 @RestController
-@RequestMapping("/api/styles/comments/commands")
+@RequestMapping("/styles/comments/commands")
 @RequiredArgsConstructor
 public class StyleCommentCommandController {
 

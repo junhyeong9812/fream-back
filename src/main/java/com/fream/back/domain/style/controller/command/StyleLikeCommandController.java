@@ -10,7 +10,7 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
 @RestController
-@RequestMapping("/api/styles/likes/commands")
+@RequestMapping("/styles/likes/commands")
 @RequiredArgsConstructor
 public class StyleLikeCommandController {
 

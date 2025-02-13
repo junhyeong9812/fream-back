@@ -39,6 +39,12 @@ import com.fream.back.domain.shipment.entity.SellerShipment;
 import com.fream.back.domain.shipment.entity.ShipmentStatus;
 import com.fream.back.domain.shipment.repository.SellerShipmentRepository;
 import com.fream.back.domain.shipment.service.command.OrderShipmentCommandService;
+import com.fream.back.domain.style.entity.MediaUrl;
+import com.fream.back.domain.style.entity.Style;
+import com.fream.back.domain.style.entity.StyleOrderItem;
+import com.fream.back.domain.style.repository.MediaUrlRepository;
+import com.fream.back.domain.style.repository.StyleOrderItemRepository;
+import com.fream.back.domain.style.repository.StyleRepository;
 import com.fream.back.domain.user.entity.*;
 import com.fream.back.domain.user.repository.BankAccountRepository;
 import com.fream.back.domain.user.repository.UserRepository;
@@ -86,6 +92,9 @@ public class DataInitializer implements CommandLineRunner {
     private final PaymentRepository paymentRepository;
     private final AddressRepository addressRepository;
     private final BankAccountRepository bankAccountRepository;
+    private final StyleRepository styleRepository;
+    private final MediaUrlRepository mediaUrlRepository;
+    private final StyleOrderItemRepository styleOrderItemRepository;
 
     @Override
     public void run(String... args) {
@@ -110,7 +119,7 @@ public class DataInitializer implements CommandLineRunner {
         createFAQData();
         createInspectionStandardData();
         createNotificationData(user1, user2, admin);
-
+        createStyleData(user1, user2);
         List<ProductSize> productSizes = productSizeRepository.findAll();
 
         // Create OrderBid and SaleBid for user1
@@ -550,6 +559,58 @@ public class DataInitializer implements CommandLineRunner {
 
         bankAccountRepository.save(bankAccount);
     }
+    private void createStyleData(User user1, User user2) {
+        List<OrderItem> user1OrderItems = orderItemRepository.findAll().stream()
+                .filter(item -> item.getOrder().getUser().equals(user1))
+                .limit(10)
+                .toList();
+
+        List<OrderItem> user2OrderItems = orderItemRepository.findAll().stream()
+                .filter(item -> item.getOrder().getUser().equals(user2))
+                .limit(10)
+                .toList();
+
+        // Create styles for user1
+        createStylesForUser(user1, user1OrderItems, 1);
+        // Create styles for user2
+        createStylesForUser(user2, user2OrderItems, 11);
+    }
+
+    private void createStylesForUser(User user, List<OrderItem> orderItems, int startIndex) {
+        Profile profile = user.getProfile();
+
+        for (int i = 0; i < 10; i++) {
+            Style style = Style.builder()
+                    .profile(profile)
+                    .content("안녕하세요! 오늘의 스타일을 공유합니다 #데일리룩 #fashion #ootd #" + (i + 1))
+                    .viewCount(0L)
+                    .build();
+
+            style.assignProfile(profile);
+            Style savedStyle = styleRepository.save(style);
+
+            // Create MediaUrl entries for each style (3 images per style)
+            for (int j = 1; j <= 3; j++) {
+                MediaUrl mediaUrl = MediaUrl.builder()
+                        .url("media_" + (startIndex + i) + "_" + j + ".jpg")
+                        .style(savedStyle)
+                        .build();
+                mediaUrl.assignStyle(savedStyle);
+                mediaUrlRepository.save(mediaUrl);
+            }
+
+            // Associate OrderItems with Style
+            OrderItem orderItem = orderItems.get(i % orderItems.size());
+            StyleOrderItem styleOrderItem = StyleOrderItem.builder()
+                    .style(savedStyle)
+                    .orderItem(orderItem)
+                    .build();
+            styleOrderItem.assignStyle(savedStyle);
+            styleOrderItem.assignOrderItem(orderItem);
+            styleOrderItemRepository.save(styleOrderItem);
+        }
+    }
+
 }
 
 
