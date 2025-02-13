@@ -528,6 +528,7 @@ public class DataInitializer implements CommandLineRunner {
         WarehouseStorage warehouseStorage = warehouseStorageCommandService.createOrderStorage(order, user);
         order.assignWarehouseStorage(warehouseStorage);
         order.updateStatus(OrderStatus.IN_WAREHOUSE);
+        order.updateStatus(OrderStatus.COMPLETED);
 
         saleBid.assignOrder(order);
         saleBid.updateStatus(com.fream.back.domain.sale.entity.BidStatus.MATCHED);
@@ -560,36 +561,47 @@ public class DataInitializer implements CommandLineRunner {
         bankAccountRepository.save(bankAccount);
     }
     private void createStyleData(User user1, User user2) {
-        List<OrderItem> user1OrderItems = orderItemRepository.findAll().stream()
-                .filter(item -> item.getOrder().getUser().equals(user1))
-                .limit(10)
+        // 구매 완료되고 창고 보관 중인 주문의 OrderItem만 필터링
+        List<OrderItem> user1CompletedOrderItems = orderItemRepository.findAll().stream()
+                .filter(item -> item.getOrder().getUser().equals(user1)
+                        && item.getOrder().getStatus() == OrderStatus.COMPLETED
+                        && item.getOrder().getWarehouseStorage() != null)
+                .limit(1)  // 1개만 가져오기
                 .toList();
 
-        List<OrderItem> user2OrderItems = orderItemRepository.findAll().stream()
-                .filter(item -> item.getOrder().getUser().equals(user2))
-                .limit(10)
+        List<OrderItem> user2CompletedOrderItems = orderItemRepository.findAll().stream()
+                .filter(item -> item.getOrder().getUser().equals(user2)
+                        && item.getOrder().getStatus() == OrderStatus.COMPLETED
+                        && item.getOrder().getWarehouseStorage() != null)
+                .limit(1)  // 1개만 가져오기
                 .toList();
 
-        // Create styles for user1
-        createStylesForUser(user1, user1OrderItems, 1);
-        // Create styles for user2
-        createStylesForUser(user2, user2OrderItems, 11);
+        if (!user1CompletedOrderItems.isEmpty()) {
+            createStylesForUser(user1, user1CompletedOrderItems.get(0), 1);
+        }
+        if (!user2CompletedOrderItems.isEmpty()) {
+            createStylesForUser(user2, user2CompletedOrderItems.get(0), 21);  // user1 다음 번호부터 시작
+        }
     }
 
-    private void createStylesForUser(User user, List<OrderItem> orderItems, int startIndex) {
+    private void createStylesForUser(User user, OrderItem orderItem, int startIndex) {
         Profile profile = user.getProfile();
+        Product product = orderItem.getProductSize().getProductColor().getProduct();
+        String productName = product.getName();
 
-        for (int i = 0; i < 10; i++) {
+        // 20개의 스타일 생성
+        for (int i = 0; i < 20; i++) {
             Style style = Style.builder()
                     .profile(profile)
-                    .content("안녕하세요! 오늘의 스타일을 공유합니다 #데일리룩 #fashion #ootd #" + (i + 1))
+                    .content("안녕하세요! " + productName + "와 함께한 " + (i + 1) + "번째 스타일을 공유합니다 " +
+                            "#데일리룩 #fashion #ootd #" + product.getBrand().getName())
                     .viewCount(0L)
                     .build();
 
             style.assignProfile(profile);
             Style savedStyle = styleRepository.save(style);
 
-            // Create MediaUrl entries for each style (3 images per style)
+            // 각 스타일마다 3개의 이미지
             for (int j = 1; j <= 3; j++) {
                 MediaUrl mediaUrl = MediaUrl.builder()
                         .url("media_" + (startIndex + i) + "_" + j + ".jpg")
@@ -599,8 +611,7 @@ public class DataInitializer implements CommandLineRunner {
                 mediaUrlRepository.save(mediaUrl);
             }
 
-            // Associate OrderItems with Style
-            OrderItem orderItem = orderItems.get(i % orderItems.size());
+            // 동일한 OrderItem을 모든 스타일에 연결
             StyleOrderItem styleOrderItem = StyleOrderItem.builder()
                     .style(savedStyle)
                     .orderItem(orderItem)

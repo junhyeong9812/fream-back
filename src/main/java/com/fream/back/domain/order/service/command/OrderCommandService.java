@@ -88,11 +88,15 @@ public class OrderCommandService {
         // 4. 상태 업데이트
         if (requestDto.isWarehouseStorage()) {
             // 창고 보관일 경우
-            WarehouseStorage warehouseStorage = warehouseStorageCommandService.createOrderStorage(order, user);
-            order.assignWarehouseStorage(warehouseStorage);
+//            WarehouseStorage warehouseStorage = warehouseStorageCommandService.createOrderStorage(order, user);
+//            order.assignWarehouseStorage(warehouseStorage);
             order.updateStatus(OrderStatus.PAYMENT_COMPLETED);
             order.updateStatus(OrderStatus.PREPARING);
             order.updateStatus(OrderStatus.IN_WAREHOUSE);
+            // 창고 보관 처리 추가
+            WarehouseStorage warehouseStorage = warehouseStorageCommandService.createOrderStorage(order, user);
+            order.assignWarehouseStorage(warehouseStorage);
+            order.updateStatus(OrderStatus.COMPLETED);  // 주문 완료 상태로 변경
         } else {
             // 실제 배송일 경우
             order.updateStatus(OrderStatus.PAYMENT_COMPLETED);
