@@ -30,6 +30,7 @@ public class ProfileQueryService {
                 profile.getProfileImageUrl(),
                 profile.getProfileName(),
                 profile.getName(),
+                email,
                 profile.getBio(),
                 profile.isPublic(),
                 blockedProfiles
