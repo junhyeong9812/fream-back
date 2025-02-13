@@ -20,7 +20,7 @@ public enum OrderStatus {
             case PREPARING:
                 return newStatus == IN_WAREHOUSE || newStatus == SHIPMENT_STARTED;
             case IN_WAREHOUSE:
-                return newStatus == SHIPMENT_STARTED; // 창고 보관에서 배송 시작 가능
+                return newStatus == SHIPMENT_STARTED || newStatus == COMPLETED; // 창고 보관에서 완료도 가능하도록 수정
             case SHIPMENT_STARTED:
                 return newStatus == IN_TRANSIT;
             case IN_TRANSIT:
