@@ -10,6 +10,7 @@ import java.util.List;
 @NoArgsConstructor
 @AllArgsConstructor
 public class ProfileInfoDto {
+    private Long profileId;             // 프로필 ID
     private String profileImage;      // 프로필 이미지 경로
     private String profileName;       // 프로필 이름
     private String realName;          // 이름

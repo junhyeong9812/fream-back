@@ -27,6 +27,7 @@ public class ProfileQueryService {
 
 
         return new ProfileInfoDto(
+                profile.getId(),
                 profile.getProfileImageUrl(),
                 profile.getProfileName(),
                 profile.getName(),
