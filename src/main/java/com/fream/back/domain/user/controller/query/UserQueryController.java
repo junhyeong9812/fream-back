@@ -151,75 +151,11 @@ public class UserQueryController {
         }
     }
 
-    // 로그인 정보 변경
-    @PutMapping("/update-login-info")
-    public ResponseEntity<Map<String, String>> updateLoginInfo(
-            @RequestHeader("Authorization") String authorizationHeader,
-            @RequestHeader(value = "RefreshToken", required = false) String refreshTokenHeader,
-            @RequestBody LoginInfoUpdateDto dto,
-            HttpServletRequest request) {
-        try {
-            // "X-Forwarded-For" 헤더 확인 (프록시나 로드 밸런서가 설정한 IP)
-            String ip = request.getHeader("X-Forwarded-For");
-            if (ip == null || ip.isEmpty()) {
-                // 2) Fallback: 직접 연결된 소켓의 IP
-                ip = request.getRemoteAddr();
-            }
-            // 1) 현재 이메일(= oldEmail) 추출
-            String oldEmail = SecurityUtils.extractEmailFromSecurityContext();
 
-            // 2) DTO 검증 (비밀번호, 새 이메일 형식, 새 전화번호 정규식 등)
-            UserControllerValidator.validateLoginInfoUpdateDto(dto);
-
-            // 3) 로그인 정보 업데이트 (이메일/비밀번호 등)
-            //    예외 발생 시 IllegalArgumentException 던짐
-            userUpdateService.updateLoginInfo(oldEmail, dto);
-
-            // 4) 새 이메일 플래그 체크
-            String newEmail = dto.getNewEmail();
-            boolean emailChanged = (newEmail != null && !newEmail.isBlank() && !newEmail.equals(oldEmail));
-
-            // 5) 이메일 변경 시 → 토큰 재발급
-            if (emailChanged) {
-                // 5-1) 기존 토큰
-                String oldAccessToken = authorizationHeader.replace("Bearer ", "");
-                String oldRefreshToken = (refreshTokenHeader != null)
-                        ? refreshTokenHeader.replace("Bearer ", "")
-                        : null;
-
-                // 5-2) userUpdateService 쪽 메서드 호출로 기존 토큰 제거 & 새 토큰 발급
-                //      (newEmail 로 DB 다시 조회하여 나이, 성별 꺼낸 다음 TokenPair 생성)
-                TokenDto newTokens = userUpdateService.reissueTokenAfterEmailChange(
-                        oldAccessToken, oldRefreshToken, oldEmail, newEmail,ip
-                );
-
-                // 5-3) 응답에 새 토큰 담아서 반환
-                Map<String, String> response = new HashMap<>();
-                response.put("status", "success");
-                response.put("message", "로그인 정보가 성공적으로 변경되었습니다.");
-                response.put("accessToken", newTokens.getAccessToken());
-                response.put("refreshToken", newTokens.getRefreshToken());
-
-                return ResponseEntity.ok(response);
-            }
-
-            // 이메일 변경 안 됐으면 그냥 메시지 반환
-            return ResponseEntity.ok(Map.of(
-                    "status", "success",
-                    "message", "로그인 정보가 성공적으로 변경되었습니다."
-            ));
-        } catch (IllegalArgumentException e) {
-            return ResponseEntity.badRequest()
-                    .body(Map.of("status", "error", "message", e.getMessage()));
-        } catch (Exception e) {
-            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
-                    .body(Map.of("status", "error", "message", "로그인 정보 변경 처리 중 문제가 발생했습니다."));
-        }
-    }
 
     //로그인 정보 조회
     @GetMapping("/login-info")
-    public ResponseEntity<LoginInfoDto> getLoginInfo(@RequestHeader("Authorization") String authorizationHeader) {
+    public ResponseEntity<LoginInfoDto> getLoginInfo() {
         try {
             // SecurityContext에서 이메일 추출
             String email = SecurityUtils.extractEmailFromSecurityContext();
@@ -237,7 +173,7 @@ public class UserQueryController {
 
     //회원 삭제
     @DeleteMapping("/delete-account")
-    public ResponseEntity<Map<String, String>> deleteAccount(@RequestHeader("Authorization") String authorizationHeader) {
+    public ResponseEntity<Map<String, String>> deleteAccount() {
         try {
             // SecurityContext에서 이메일 추출
             String email = SecurityUtils.extractEmailFromSecurityContext();
@@ -254,5 +190,70 @@ public class UserQueryController {
         }
     }
 
+    // 로그인 정보 변경
+//    @PutMapping("/update-login-info")
+//    public ResponseEntity<Map<String, String>> updateLoginInfo(
+//            @RequestHeader("Authorization") String authorizationHeader,
+//            @RequestHeader(value = "RefreshToken", required = false) String refreshTokenHeader,
+//            @RequestBody LoginInfoUpdateDto dto,
+//            HttpServletRequest request) {
+//        try {
+//            // "X-Forwarded-For" 헤더 확인 (프록시나 로드 밸런서가 설정한 IP)
+//            String ip = request.getHeader("X-Forwarded-For");
+//            if (ip == null || ip.isEmpty()) {
+//                // 2) Fallback: 직접 연결된 소켓의 IP
+//                ip = request.getRemoteAddr();
+//            }
+//            // 1) 현재 이메일(= oldEmail) 추출
+//            String oldEmail = SecurityUtils.extractEmailFromSecurityContext();
+//
+//            // 2) DTO 검증 (비밀번호, 새 이메일 형식, 새 전화번호 정규식 등)
+//            UserControllerValidator.validateLoginInfoUpdateDto(dto);
+//
+//            // 3) 로그인 정보 업데이트 (이메일/비밀번호 등)
+//            //    예외 발생 시 IllegalArgumentException 던짐
+//            userUpdateService.updateLoginInfo(oldEmail, dto);
+//
+//            // 4) 새 이메일 플래그 체크
+//            String newEmail = dto.getNewEmail();
+//            boolean emailChanged = (newEmail != null && !newEmail.isBlank() && !newEmail.equals(oldEmail));
+//
+//            // 5) 이메일 변경 시 → 토큰 재발급
+//            if (emailChanged) {
+//                // 5-1) 기존 토큰
+//                String oldAccessToken = authorizationHeader.replace("Bearer ", "");
+//                String oldRefreshToken = (refreshTokenHeader != null)
+//                        ? refreshTokenHeader.replace("Bearer ", "")
+//                        : null;
+//
+//                // 5-2) userUpdateService 쪽 메서드 호출로 기존 토큰 제거 & 새 토큰 발급
+//                //      (newEmail 로 DB 다시 조회하여 나이, 성별 꺼낸 다음 TokenPair 생성)
+//                TokenDto newTokens = userUpdateService.reissueTokenAfterEmailChange(
+//                        oldAccessToken, oldRefreshToken, oldEmail, newEmail,ip
+//                );
+//
+//                // 5-3) 응답에 새 토큰 담아서 반환
+//                Map<String, String> response = new HashMap<>();
+//                response.put("status", "success");
+//                response.put("message", "로그인 정보가 성공적으로 변경되었습니다.");
+//                response.put("accessToken", newTokens.getAccessToken());
+//                response.put("refreshToken", newTokens.getRefreshToken());
+//
+//                return ResponseEntity.ok(response);
+//            }
+//
+//            // 이메일 변경 안 됐으면 그냥 메시지 반환
+//            return ResponseEntity.ok(Map.of(
+//                    "status", "success",
+//                    "message", "로그인 정보가 성공적으로 변경되었습니다."
+//            ));
+//        } catch (IllegalArgumentException e) {
+//            return ResponseEntity.badRequest()
+//                    .body(Map.of("status", "error", "message", e.getMessage()));
+//        } catch (Exception e) {
+//            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+//                    .body(Map.of("status", "error", "message", "로그인 정보 변경 처리 중 문제가 발생했습니다."));
+//        }
+//    }
 
 }
