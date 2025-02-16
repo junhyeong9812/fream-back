@@ -40,7 +40,7 @@ public class UserCommandController {
     }
 
     @PutMapping("/update")
-    public ResponseEntity<?> updateUserInfo(
+    public ResponseEntity<LoginInfoDto> updateUserInfo(
             @RequestBody LoginInfoUpdateDto updateDto,
             HttpServletRequest request,
             HttpServletResponse response) {
@@ -53,10 +53,6 @@ public class UserCommandController {
 
             // SecurityContext에서 현재 이메일 추출
             String currentEmail = SecurityUtils.extractEmailFromSecurityContext();
-
-            // 쿠키에서 토큰들 추출
-            String accessToken = getCookieValue(request, "ACCESS_TOKEN");
-            String refreshToken = getCookieValue(request, "REFRESH_TOKEN");
 
             // 이메일 변경 여부 확인
             boolean isEmailChanged = updateDto.getNewEmail() != null &&
@@ -72,6 +68,9 @@ public class UserCommandController {
 
             // 이메일이 변경된 경우 토큰 재발급
             if (isEmailChanged) {
+                String accessToken = getCookieValue(request, "ACCESS_TOKEN");
+                String refreshToken = getCookieValue(request, "REFRESH_TOKEN");
+
                 // 기존 토큰들 Redis에서 제거
                 if (accessToken != null) {
                     authRedisService.removeAccessToken(accessToken);
@@ -80,7 +79,7 @@ public class UserCommandController {
                     authRedisService.removeRefreshToken(refreshToken);
                 }
 
-                // 새로운 토큰 발급
+                // 새로운 토큰 발급 및 쿠키 설정
                 TokenDto newTokens = userUpdateService.reissueTokenAfterEmailChange(
                         null,
                         null,
@@ -89,24 +88,84 @@ public class UserCommandController {
                         ip
                 );
 
-                // 새로운 토큰을 쿠키에 설정
-                setCookie(response, "ACCESS_TOKEN", newTokens.getAccessToken(), 30 * 60); // 30분
-                setCookie(response, "REFRESH_TOKEN", newTokens.getRefreshToken(), 24 * 60 * 60); // 1일
+                setCookie(response, "ACCESS_TOKEN", newTokens.getAccessToken(), 30 * 60);
+                setCookie(response, "REFRESH_TOKEN", newTokens.getRefreshToken(), 24 * 60 * 60);
             }
 
             return ResponseEntity.ok(updatedInfo);
         } catch (IllegalArgumentException e) {
-            return ResponseEntity.badRequest().body(Map.of(
-                    "status", "error",
-                    "message", e.getMessage()
-            ));
-        } catch (Exception e) {
-            return ResponseEntity.internalServerError().body(Map.of(
-                    "status", "error",
-                    "message", "사용자 정보 업데이트 중 오류가 발생했습니다."
-            ));
+            throw new IllegalArgumentException(e.getMessage());
         }
     }
+
+//    @PutMapping("/update")
+//    public ResponseEntity<?> updateUserInfo(
+//            @RequestBody LoginInfoUpdateDto updateDto,
+//            HttpServletRequest request,
+//            HttpServletResponse response) {
+//        try {
+//            // IP 주소 추출
+//            String ip = request.getHeader("X-Forwarded-For");
+//            if (ip == null || ip.isEmpty()) {
+//                ip = request.getRemoteAddr();
+//            }
+//
+//            // SecurityContext에서 현재 이메일 추출
+//            String currentEmail = SecurityUtils.extractEmailFromSecurityContext();
+//
+//            // 쿠키에서 토큰들 추출
+//            String accessToken = getCookieValue(request, "ACCESS_TOKEN");
+//            String refreshToken = getCookieValue(request, "REFRESH_TOKEN");
+//
+//            // 이메일 변경 여부 확인
+//            boolean isEmailChanged = updateDto.getNewEmail() != null &&
+//                    !updateDto.getNewEmail().equals(currentEmail);
+//
+//            // 사용자 정보 업데이트
+//            userUpdateService.updateLoginInfo(currentEmail, updateDto);
+//
+//            // 변경된 정보 조회
+//            LoginInfoDto updatedInfo = userQueryService.getLoginInfo(
+//                    isEmailChanged ? updateDto.getNewEmail() : currentEmail
+//            );
+//
+//            // 이메일이 변경된 경우 토큰 재발급
+//            if (isEmailChanged) {
+//                // 기존 토큰들 Redis에서 제거
+//                if (accessToken != null) {
+//                    authRedisService.removeAccessToken(accessToken);
+//                }
+//                if (refreshToken != null) {
+//                    authRedisService.removeRefreshToken(refreshToken);
+//                }
+//
+//                // 새로운 토큰 발급
+//                TokenDto newTokens = userUpdateService.reissueTokenAfterEmailChange(
+//                        null,
+//                        null,
+//                        currentEmail,
+//                        updateDto.getNewEmail(),
+//                        ip
+//                );
+//
+//                // 새로운 토큰을 쿠키에 설정
+//                setCookie(response, "ACCESS_TOKEN", newTokens.getAccessToken(), 30 * 60); // 30분
+//                setCookie(response, "REFRESH_TOKEN", newTokens.getRefreshToken(), 24 * 60 * 60); // 1일
+//            }
+//
+//            return ResponseEntity.ok(updatedInfo);
+//        } catch (IllegalArgumentException e) {
+//            return ResponseEntity.badRequest().body(Map.of(
+//                    "status", "error",
+//                    "message", e.getMessage()
+//            ));
+//        } catch (Exception e) {
+//            return ResponseEntity.internalServerError().body(Map.of(
+//                    "status", "error",
+//                    "message", "사용자 정보 업데이트 중 오류가 발생했습니다."
+//            ));
+//        }
+//    }
 
     // 쿠키 관련 유틸리티 메서드들
     private String getCookieValue(HttpServletRequest request, String cookieName) {
