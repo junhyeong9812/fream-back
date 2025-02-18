@@ -35,7 +35,7 @@ spring:
       auto-offset-reset: "earliest"
   elasticsearch:
     # uris: http://elasticsearch:9200
-    uris: http://13.125.230.26:9200
+    uris: http://13.124.71.148:9200
   batch:
     jdbc:
       initialize-schema: never # 운영에선 직접 관리
