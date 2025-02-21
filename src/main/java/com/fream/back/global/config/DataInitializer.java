@@ -578,7 +578,7 @@ public class DataInitializer implements CommandLineRunner {
                 .filter(item -> item.getOrder().getUser().equals(user2)
                         && item.getOrder().getStatus() == OrderStatus.COMPLETED)
 //                        && item.getOrder().getWarehouseStorage() != null)
-                .limit(1)  // 1개만 가져오기
+                .limit(2)  // 1개만 가져오기
                 .toList();
 
 //        if (!user1CompletedOrderItems.isEmpty()) {
