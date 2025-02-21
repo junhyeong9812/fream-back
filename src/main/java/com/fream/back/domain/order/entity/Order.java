@@ -78,11 +78,12 @@ public class Order extends BaseTimeEntity {
 
 
     public void updateStatus(OrderStatus newStatus) {
-        if (this.status.canTransitionTo(newStatus)) {
-            this.status = newStatus;
-        } else {
-            throw new IllegalStateException("상태 전환이 허용되지 않습니다: " + this.status + " -> " + newStatus);
-        }
+        this.status = newStatus;
+//        if (this.status.canTransitionTo(newStatus)) {
+//            this.status = newStatus;
+//        } else {
+//            throw new IllegalStateException("상태 전환이 허용되지 않습니다: " + this.status + " -> " + newStatus);
+//        }
     }
     public void assignOrderBid(OrderBid orderBid) {
         this.orderBid = orderBid;
