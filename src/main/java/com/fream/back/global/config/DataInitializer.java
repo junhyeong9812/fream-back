@@ -56,6 +56,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.boot.CommandLineRunner;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.security.crypto.password.PasswordEncoder;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
 import java.util.Random;
@@ -96,6 +97,7 @@ public class DataInitializer implements CommandLineRunner {
     private final MediaUrlRepository mediaUrlRepository;
     private final StyleOrderItemRepository styleOrderItemRepository;
 
+    @Transactional
     @Override
     public void run(String... args) {
         // 사용자 생성
