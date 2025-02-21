@@ -565,72 +565,140 @@ public class DataInitializer implements CommandLineRunner {
 
         bankAccountRepository.save(bankAccount);
     }
-    private void createStyleData(User user1, User user2) {
-        // 구매 완료되고 창고 보관 중인 주문의 OrderItem만 필터링
-//        List<OrderItem> user1CompletedOrderItems = orderItemRepository.findAll().stream()
-//                .filter(item -> item.getOrder().getUser().equals(user1)
+//    private void createStyleData(User user1, User user2) {
+//        // 구매 완료되고 창고 보관 중인 주문의 OrderItem만 필터링
+////        List<OrderItem> user1CompletedOrderItems = orderItemRepository.findAll().stream()
+////                .filter(item -> item.getOrder().getUser().equals(user1)
+////                        && item.getOrder().getStatus() == OrderStatus.COMPLETED)
+//////                        && item.getOrder().getWarehouseStorage() != null)
+////                .limit(1)  // 1개만 가져오기
+////                .toList();
+//
+//        List<OrderItem> user2CompletedOrderItems = orderItemRepository.findAll().stream()
+//                .filter(item -> item.getOrder().getUser().equals(user2)
 //                        && item.getOrder().getStatus() == OrderStatus.COMPLETED)
 ////                        && item.getOrder().getWarehouseStorage() != null)
-//                .limit(1)  // 1개만 가져오기
+//                .limit(2)  // 1개만 가져오기
 //                .toList();
-
-        List<OrderItem> user2CompletedOrderItems = orderItemRepository.findAll().stream()
-                .filter(item -> item.getOrder().getUser().equals(user2)
-                        && item.getOrder().getStatus() == OrderStatus.COMPLETED)
-//                        && item.getOrder().getWarehouseStorage() != null)
-                .limit(2)  // 1개만 가져오기
-                .toList();
-
-//        if (!user1CompletedOrderItems.isEmpty()) {
-//            createStylesForUser(user1, user1CompletedOrderItems.get(0), 1);
+//
+////        if (!user1CompletedOrderItems.isEmpty()) {
+////            createStylesForUser(user1, user1CompletedOrderItems.get(0), 1);
+////        }
+//        if (!user2CompletedOrderItems.isEmpty()) {
+//            createStylesForUser(user2, user2CompletedOrderItems.get(0), 0);
+//            createStylesForUser(user2, user2CompletedOrderItems.get(1), 20);  // user1 다음 번호부터 시작
 //        }
-        if (!user2CompletedOrderItems.isEmpty()) {
-            createStylesForUser(user2, user2CompletedOrderItems.get(0), 0);
-            createStylesForUser(user2, user2CompletedOrderItems.get(1), 20);  // user1 다음 번호부터 시작
-        }
+//    }
+//
+//    private void createStylesForUser(User user, OrderItem orderItem, int startIndex) {
+//        Long profileId = user.getProfile().getId();  // Profile ID만 꺼냄
+//        Long productId = orderItem.getProductSize().getProductColor().getProduct().getId();  // Product ID만 꺼냄
+//
+//        // 리포지토리를 통해 다시 조회 (영속 상태 유지)
+//        Profile profile = profileRepository.findById(profileId)
+//                .orElseThrow(() -> new IllegalArgumentException("Profile not found with id: " + profileId));
+//        Product product = productRepository.findById(productId)
+//                .orElseThrow(() -> new IllegalArgumentException("Product not found with id: " + productId));
+//
+//        String productName = product.getName();
+//
+//        // 20개의 스타일 생성
+//        for (int i = 0; i < 20; i++) {
+//            Style style = Style.builder()
+//                    .profile(profile)
+//                    .content("안녕하세요! " + productName + "와 함께한 " + (i + 1) + "번째 스타일을 공유합니다 " +
+//                            "#데일리룩 #fashion #ootd #" + product.getBrand().getName())
+//                    .viewCount(0L)
+//                    .build();
+//
+//            style.assignProfile(profile);
+//
+//            // 각 스타일마다 3개의 이미지
+//            for (int j = 1; j <= 3; j++) {
+//                MediaUrl mediaUrl = MediaUrl.builder()
+//                        .url("media_" + (startIndex + i) + "_" + j + ".jpg")
+//                        .build();
+//                style.addMediaUrl(mediaUrl);
+//            }
+//
+//            // 동일한 OrderItem을 모든 스타일에 연결
+//            StyleOrderItem styleOrderItem = StyleOrderItem.builder()
+//                    .orderItem(orderItem)
+//                    .build();
+//            style.addStyleOrderItem(styleOrderItem);
+//
+//            styleRepository.save(style);
+//        }
+//    }
+private void createStyleData(User user1, User user2) {
+    // 명시적으로 영속성 컨텍스트에서 필요한 데이터를 먼저 로드
+    List<Order> completedOrders = orderRepository.findByUserAndStatus(user2, OrderStatus.COMPLETED);
+    if (completedOrders.isEmpty()) {
+        return;
     }
 
-    private void createStylesForUser(User user, OrderItem orderItem, int startIndex) {
-        Long profileId = user.getProfile().getId();  // Profile ID만 꺼냄
-        Long productId = orderItem.getProductSize().getProductColor().getProduct().getId();  // Product ID만 꺼냄
+    // Fetch all necessary data eagerly
+    List<OrderItem> completedOrderItems = orderItemRepository.findByOrderIn(completedOrders);
+    if (completedOrderItems.size() >= 2) {
+        OrderItem firstItem = completedOrderItems.get(0);
+        OrderItem secondItem = completedOrderItems.get(1);
 
-        // 리포지토리를 통해 다시 조회 (영속 상태 유지)
-        Profile profile = profileRepository.findById(profileId)
-                .orElseThrow(() -> new IllegalArgumentException("Profile not found with id: " + profileId));
-        Product product = productRepository.findById(productId)
-                .orElseThrow(() -> new IllegalArgumentException("Product not found with id: " + productId));
+        // Explicitly load all required relationships
+        Product firstProduct = productRepository.findById(
+                firstItem.getProductSize().getProductColor().getProduct().getId()).orElseThrow();
+        Product secondProduct = productRepository.findById(
+                secondItem.getProductSize().getProductColor().getProduct().getId()).orElseThrow();
 
+        Profile profile = profileRepository.findByUser(user2).orElseThrow();
+
+        // Create styles in separate transactions
+        createStylesForUserWithTransaction(profile, firstItem, firstProduct, 0);
+        createStylesForUserWithTransaction(profile, secondItem, secondProduct, 20);
+    }
+}
+
+    @Transactional
+    public void createStylesForUserWithTransaction(Profile profile, OrderItem orderItem, Product product, int startIndex) {
         String productName = product.getName();
 
-        // 20개의 스타일 생성
         for (int i = 0; i < 20; i++) {
+            // 1. Create and save Style first
             Style style = Style.builder()
                     .profile(profile)
-                    .content("안녕하세요! " + productName + "와 함께한 " + (i + 1) + "번째 스타일을 공유합니다 " +
-                            "#데일리룩 #fashion #ootd #" + product.getBrand().getName())
+                    .content("안녕하세요! " + productName + "와 함께한 " + (i + 1) +
+                            "번째 스타일을 공유합니다 #데일리룩 #fashion #ootd #" +
+                            product.getBrand().getName())
                     .viewCount(0L)
                     .build();
 
-            style.assignProfile(profile);
+            style = styleRepository.save(style);  // Save immediately to get ID
 
-            // 각 스타일마다 3개의 이미지
+            // 2. Create and associate MediaUrls
             for (int j = 1; j <= 3; j++) {
                 MediaUrl mediaUrl = MediaUrl.builder()
                         .url("media_" + (startIndex + i) + "_" + j + ".jpg")
                         .build();
-                style.addMediaUrl(mediaUrl);
+                mediaUrl.assignStyle(style);  // Set relationship before save
+                mediaUrlRepository.save(mediaUrl);
             }
 
-            // 동일한 OrderItem을 모든 스타일에 연결
+            // 3. Create and associate StyleOrderItem
             StyleOrderItem styleOrderItem = StyleOrderItem.builder()
                     .orderItem(orderItem)
                     .build();
-            style.addStyleOrderItem(styleOrderItem);
+            styleOrderItem.assignStyle(style);  // Set relationship before save
+            styleOrderItemRepository.save(styleOrderItem);
 
+            // 4. Set bi-directional relationship with Profile
+            style.assignProfile(profile);
+
+            // 5. Final save to ensure all relationships are persisted
             styleRepository.save(style);
+
+            // Add flush to ensure each style is completely persisted
+            styleRepository.flush();
         }
     }
-
 
 }
 
