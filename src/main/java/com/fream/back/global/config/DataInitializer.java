@@ -563,12 +563,12 @@ public class DataInitializer implements CommandLineRunner {
     }
     private void createStyleData(User user1, User user2) {
         // 구매 완료되고 창고 보관 중인 주문의 OrderItem만 필터링
-        List<OrderItem> user1CompletedOrderItems = orderItemRepository.findAll().stream()
-                .filter(item -> item.getOrder().getUser().equals(user1)
-                        && item.getOrder().getStatus() == OrderStatus.COMPLETED)
-//                        && item.getOrder().getWarehouseStorage() != null)
-                .limit(1)  // 1개만 가져오기
-                .toList();
+//        List<OrderItem> user1CompletedOrderItems = orderItemRepository.findAll().stream()
+//                .filter(item -> item.getOrder().getUser().equals(user1)
+//                        && item.getOrder().getStatus() == OrderStatus.COMPLETED)
+////                        && item.getOrder().getWarehouseStorage() != null)
+//                .limit(1)  // 1개만 가져오기
+//                .toList();
 
         List<OrderItem> user2CompletedOrderItems = orderItemRepository.findAll().stream()
                 .filter(item -> item.getOrder().getUser().equals(user2)
@@ -577,11 +577,12 @@ public class DataInitializer implements CommandLineRunner {
                 .limit(1)  // 1개만 가져오기
                 .toList();
 
-        if (!user1CompletedOrderItems.isEmpty()) {
-            createStylesForUser(user1, user1CompletedOrderItems.get(0), 1);
-        }
+//        if (!user1CompletedOrderItems.isEmpty()) {
+//            createStylesForUser(user1, user1CompletedOrderItems.get(0), 1);
+//        }
         if (!user2CompletedOrderItems.isEmpty()) {
-            createStylesForUser(user2, user2CompletedOrderItems.get(0), 21);  // user1 다음 번호부터 시작
+            createStylesForUser(user2, user2CompletedOrderItems.get(0), 0);
+            createStylesForUser(user2, user2CompletedOrderItems.get(1), 20);  // user1 다음 번호부터 시작
         }
     }
 
@@ -600,26 +601,29 @@ public class DataInitializer implements CommandLineRunner {
                     .build();
 
             style.assignProfile(profile);
-            Style savedStyle = styleRepository.save(style);
+//            Style savedStyle = styleRepository.save(style);
 
             // 각 스타일마다 3개의 이미지
             for (int j = 1; j <= 3; j++) {
                 MediaUrl mediaUrl = MediaUrl.builder()
                         .url("media_" + (startIndex + i) + "_" + j + ".jpg")
-                        .style(savedStyle)
+//                        .style(savedStyle)
                         .build();
-                mediaUrl.assignStyle(savedStyle);
-                mediaUrlRepository.save(mediaUrl);
+//                mediaUrl.assignStyle(savedStyle);
+//                mediaUrlRepository.save(mediaUrl);
+                style.addMediaUrl(mediaUrl);
             }
 
             // 동일한 OrderItem을 모든 스타일에 연결
             StyleOrderItem styleOrderItem = StyleOrderItem.builder()
-                    .style(savedStyle)
+//                    .style(savedStyle)
                     .orderItem(orderItem)
                     .build();
-            styleOrderItem.assignStyle(savedStyle);
-            styleOrderItem.assignOrderItem(orderItem);
-            styleOrderItemRepository.save(styleOrderItem);
+//            styleOrderItem.assignStyle(savedStyle);
+//            styleOrderItem.assignOrderItem(orderItem);
+//            styleOrderItemRepository.save(styleOrderItem);
+            style.addStyleOrderItem(styleOrderItem);
+            styleRepository.save(style);
         }
     }
 
