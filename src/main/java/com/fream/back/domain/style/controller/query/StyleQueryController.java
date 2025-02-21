@@ -16,7 +16,7 @@ import java.io.IOException;
 import java.nio.file.Files;
 
 @RestController
-@RequestMapping("/api/styles/queries")
+@RequestMapping("/styles/queries")
 @RequiredArgsConstructor
 public class StyleQueryController {
 
