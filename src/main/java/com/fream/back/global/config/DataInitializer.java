@@ -565,15 +565,15 @@ public class DataInitializer implements CommandLineRunner {
         // 구매 완료되고 창고 보관 중인 주문의 OrderItem만 필터링
         List<OrderItem> user1CompletedOrderItems = orderItemRepository.findAll().stream()
                 .filter(item -> item.getOrder().getUser().equals(user1)
-                        && item.getOrder().getStatus() == OrderStatus.COMPLETED
-                        && item.getOrder().getWarehouseStorage() != null)
+                        && item.getOrder().getStatus() == OrderStatus.COMPLETED)
+//                        && item.getOrder().getWarehouseStorage() != null)
                 .limit(1)  // 1개만 가져오기
                 .toList();
 
         List<OrderItem> user2CompletedOrderItems = orderItemRepository.findAll().stream()
                 .filter(item -> item.getOrder().getUser().equals(user2)
-                        && item.getOrder().getStatus() == OrderStatus.COMPLETED
-                        && item.getOrder().getWarehouseStorage() != null)
+                        && item.getOrder().getStatus() == OrderStatus.COMPLETED)
+//                        && item.getOrder().getWarehouseStorage() != null)
                 .limit(1)  // 1개만 가져오기
                 .toList();
 
