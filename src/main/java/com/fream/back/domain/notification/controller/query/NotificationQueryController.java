@@ -50,13 +50,18 @@ public class NotificationQueryController {
     // === 카테고리 + 읽음 여부 조회 (GET) ===
     @GetMapping("/filter/category/read-status")
     public List<NotificationDTO> filterByCategoryAndIsRead(
-            @RequestParam(name = "category") NotificationCategory category,
+            @RequestParam(name = "category", required = false) NotificationCategory category,
             @RequestParam(name = "isRead") boolean isRead,
             @RequestParam(name = "page") int page,
             @RequestParam(name = "size") int size
     ) {
         String email = extractEmailFromSecurityContext();
-        return queryService.filterByCategoryAndIsRead(email, category, isRead, PageRequest.of(page, size));
+        return queryService.filterByCategoryAndIsRead(
+                email,
+                category,
+                isRead,
+                PageRequest.of(page, size)
+        );
     }
 
     // === 유형 + 읽음 여부 조회 (GET) ===
