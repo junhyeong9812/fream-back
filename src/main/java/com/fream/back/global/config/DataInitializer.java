@@ -533,6 +533,7 @@ public class DataInitializer implements CommandLineRunner {
         saleBid.assignOrder(order);
         saleBid.updateStatus(com.fream.back.domain.sale.entity.BidStatus.MATCHED);
         saleBidRepository.save(saleBid);
+        orderRepository.save(order);
     }
     // 주소 생성 메서드
     private void createAddress(User user, String recipientName, String phoneNumber, String zipCode, String address, String detailedAddress, boolean isDefault) {
