@@ -154,7 +154,8 @@ public class StyleRepositoryCustomImpl implements StyleRepositoryCustom {
                         profile.profileImageUrl.as("profileImageUrl"),
                         style.content.as("content"),
                         ExpressionUtils.as(style.likes.size().longValue(), "likeCount"),
-                        ExpressionUtils.as(style.comments.size().longValue(), "commentCount")
+                        ExpressionUtils.as(style.comments.size().longValue(), "commentCount"),
+                        style.createdDate.as("createdDate")
                 ))
                 .from(style)
                 .leftJoin(style.profile, profile)

@@ -5,6 +5,7 @@ import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
+import java.time.LocalDateTime;
 import java.util.List;
 
 @Data
@@ -21,6 +22,7 @@ public class StyleDetailResponseDto {
     private Long likeCount; // 좋아요 수
     private Long commentCount; // 댓글 수
     private List<ProductInfoDto> productInfos; // 상품 정보 목록
+    private LocalDateTime createdDate;
 
     @Data
     @Builder
