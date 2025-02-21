@@ -44,18 +44,20 @@ public class StyleRepositoryCustomImpl implements StyleRepositoryCustom {
 
         BooleanBuilder builder = new BooleanBuilder();
 
-        // 필터 조건 추가
-        if (filterRequestDto.getBrandName() != null) {
-            builder.and(orderItem.productSize.productColor.product.brand.name.eq(filterRequestDto.getBrandName()));
-        }
-        if (filterRequestDto.getCollectionName() != null) {
-            builder.and(orderItem.productSize.productColor.product.collection.name.eq(filterRequestDto.getCollectionName()));
-        }
-        if (filterRequestDto.getCategoryId() != null) {
-            builder.and(orderItem.productSize.productColor.product.category.id.eq(filterRequestDto.getCategoryId()));
-        }
-        if (filterRequestDto.getProfileName() != null) {
-            builder.and(profile.profileName.eq(filterRequestDto.getProfileName()));
+        if (filterRequestDto != null) {
+            // 필터 조건 추가
+            if (filterRequestDto.getBrandName() != null) {
+                builder.and(orderItem.productSize.productColor.product.brand.name.eq(filterRequestDto.getBrandName()));
+            }
+            if (filterRequestDto.getCollectionName() != null) {
+                builder.and(orderItem.productSize.productColor.product.collection.name.eq(filterRequestDto.getCollectionName()));
+            }
+            if (filterRequestDto.getCategoryId() != null) {
+                builder.and(orderItem.productSize.productColor.product.category.id.eq(filterRequestDto.getCategoryId()));
+            }
+            if (filterRequestDto.getProfileName() != null) {
+                builder.and(profile.profileName.eq(filterRequestDto.getProfileName()));
+            }
         }
 
         // 쿼리 생성
@@ -83,7 +85,7 @@ public class StyleRepositoryCustomImpl implements StyleRepositoryCustom {
                 .limit(pageable.getPageSize());
 
         // 정렬
-        if ("popular".equals(filterRequestDto.getSortBy())) {
+        if (filterRequestDto != null && "popular".equals(filterRequestDto.getSortBy())) {
             query.orderBy(style.likes.size().desc());
         } else {
             query.orderBy(style.id.desc());
