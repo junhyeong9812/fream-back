@@ -47,6 +47,7 @@ import com.fream.back.domain.style.repository.StyleOrderItemRepository;
 import com.fream.back.domain.style.repository.StyleRepository;
 import com.fream.back.domain.user.entity.*;
 import com.fream.back.domain.user.repository.BankAccountRepository;
+import com.fream.back.domain.user.repository.ProfileRepository;
 import com.fream.back.domain.user.repository.UserRepository;
 import com.fream.back.domain.user.service.profile.ProfileCommandService;
 import com.fream.back.domain.warehouseStorage.entity.WarehouseStorage;
@@ -96,8 +97,9 @@ public class DataInitializer implements CommandLineRunner {
     private final StyleRepository styleRepository;
     private final MediaUrlRepository mediaUrlRepository;
     private final StyleOrderItemRepository styleOrderItemRepository;
+    private final ProfileRepository profileRepository;
 
-    @Transactional
+//    @Transactional
     @Override
     public void run(String... args) {
         // 사용자 생성
@@ -589,8 +591,15 @@ public class DataInitializer implements CommandLineRunner {
     }
 
     private void createStylesForUser(User user, OrderItem orderItem, int startIndex) {
-        Profile profile = user.getProfile();
-        Product product = orderItem.getProductSize().getProductColor().getProduct();
+        Long profileId = user.getProfile().getId();  // Profile ID만 꺼냄
+        Long productId = orderItem.getProductSize().getProductColor().getProduct().getId();  // Product ID만 꺼냄
+
+        // 리포지토리를 통해 다시 조회 (영속 상태 유지)
+        Profile profile = profileRepository.findById(profileId)
+                .orElseThrow(() -> new IllegalArgumentException("Profile not found with id: " + profileId));
+        Product product = productRepository.findById(productId)
+                .orElseThrow(() -> new IllegalArgumentException("Product not found with id: " + productId));
+
         String productName = product.getName();
 
         // 20개의 스타일 생성
@@ -603,31 +612,25 @@ public class DataInitializer implements CommandLineRunner {
                     .build();
 
             style.assignProfile(profile);
-//            Style savedStyle = styleRepository.save(style);
 
             // 각 스타일마다 3개의 이미지
             for (int j = 1; j <= 3; j++) {
                 MediaUrl mediaUrl = MediaUrl.builder()
                         .url("media_" + (startIndex + i) + "_" + j + ".jpg")
-//                        .style(savedStyle)
                         .build();
-//                mediaUrl.assignStyle(savedStyle);
-//                mediaUrlRepository.save(mediaUrl);
                 style.addMediaUrl(mediaUrl);
             }
 
             // 동일한 OrderItem을 모든 스타일에 연결
             StyleOrderItem styleOrderItem = StyleOrderItem.builder()
-//                    .style(savedStyle)
                     .orderItem(orderItem)
                     .build();
-//            styleOrderItem.assignStyle(savedStyle);
-//            styleOrderItem.assignOrderItem(orderItem);
-//            styleOrderItemRepository.save(styleOrderItem);
             style.addStyleOrderItem(styleOrderItem);
+
             styleRepository.save(style);
         }
     }
+
 
 }
 
