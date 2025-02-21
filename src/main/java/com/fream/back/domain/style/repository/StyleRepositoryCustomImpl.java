@@ -149,6 +149,7 @@ public class StyleRepositoryCustomImpl implements StyleRepositoryCustom {
                 .select(Projections.fields(
                         StyleDetailResponseDto.class,
                         style.id.as("id"),
+                        profile.id.as("profileId"),
                         profile.profileName.as("profileName"),
                         profile.profileImageUrl.as("profileImageUrl"),
                         style.content.as("content"),

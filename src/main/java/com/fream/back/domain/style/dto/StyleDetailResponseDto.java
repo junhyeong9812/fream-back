@@ -13,6 +13,7 @@ import java.util.List;
 @NoArgsConstructor
 public class StyleDetailResponseDto {
     private Long id; // Style ID
+    private Long profileId; //프로필ID
     private String profileName; // 작성자 이름
     private String profileImageUrl; // 작성자 프로필 이미지
     private String content; // 텍스트 컨텐츠
