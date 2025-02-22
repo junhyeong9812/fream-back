@@ -41,7 +41,7 @@ public class MediaUrlCommandService {
         return mediaUrlRepository.save(savedMediaUrl);
     }
 
-    public void deleteMediaFile(MediaUrl mediaUrl) {
+    public void deleteMediaUrl(MediaUrl mediaUrl) {
         // 1. URL에서 파일명 추출
         String url = mediaUrl.getUrl();
         String fileName = url.substring(url.lastIndexOf('/') + 1);
