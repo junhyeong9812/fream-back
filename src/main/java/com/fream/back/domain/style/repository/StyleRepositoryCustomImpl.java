@@ -20,6 +20,7 @@ import com.querydsl.core.types.Projections;
 import com.querydsl.jpa.JPAExpressions;
 import com.querydsl.jpa.impl.JPAQueryFactory;
 import lombok.RequiredArgsConstructor;
+import org.hibernate.transform.Transformers;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.support.PageableExecutionUtils;
@@ -68,11 +69,12 @@ public class StyleRepositoryCustomImpl implements StyleRepositoryCustom {
                         profile.profileImageUrl,
                         style.content,
                         // 가장 먼저 저장된 MediaUrl
-                        JPAExpressions.select(mediaUrl.url)
-                                .from(mediaUrl)
-                                .where(mediaUrl.style.eq(style))
-                                .orderBy(mediaUrl.id.asc())
-                                .limit(1),
+//                        JPAExpressions.select(mediaUrl.url)
+//                                .from(mediaUrl)
+//                                .where(mediaUrl.style.eq(style))
+//                                .orderBy(mediaUrl.id.asc())
+//                                .limit(1),
+                        mediaUrl.url,
                         style.viewCount,
                         style.likes.size() // 좋아요 수 계산
                 ))
@@ -93,6 +95,37 @@ public class StyleRepositoryCustomImpl implements StyleRepositoryCustom {
 
         // 데이터 조회
         List<StyleResponseDto> content = query.fetch();
+
+        List<Long> styleIds = content.stream()
+                .map(StyleResponseDto::getId)
+                .collect(Collectors.toList());
+
+        if (!styleIds.isEmpty()) {
+            // Tuple로 결과를 받아서 Map으로 변환
+            List<Tuple> mediaUrlTuples = queryFactory
+                    .select(mediaUrl.style.id, mediaUrl.url)
+                    .from(mediaUrl)
+                    .where(mediaUrl.style.id.in(styleIds))
+                    .groupBy(mediaUrl.style.id)
+                    .having(mediaUrl.id.eq(
+                            JPAExpressions
+                                    .select(mediaUrl.id.min())
+                                    .from(mediaUrl)
+                                    .where(mediaUrl.style.id.eq(mediaUrl.style.id))
+                    ))
+                    .fetch();
+
+            Map<Long, String> firstMediaUrls = mediaUrlTuples.stream()
+                    .collect(Collectors.toMap(
+                            tuple -> tuple.get(mediaUrl.style.id),
+                            tuple -> tuple.get(mediaUrl.url)
+                    ));
+
+            // mediaUrl 정보를 DTO에 설정
+            content.forEach(dto ->
+                    dto.setMediaUrl(firstMediaUrls.get(dto.getId()))
+            );
+        }
 
         // 총 카운트 계산
         var countQuery = queryFactory.select(style.count())
