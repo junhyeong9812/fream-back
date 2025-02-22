@@ -693,13 +693,14 @@ private void createStyleData( User user2) {
             Profile profile = profileRepository.findById(profileId).orElseThrow();
             OrderItem orderItem = orderItemRepository.findById(orderItemId).orElseThrow();
             Product product = productRepository.findById(productId).orElseThrow();
-
+            Long brandId = product.getBrand().getId();
+            Brand brand = brandRepository.findById(brandId).orElseThrow();
             for (int i = 0; i < 20; i++) {
                 Style style = Style.builder()
                         .profile(profile)
                         .content("안녕하세요! " + product.getName() + "와 함께한 " + (i + 1) +
                                 "번째 스타일을 공유합니다 #데일리룩 #fashion #ootd #" +
-                                product.getBrand().getName())
+                                brand.getName())
                         .viewCount(0L)
                         .build();
 
