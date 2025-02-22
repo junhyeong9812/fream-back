@@ -123,7 +123,7 @@ public class DataInitializer implements CommandLineRunner {
         createFAQData();
         createInspectionStandardData();
         createNotificationData(user1, user2, admin);
-        createStyleData(user1, user2);
+
         List<ProductSize> productSizes = productSizeRepository.findAll();
 
         // Create OrderBid and SaleBid for user1
@@ -155,7 +155,7 @@ public class DataInitializer implements CommandLineRunner {
             SaleBid saleBid = saleBidRepository.findAll().get(i);
             processPurchaseAndShipment(user2, saleBid);
         }
-
+        createStyleData(user2);
         System.out.println("초기 데이터가 성공적으로 생성되었습니다.");
     }
 
@@ -638,7 +638,7 @@ public class DataInitializer implements CommandLineRunner {
 //            styleRepository.save(style);
 //        }
 //    }
-private void createStyleData(User user1, User user2) {
+private void createStyleData( User user2) {
     List<Order> completedOrders = orderRepository.findByUserAndStatus(user2, OrderStatus.COMPLETED);
     if (completedOrders.isEmpty()) {
         return;
