@@ -54,6 +54,7 @@ import com.fream.back.domain.warehouseStorage.entity.WarehouseStorage;
 import com.fream.back.domain.warehouseStorage.repository.WarehouseStorageRepository;
 import com.fream.back.domain.warehouseStorage.service.command.WarehouseStorageCommandService;
 import lombok.RequiredArgsConstructor;
+import org.hibernate.LazyInitializationException;
 import org.springframework.boot.CommandLineRunner;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.security.crypto.password.PasswordEncoder;
@@ -649,12 +650,36 @@ private void createStyleData( User user2) {
         OrderItem firstItem = completedOrderItems.get(0);
         OrderItem secondItem = completedOrderItems.get(1);
 
-        // ID 값만 추출
-        Long firstProductId = firstItem.getProductSize().getProductColor().getProduct().getId();
-        Long secondProductId = secondItem.getProductSize().getProductColor().getProduct().getId();
+        // OrderItem에서 ProductSize ID 추출
+        Long firstProductSizeId = firstItem.getProductSize().getId();
+        Long secondProductSizeId = secondItem.getProductSize().getId();
+
+        // ProductSize로 ProductColor 조회
+        ProductSize firstSize = productSizeRepository.findById(firstProductSizeId).orElseThrow();
+        ProductSize secondSize = productSizeRepository.findById(secondProductSizeId).orElseThrow();
+
+        Long firstProductColorId = firstSize.getProductColor().getId();
+        Long secondProductColorId = secondSize.getProductColor().getId();
+
+        // ProductColor로 Product ID 조회
+        ProductColor firstColor = productColorRepository.findById(firstProductColorId).orElseThrow();
+        ProductColor secondColor = productColorRepository.findById(secondProductColorId).orElseThrow();
+
+        Long firstProductId = firstColor.getProduct().getId();
+        Long secondProductId = secondColor.getProduct().getId();
+
+        // OrderItem ID
         Long firstOrderItemId = firstItem.getId();
         Long secondOrderItemId = secondItem.getId();
-        Long profileId = user2.getProfile().getId();
+
+        // Profile ID (User와 Profile 관계가 LAZY면 조회 필요)
+        Long profileId;
+        try {
+            profileId = user2.getProfile().getId();
+        } catch (LazyInitializationException e) {
+            Profile profile = profileRepository.findByUser(user2).orElseThrow();
+            profileId = profile.getId();
+        }
 
         // ID 값들만 전달
         createStylesForUserWithTransaction(profileId, firstOrderItemId, firstProductId, 0);
