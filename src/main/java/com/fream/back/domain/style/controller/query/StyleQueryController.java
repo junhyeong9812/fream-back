@@ -46,10 +46,10 @@ public class StyleQueryController {
         Page<ProfileStyleResponseDto> styles = styleQueryService.getStylesByProfile(profileId, pageable);
         return ResponseEntity.ok(styles);
     }
-    @GetMapping("/{styleId}/media")
+    @GetMapping("/{styleId}/media/{fileName}")
     public ResponseEntity<byte[]> getStyleMedia(
             @PathVariable("styleId") Long styleId,
-            @RequestParam("fileName") String fileName
+            @PathVariable("fileName") String fileName
     ) throws IOException {
         // /home/ubuntu/fream/styles/{styleId}/{fileName}
         String baseDir = "/home/ubuntu/fream";

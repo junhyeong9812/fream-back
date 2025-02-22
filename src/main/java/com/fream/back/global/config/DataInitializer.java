@@ -675,8 +675,11 @@ private void createStyleData(User user1, User user2) {
                 style = styleRepository.save(style);
 
                 for (int j = 1; j <= 3; j++) {
+                    String fileName = String.format("media_%d_%d.jpg", startIndex + i, j);
+                    String url = String.format("/styles/queries/%d/media/%s", style.getId(), fileName);
+
                     MediaUrl mediaUrl = MediaUrl.builder()
-                            .url("media_" + (startIndex + i) + "_" + j + ".jpg")
+                            .url(url)
                             .style(style)
                             .build();
                     style.addMediaUrl(mediaUrl);
