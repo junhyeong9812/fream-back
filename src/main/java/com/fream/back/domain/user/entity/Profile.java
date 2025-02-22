@@ -97,6 +97,10 @@ public class Profile extends BaseTimeEntity {
         this.styles.add(style);
         style.assignProfile(this); // 양방향 동기화
     }
+    public void addDataStyle(Style style) {
+        this.styles.add(style);
+//        style.assignProfile(this); // 양방향 동기화
+    }
 
     // 스타일 제거
     public void removeStyle(Style style) {

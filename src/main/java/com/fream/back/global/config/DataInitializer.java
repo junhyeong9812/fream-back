@@ -678,7 +678,7 @@ private void createStyleData(User user1, User user2) {
                         .viewCount(0L)
                         .build();
 
-                style.assignProfile(profile);
+                profile.addDataStyle(style);
                 style = styleRepository.save(style);
 
                 for (int j = 1; j <= 3; j++) {
@@ -689,7 +689,7 @@ private void createStyleData(User user1, User user2) {
                             .url(url)
                             .style(style)
                             .build();
-                    style.addMediaUrl(mediaUrl);
+                    style.addDataMediaUrl(mediaUrl);
                     mediaUrlRepository.save(mediaUrl);
                 }
 
@@ -697,7 +697,8 @@ private void createStyleData(User user1, User user2) {
                         .orderItem(orderItem)
                         .style(style)
                         .build();
-                style.addStyleOrderItem(styleOrderItem);
+//                style.addStyleOrderItem(styleOrderItem);
+                style.addDataStyleOrderItem(styleOrderItem);
                 styleOrderItemRepository.save(styleOrderItem);
 
                 styleRepository.saveAndFlush(style);

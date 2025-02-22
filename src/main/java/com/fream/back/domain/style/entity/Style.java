@@ -81,10 +81,18 @@ public class Style extends BaseTimeEntity {
         this.styleOrderItems.add(styleOrderItem);
         styleOrderItem.assignStyle(this);
     }
+    public void addDataStyleOrderItem(StyleOrderItem styleOrderItem) {
+        this.styleOrderItems.add(styleOrderItem);
+//        styleOrderItem.assignStyle(this);
+    }
 
     public void addMediaUrl(MediaUrl mediaUrl) {
         this.mediaUrls.add(mediaUrl);
         mediaUrl.assignStyle(this);
+    }
+    public void addDataMediaUrl(MediaUrl mediaUrl) {
+        this.mediaUrls.add(mediaUrl);
+//        mediaUrl.assignStyle(this);
     }
 
     public void addComment(StyleComment comment) {
