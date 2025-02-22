@@ -64,6 +64,7 @@ public class StyleRepositoryCustomImpl implements StyleRepositoryCustom {
         var query = queryFactory.select(Projections.constructor(
                         StyleResponseDto.class,
                         style.id,
+                        profile.id,
                         profile.profileName,
                         profile.profileImageUrl,
                         style.content,

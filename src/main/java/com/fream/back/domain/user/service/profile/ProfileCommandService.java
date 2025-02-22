@@ -36,6 +36,7 @@ public class ProfileCommandService {
 
         user.addProfile(profile); // 연관관계 설정
         profileRepository.save(profile); // 프로필 저장
+
     }
 
     private String generateRandomProfileName() {

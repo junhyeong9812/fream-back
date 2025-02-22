@@ -9,6 +9,7 @@ import lombok.NoArgsConstructor;
 @NoArgsConstructor
 public class StyleResponseDto {
     private Long id;
+    private Long profileId;
     private String profileName;
     private String profileImageUrl;
     private String content;
