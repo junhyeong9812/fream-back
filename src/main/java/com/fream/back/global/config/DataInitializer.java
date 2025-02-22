@@ -631,72 +631,70 @@ public class DataInitializer implements CommandLineRunner {
 //        }
 //    }
 private void createStyleData(User user1, User user2) {
-    // 명시적으로 영속성 컨텍스트에서 필요한 데이터를 먼저 로드
     List<Order> completedOrders = orderRepository.findByUserAndStatus(user2, OrderStatus.COMPLETED);
     if (completedOrders.isEmpty()) {
         return;
     }
 
-    // Fetch all necessary data eagerly
     List<OrderItem> completedOrderItems = orderItemRepository.findByOrderIn(completedOrders);
     if (completedOrderItems.size() >= 2) {
         OrderItem firstItem = completedOrderItems.get(0);
         OrderItem secondItem = completedOrderItems.get(1);
 
-        // Explicitly load all required relationships
-        Product firstProduct = productRepository.findById(
-                firstItem.getProductSize().getProductColor().getProduct().getId()).orElseThrow();
-        Product secondProduct = productRepository.findById(
-                secondItem.getProductSize().getProductColor().getProduct().getId()).orElseThrow();
+        // ID 값만 추출
+        Long firstProductId = firstItem.getProductSize().getProductColor().getProduct().getId();
+        Long secondProductId = secondItem.getProductSize().getProductColor().getProduct().getId();
+        Long firstOrderItemId = firstItem.getId();
+        Long secondOrderItemId = secondItem.getId();
+        Long profileId = user2.getProfile().getId();
 
-        Profile profile = profileRepository.findByUser(user2).orElseThrow();
-
-        // Create styles in separate transactions
-        createStylesForUserWithTransaction(profile, firstItem, firstProduct, 0);
-        createStylesForUserWithTransaction(profile, secondItem, secondProduct, 20);
+        // ID 값들만 전달
+        createStylesForUserWithTransaction(profileId, firstOrderItemId, firstProductId, 0);
+        createStylesForUserWithTransaction(profileId, secondOrderItemId, secondProductId, 20);
     }
 }
 
     @Transactional
-    public void createStylesForUserWithTransaction(Profile profile, OrderItem orderItem, Product product, int startIndex) {
-        String productName = product.getName();
+    public void createStylesForUserWithTransaction(Long profileId, Long orderItemId, Long productId, int startIndex) {
+        try {
+            // 트랜잭션 내에서 엔티티들을 다시 조회하여 영속 상태로 만듦
+            Profile profile = profileRepository.findById(profileId).orElseThrow();
+            OrderItem orderItem = orderItemRepository.findById(orderItemId).orElseThrow();
+            Product product = productRepository.findById(productId).orElseThrow();
 
-        for (int i = 0; i < 20; i++) {
-            // 1. Create and save Style first
-            Style style = Style.builder()
-                    .profile(profile)
-                    .content("안녕하세요! " + productName + "와 함께한 " + (i + 1) +
-                            "번째 스타일을 공유합니다 #데일리룩 #fashion #ootd #" +
-                            product.getBrand().getName())
-                    .viewCount(0L)
-                    .build();
-
-            style = styleRepository.save(style);  // Save immediately to get ID
-
-            // 2. Create and associate MediaUrls
-            for (int j = 1; j <= 3; j++) {
-                MediaUrl mediaUrl = MediaUrl.builder()
-                        .url("media_" + (startIndex + i) + "_" + j + ".jpg")
+            for (int i = 0; i < 20; i++) {
+                Style style = Style.builder()
+                        .profile(profile)
+                        .content("안녕하세요! " + product.getName() + "와 함께한 " + (i + 1) +
+                                "번째 스타일을 공유합니다 #데일리룩 #fashion #ootd #" +
+                                product.getBrand().getName())
+                        .viewCount(0L)
                         .build();
-                mediaUrl.assignStyle(style);  // Set relationship before save
-                mediaUrlRepository.save(mediaUrl);
+
+                style.assignProfile(profile);
+                style = styleRepository.save(style);
+
+                for (int j = 1; j <= 3; j++) {
+                    MediaUrl mediaUrl = MediaUrl.builder()
+                            .url("media_" + (startIndex + i) + "_" + j + ".jpg")
+                            .style(style)
+                            .build();
+                    style.addMediaUrl(mediaUrl);
+                    mediaUrlRepository.save(mediaUrl);
+                }
+
+                StyleOrderItem styleOrderItem = StyleOrderItem.builder()
+                        .orderItem(orderItem)
+                        .style(style)
+                        .build();
+                style.addStyleOrderItem(styleOrderItem);
+                styleOrderItemRepository.save(styleOrderItem);
+
+                styleRepository.saveAndFlush(style);
             }
-
-            // 3. Create and associate StyleOrderItem
-            StyleOrderItem styleOrderItem = StyleOrderItem.builder()
-                    .orderItem(orderItem)
-                    .build();
-            styleOrderItem.assignStyle(style);  // Set relationship before save
-            styleOrderItemRepository.save(styleOrderItem);
-
-            // 4. Set bi-directional relationship with Profile
-            style.assignProfile(profile);
-
-            // 5. Final save to ensure all relationships are persisted
-            styleRepository.save(style);
-
-            // Add flush to ensure each style is completely persisted
-            styleRepository.flush();
+        } catch (Exception e) {
+            System.err.println("Error creating style: " + e.getMessage());
+            throw e;
         }
     }
 
