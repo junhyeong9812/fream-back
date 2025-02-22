@@ -100,7 +100,7 @@ public class DataInitializer implements CommandLineRunner {
     private final StyleOrderItemRepository styleOrderItemRepository;
     private final ProfileRepository profileRepository;
 
-//    @Transactional
+    @Transactional
     @Override
     public void run(String... args) {
         // 사용자 생성
