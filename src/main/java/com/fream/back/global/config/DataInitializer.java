@@ -483,6 +483,14 @@ public class DataInitializer implements CommandLineRunner {
 
         order = orderRepository.save(order);
 
+        OrderItem orderItem = OrderItem.builder()
+                .productSize(saleBid.getProductSize())
+                .quantity(1)
+                .price(saleBid.getBidPrice())
+                .build();
+        order.addOrderItem(orderItem);
+        orderItemRepository.save(orderItem);
+
         // 2. Create OrderBid and associate with Order
         OrderBid orderBid = OrderBid.builder()
                 .user(user)
@@ -654,7 +662,6 @@ private void createStyleData(User user1, User user2) {
     }
 }
 
-    @Transactional
     public void createStylesForUserWithTransaction(Long profileId, Long orderItemId, Long productId, int startIndex) {
         try {
             // 트랜잭션 내에서 엔티티들을 다시 조회하여 영속 상태로 만듦
