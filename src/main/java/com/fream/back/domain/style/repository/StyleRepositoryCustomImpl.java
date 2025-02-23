@@ -91,10 +91,15 @@ public class StyleRepositoryCustomImpl implements StyleRepositoryCustom {
                 .limit(pageable.getPageSize());
 
         // 정렬
+//        if (filterRequestDto != null && "popular".equals(filterRequestDto.getSortBy())) {
+//            query.orderBy(style.likes.size().desc());
+//        } else {
+//            query.orderBy(style.id.desc());
+//        }
         if (filterRequestDto != null && "popular".equals(filterRequestDto.getSortBy())) {
-            query.orderBy(style.likes.size().desc());
+            query.orderBy(style.viewCount.desc(), style.id.desc()); // Sort by viewCount, then by id for ties
         } else {
-            query.orderBy(style.id.desc());
+            query.orderBy(style.id.desc()); // Default to latest
         }
 
         // 데이터 조회
