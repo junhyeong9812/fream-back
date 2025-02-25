@@ -1,8 +1,10 @@
 package com.fream.back.domain.product.controller.query;
 
+import com.fream.back.domain.product.dto.FilterDataResponseDto;
 import com.fream.back.domain.product.dto.ProductDetailResponseDto;
 import com.fream.back.domain.product.dto.ProductSearchDto;
 import com.fream.back.domain.product.dto.ProductSearchResponseDto;
+import com.fream.back.domain.product.service.filter.FilterService;
 import com.fream.back.domain.product.service.kafka.ViewEventProducer;
 import com.fream.back.domain.product.service.product.ProductQueryService;
 import com.fream.back.domain.user.entity.Gender;
@@ -28,6 +30,7 @@ public class ProductQueryController {
     private final ProductQueryService productQueryService;
     private final UserQueryService userQueryService; // 이메일 -> User 엔티티 조회
     private final ViewEventProducer viewEventProducer;
+    private final FilterService filterService;
 
     @GetMapping
     public ResponseEntity<commonDto.PageDto<ProductSearchResponseDto>> searchProducts(
@@ -128,5 +131,11 @@ public class ProductQueryController {
         return ResponseEntity.ok()
                 .header("Content-Type", mimeType)
                 .body(imageBytes);
+    }
+    //필터목록 반환
+    @GetMapping("/filters")
+    public ResponseEntity<FilterDataResponseDto> getFilterData() {
+        FilterDataResponseDto filterData = filterService.getAllFilterData();
+        return ResponseEntity.ok(filterData);
     }
 }
