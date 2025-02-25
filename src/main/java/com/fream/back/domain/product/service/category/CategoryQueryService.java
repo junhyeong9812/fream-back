@@ -50,4 +50,19 @@ public class CategoryQueryService {
                 .orElseThrow(() -> new IllegalArgumentException("해당 카테고리를 찾을 수 없습니다."));
         return findRootCategory(category);
     }
+    // 부모카테고리를 톤ㅇ한 서브카테고리 조회
+    public List<CategoryResponseDto> findSubCategoriesByParentId(Long parentId) {
+        return categoryRepository.findByParentCategoryId(parentId)
+                .stream()
+                .map(CategoryResponseDto::fromEntity)
+                .collect(Collectors.toList());
+    }
+
+    // Clothing의 직접적인 하위 카테고리(Tops 등) 찾기
+    public List<CategoryResponseDto> findSubCategoriesByParentName(String parentName) {
+        return categoryRepository.findByParentCategoryName(parentName)
+                .stream()
+                .map(CategoryResponseDto::fromEntity)
+                .collect(Collectors.toList());
+    }
 }

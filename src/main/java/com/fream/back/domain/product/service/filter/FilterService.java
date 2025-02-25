@@ -57,8 +57,30 @@ public class FilterService {
         List<FilterDataResponseDto.PriceRangeDto> priceRanges = getPriceRangeData();
 
         // 카테고리 데이터 가공
+        // 실질적인 메인 카테고리 구성
+        List<CategoryResponseDto> effectiveMainCategories = new ArrayList<>();
+
+        // 모든 메인 카테고리 가져오기
         List<CategoryResponseDto> mainCategories = categoryQueryService.findAllMainCategories();
-        List<FilterDataResponseDto.CategoryDto> categories = processCategoryData(mainCategories);
+
+        // Clothing의 서브카테고리(Tops 등) 찾기
+        mainCategories.stream()
+                .filter(c -> "Clothing".equals(c.getName()))
+                .findFirst()
+                .ifPresent(clothing -> {
+                    // 서비스 레이어를 통해 Clothing의 하위 카테고리 조회
+                    List<CategoryResponseDto> clothingSubCategories =
+                            categoryQueryService.findSubCategoriesByMainCategory(clothing.getName());
+                    effectiveMainCategories.addAll(clothingSubCategories);
+                });
+
+        // Shoes는 그대로 메인 카테고리로 추가
+        mainCategories.stream()
+                .filter(c -> "Shoes".equals(c.getName()))
+                .forEach(effectiveMainCategories::add);
+
+        // 실질적인 메인 카테고리 처리
+        List<FilterDataResponseDto.CategoryDto> categories = processCategoryData(effectiveMainCategories);
 
         // 브랜드 데이터 가공
         List<BrandResponseDto> brandList = brandQueryService.findAllBrands();
@@ -143,13 +165,26 @@ public class FilterService {
     private List<FilterDataResponseDto.CategoryDto> processCategoryData(List<CategoryResponseDto> categories) {
         return categories.stream()
                 .map(category -> {
-                    List<CategoryResponseDto> subCategories = categoryQueryService.findSubCategoriesByMainCategory(category.getName());
+                    List<CategoryResponseDto> subCategories;
+
+                    // 이미 effectiveMainCategories에는 실질적인 메인 카테고리만 포함됨
+                    // Tops(Clothing의 하위) 또는 Shoes(실제 메인)
+                    subCategories = categoryQueryService.findSubCategoriesByParentId(category.getId());
 
                     return FilterDataResponseDto.CategoryDto.builder()
                             .id(category.getId())
                             .value(category.getName())
                             .label(category.getName())
-                            .subCategories(subCategories.isEmpty() ? null : processCategoryData(subCategories))
+                            .subCategories(subCategories.isEmpty() ? null :
+                                    // 서브 카테고리는 더 이상 재귀 처리하지 않음
+                                    subCategories.stream()
+                                            .map(sub -> FilterDataResponseDto.CategoryDto.builder()
+                                                    .id(sub.getId())
+                                                    .value(sub.getName())
+                                                    .label(sub.getName())
+                                                    .subCategories(null) // 최대 2단계만 표시
+                                                    .build())
+                                            .collect(Collectors.toList()))
                             .build();
                 })
                 .collect(Collectors.toList());

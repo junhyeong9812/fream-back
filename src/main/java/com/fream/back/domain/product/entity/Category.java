@@ -51,4 +51,8 @@ public class Category extends BaseTimeEntity {
     public void updateParentCategory(Category parentCategory) {
         this.parentCategory = parentCategory;
     }
+    //부모카테고리 이름 반환메소드
+    public String getParentCategoryName() {
+        return this.parentCategory != null ? this.parentCategory.getName() : null;
+    }
 }
