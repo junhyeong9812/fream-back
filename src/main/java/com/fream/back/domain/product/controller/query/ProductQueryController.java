@@ -1,9 +1,6 @@
 package com.fream.back.domain.product.controller.query;
 
-import com.fream.back.domain.product.dto.FilterDataResponseDto;
-import com.fream.back.domain.product.dto.ProductDetailResponseDto;
-import com.fream.back.domain.product.dto.ProductSearchDto;
-import com.fream.back.domain.product.dto.ProductSearchResponseDto;
+import com.fream.back.domain.product.dto.*;
 import com.fream.back.domain.product.service.filter.FilterService;
 import com.fream.back.domain.product.service.kafka.ViewEventProducer;
 import com.fream.back.domain.product.service.product.ProductQueryService;
@@ -137,5 +134,29 @@ public class ProductQueryController {
     public ResponseEntity<FilterDataResponseDto> getFilterData() {
         FilterDataResponseDto filterData = filterService.getAllFilterData();
         return ResponseEntity.ok(filterData);
+    }
+    //필터 카운트 엔드포인트
+    @PostMapping("/filters/count")
+    public ResponseEntity<FilterCountResponseDto> countProductsByFilter(
+            @RequestBody ProductSearchDto searchRequest) {
+
+        // 검증 로직
+        searchRequest.validate();
+
+        // 필터 조건에 맞는 상품 개수 조회
+        long count = productQueryService.countProductsByFilter(
+                searchRequest.getKeyword(),
+                searchRequest.getCategoryIds(),
+                searchRequest.getGenders(),
+                searchRequest.getBrandIds(),
+                searchRequest.getCollectionIds(),
+                searchRequest.getColors(),
+                searchRequest.getSizes(),
+                searchRequest.getMinPrice(),
+                searchRequest.getMaxPrice());
+
+        return ResponseEntity.ok(FilterCountResponseDto.builder()
+                .totalCount(count)
+                .build());
     }
 }

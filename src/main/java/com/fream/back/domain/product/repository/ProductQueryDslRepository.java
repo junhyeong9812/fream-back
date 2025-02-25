@@ -196,6 +196,51 @@ public class ProductQueryDslRepository {
         // 7. 결과 반환
         return new PageImpl<>(content, pageable, total);
     }
+    public long countProductsByFilter(
+            String keyword,
+            List<Long> categoryIds,
+            List<GenderType> genders,
+            List<Long> brandIds,
+            List<Long> collectionIds,
+            List<String> colors,
+            List<String> sizes,
+            Integer minPrice,
+            Integer maxPrice) {
+
+        QProduct product = QProduct.product;
+        QProductColor productColor = QProductColor.productColor;
+        QProductSize productSize = QProductSize.productSize;
+
+        // 전체 데이터 수 조회 쿼리
+        return queryFactory.select(product.id.countDistinct())
+                .from(product)
+                .leftJoin(product.colors, productColor)
+                .leftJoin(productColor.sizes, productSize)
+                .where(
+                        buildKeywordPredicate(keyword, product, productColor, productSize),
+                        buildCategoryPredicate(categoryIds, product),
+                        buildGenderPredicate(genders, product),
+                        buildBrandPredicate(brandIds, product),
+                        buildCollectionPredicate(collectionIds, product),
+                        buildColorPredicate(colors, productColor),
+                        buildSizePredicate(sizes, productSize),
+                        buildPricePredicate(minPrice, maxPrice, productSize)
+                )
+                .fetchOne() != null ? queryFactory.select(product.id.countDistinct())
+                .from(product)
+                .leftJoin(product.colors, productColor)
+                .leftJoin(productColor.sizes, productSize)
+                .where(
+                        buildKeywordPredicate(keyword, product, productColor, productSize),
+                        buildCategoryPredicate(categoryIds, product),
+                        buildGenderPredicate(genders, product),
+                        buildBrandPredicate(brandIds, product),
+                        buildColorPredicate(colors, productColor),
+                        buildSizePredicate(sizes, productSize),
+                        buildPricePredicate(minPrice, maxPrice, productSize)
+                )
+                .fetchOne() : 0L;
+    }
 
     // Predicate 출력 로깅 메서드
     private BooleanExpression logPredicate(String predicateName, BooleanExpression predicate) {

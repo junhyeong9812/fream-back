@@ -103,6 +103,31 @@ public class ProductQueryService {
         );
     }
 
+    //카운트 메서드
+    public long countProductsByFilter(
+            String keyword,
+            List<Long> categoryIds,
+            List<GenderType> genders,
+            List<Long> brandIds,
+            List<Long> collectionIds,
+            List<String> colors,
+            List<String> sizes,
+            Integer minPrice,
+            Integer maxPrice) {
+
+        return productQueryDslRepository.countProductsByFilter(
+                keyword,
+                categoryIds,
+                genders,
+                brandIds,
+                collectionIds,
+                colors,
+                sizes,
+                minPrice,
+                maxPrice
+        );
+    }
+
 
 
 }
