@@ -47,12 +47,45 @@ public class StyleRepositoryCustomImpl implements StyleRepositoryCustom {
 
         if (filterRequestDto != null) {
             // 필터 조건 추가
+//            if (filterRequestDto.getBrandName() != null) {
+//                builder.and(orderItem.isNotNull()
+//                        .and(orderItem.productSize.isNotNull())
+//                        .and(orderItem.productSize.productColor.isNotNull())
+//                        .and(orderItem.productSize.productColor.product.isNotNull())
+//                        .and(orderItem.productSize.productColor.product.brand.name.eq(filterRequestDto.getBrandName())));
+//            }
             if (filterRequestDto.getBrandName() != null) {
-                builder.and(orderItem.isNotNull()
-                        .and(orderItem.productSize.isNotNull())
-                        .and(orderItem.productSize.productColor.isNotNull())
-                        .and(orderItem.productSize.productColor.product.isNotNull())
-                        .and(orderItem.productSize.productColor.product.brand.name.eq(filterRequestDto.getBrandName())));
+                // 세분화된 null 체크
+                BooleanBuilder brandCondition = new BooleanBuilder();
+
+                // 각 단계별로 체크 추가
+                if (orderItem != null) {
+                    brandCondition.and(orderItem.isNotNull());
+
+                    // productSize 체크
+                    if (orderItem.productSize != null) {
+                        brandCondition.and(orderItem.productSize.isNotNull());
+
+                        // productColor 체크
+                        if (orderItem.productSize.productColor != null) {
+                            brandCondition.and(orderItem.productSize.productColor.isNotNull());
+
+                            // product 체크
+                            if (orderItem.productSize.productColor.product != null) {
+                                brandCondition.and(orderItem.productSize.productColor.product.isNotNull());
+
+                                // brand 체크 및 조건 추가
+                                if (orderItem.productSize.productColor.product.brand != null) {
+                                    brandCondition.and(orderItem.productSize.productColor.product.brand.isNotNull());
+                                    brandCondition.and(orderItem.productSize.productColor.product.brand.name.eq(filterRequestDto.getBrandName()));
+                                }
+                            }
+                        }
+                    }
+                }
+
+                // 메인 조건에 추가
+                builder.and(brandCondition);
             }
             if (filterRequestDto.getCollectionName() != null) {
                 builder.and(orderItem.isNotNull()
