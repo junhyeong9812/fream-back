@@ -1,4 +1,4 @@
-package com.fream.back.domain.user.service.command;
+package com.fream.back.domain.user.service.point;
 
 import com.fream.back.domain.user.dto.PointDto;
 import com.fream.back.domain.user.entity.Point;

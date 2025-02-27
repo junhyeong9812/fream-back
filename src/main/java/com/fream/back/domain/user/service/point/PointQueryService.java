@@ -1,10 +1,11 @@
-package com.fream.back.domain.user.service.query;
+package com.fream.back.domain.user.service.point;
 
 import com.fream.back.domain.user.dto.PointDto;
 import com.fream.back.domain.user.entity.Point;
 import com.fream.back.domain.user.entity.PointStatus;
 import com.fream.back.domain.user.entity.User;
 import com.fream.back.domain.user.repository.PointRepository;
+import com.fream.back.domain.user.service.query.UserQueryService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
