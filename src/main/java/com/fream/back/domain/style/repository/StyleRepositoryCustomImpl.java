@@ -48,7 +48,11 @@ public class StyleRepositoryCustomImpl implements StyleRepositoryCustom {
         if (filterRequestDto != null) {
             // 필터 조건 추가
             if (filterRequestDto.getBrandName() != null) {
-                builder.and(orderItem.productSize.productColor.product.brand.name.eq(filterRequestDto.getBrandName()));
+                builder.and(orderItem.isNotNull()
+                        .and(orderItem.productSize.isNotNull())
+                        .and(orderItem.productSize.productColor.isNotNull())
+                        .and(orderItem.productSize.productColor.product.isNotNull())
+                        .and(orderItem.productSize.productColor.product.brand.name.eq(filterRequestDto.getBrandName())));
             }
             if (filterRequestDto.getCollectionName() != null) {
                 builder.and(orderItem.productSize.productColor.product.collection.name.eq(filterRequestDto.getCollectionName()));
