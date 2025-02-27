@@ -1,6 +1,6 @@
 package com.fream.back.domain.user.scheduler;
 
-import com.fream.back.domain.user.service.command.PointCommandService;
+import com.fream.back.domain.user.service.point.PointCommandService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.scheduling.annotation.Scheduled;
