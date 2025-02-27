@@ -1,7 +1,7 @@
 package com.fream.back.domain.user.controller.point;
 
 import com.fream.back.domain.user.dto.PointDto;
-import com.fream.back.domain.user.service.query.PointQueryService;
+import com.fream.back.domain.user.service.point.PointQueryService;
 import com.fream.back.global.utils.SecurityUtils;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
