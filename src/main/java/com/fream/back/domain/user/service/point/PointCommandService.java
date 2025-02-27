@@ -5,7 +5,6 @@ import com.fream.back.domain.user.entity.Point;
 import com.fream.back.domain.user.entity.PointStatus;
 import com.fream.back.domain.user.entity.User;
 import com.fream.back.domain.user.repository.PointRepository;
-import com.fream.back.domain.user.service.query.PointQueryService;
 import com.fream.back.domain.user.service.query.UserQueryService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
