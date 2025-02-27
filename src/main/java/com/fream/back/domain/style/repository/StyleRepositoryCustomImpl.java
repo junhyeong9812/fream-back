@@ -1,10 +1,7 @@
 package com.fream.back.domain.style.repository;
 
 import com.fream.back.domain.order.entity.QOrderItem;
-import com.fream.back.domain.product.entity.QProduct;
-import com.fream.back.domain.product.entity.QProductColor;
-import com.fream.back.domain.product.entity.QProductImage;
-import com.fream.back.domain.product.entity.QProductSize;
+import com.fream.back.domain.product.entity.*;
 import com.fream.back.domain.style.dto.ProfileStyleResponseDto;
 import com.fream.back.domain.style.dto.StyleDetailResponseDto;
 import com.fream.back.domain.style.dto.StyleFilterRequestDto;
@@ -41,6 +38,10 @@ public class StyleRepositoryCustomImpl implements StyleRepositoryCustom {
         QStyleOrderItem styleOrderItem = QStyleOrderItem.styleOrderItem;
         QOrderItem orderItem = QOrderItem.orderItem;
         QMediaUrl mediaUrl = QMediaUrl.mediaUrl;
+        QProductSize productSize=QProductSize.productSize;
+        QProductColor productColor = QProductColor.productColor;
+        QProduct product = QProduct.product;
+        QBrand brand = QBrand.brand;
 
         BooleanBuilder builder = new BooleanBuilder();
 
@@ -86,6 +87,10 @@ public class StyleRepositoryCustomImpl implements StyleRepositoryCustom {
                 .leftJoin(style.profile, profile)
                 .leftJoin(style.styleOrderItems, styleOrderItem)
                 .leftJoin(styleOrderItem.orderItem, orderItem)
+                .leftJoin(orderItem.productSize, productSize)
+                .leftJoin(productSize.productColor, productColor)
+                .leftJoin(productColor.product, product)
+                .leftJoin(product.brand, brand)
                 .where(builder)
                 .offset(pageable.getOffset())
                 .limit(pageable.getPageSize());
