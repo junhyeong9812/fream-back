@@ -55,13 +55,26 @@ public class StyleRepositoryCustomImpl implements StyleRepositoryCustom {
                         .and(orderItem.productSize.productColor.product.brand.name.eq(filterRequestDto.getBrandName())));
             }
             if (filterRequestDto.getCollectionName() != null) {
-                builder.and(orderItem.productSize.productColor.product.collection.name.eq(filterRequestDto.getCollectionName()));
+                builder.and(orderItem.isNotNull()
+                        .and(orderItem.productSize.isNotNull())
+                        .and(orderItem.productSize.productColor.isNotNull())
+                        .and(orderItem.productSize.productColor.product.isNotNull())
+                        .and(orderItem.productSize.productColor.product.collection.isNotNull())
+                        .and(orderItem.productSize.productColor.product.collection.name.eq(filterRequestDto.getCollectionName())));
             }
+
             if (filterRequestDto.getCategoryId() != null) {
-                builder.and(orderItem.productSize.productColor.product.category.id.eq(filterRequestDto.getCategoryId()));
+                builder.and(orderItem.isNotNull()
+                        .and(orderItem.productSize.isNotNull())
+                        .and(orderItem.productSize.productColor.isNotNull())
+                        .and(orderItem.productSize.productColor.product.isNotNull())
+                        .and(orderItem.productSize.productColor.product.category.isNotNull())
+                        .and(orderItem.productSize.productColor.product.category.id.eq(filterRequestDto.getCategoryId())));
             }
+
             if (filterRequestDto.getProfileName() != null) {
-                builder.and(profile.profileName.eq(filterRequestDto.getProfileName()));
+                builder.and(profile.isNotNull()
+                        .and(profile.profileName.eq(filterRequestDto.getProfileName())));
             }
         }
 
