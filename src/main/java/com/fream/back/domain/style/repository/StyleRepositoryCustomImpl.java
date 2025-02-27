@@ -31,119 +31,206 @@ public class StyleRepositoryCustomImpl implements StyleRepositoryCustom {
 
     private final JPAQueryFactory queryFactory;
 
-    @Override
-    public Page<StyleResponseDto> filterStyles(StyleFilterRequestDto filterRequestDto, Pageable pageable) {
-        QStyle style = QStyle.style;
-        QProfile profile = QProfile.profile;
-        QStyleOrderItem styleOrderItem = QStyleOrderItem.styleOrderItem;
-        QOrderItem orderItem = QOrderItem.orderItem;
-        QMediaUrl mediaUrl = QMediaUrl.mediaUrl;
-        QProductSize productSize=QProductSize.productSize;
-        QProductColor productColor = QProductColor.productColor;
-        QProduct product = QProduct.product;
-        QBrand brand = QBrand.brand;
-
-        BooleanBuilder builder = new BooleanBuilder();
-
-        if (filterRequestDto != null) {
-            // 필터 조건 추가
+//    @Override
+//    public Page<StyleResponseDto> filterStyles(StyleFilterRequestDto filterRequestDto, Pageable pageable) {
+//        QStyle style = QStyle.style;
+//        QProfile profile = QProfile.profile;
+//        QStyleOrderItem styleOrderItem = QStyleOrderItem.styleOrderItem;
+//        QOrderItem orderItem = QOrderItem.orderItem;
+//        QMediaUrl mediaUrl = QMediaUrl.mediaUrl;
+//        QProductSize productSize=QProductSize.productSize;
+//        QProductColor productColor = QProductColor.productColor;
+//        QProduct product = QProduct.product;
+//        QBrand brand = QBrand.brand;
+//
+//        BooleanBuilder builder = new BooleanBuilder();
+//
+//        if (filterRequestDto != null) {
+//            // 필터 조건 추가
+////            if (filterRequestDto.getBrandName() != null) {
+////                builder.and(orderItem.isNotNull()
+////                        .and(orderItem.productSize.isNotNull())
+////                        .and(orderItem.productSize.productColor.isNotNull())
+////                        .and(orderItem.productSize.productColor.product.isNotNull())
+////                        .and(orderItem.productSize.productColor.product.brand.name.eq(filterRequestDto.getBrandName())));
+////            }
 //            if (filterRequestDto.getBrandName() != null) {
 //                builder.and(orderItem.isNotNull()
 //                        .and(orderItem.productSize.isNotNull())
 //                        .and(orderItem.productSize.productColor.isNotNull())
 //                        .and(orderItem.productSize.productColor.product.isNotNull())
+//                        .and(orderItem.productSize.productColor.product.brand.isNotNull())
 //                        .and(orderItem.productSize.productColor.product.brand.name.eq(filterRequestDto.getBrandName())));
 //            }
-            if (filterRequestDto.getBrandName() != null) {
-                builder.and(orderItem.isNotNull()
-                        .and(orderItem.productSize.isNotNull())
-                        .and(orderItem.productSize.productColor.isNotNull())
-                        .and(orderItem.productSize.productColor.product.isNotNull())
-                        .and(orderItem.productSize.productColor.product.brand.isNotNull())
-                        .and(orderItem.productSize.productColor.product.brand.name.eq(filterRequestDto.getBrandName())));
-            }
-            if (filterRequestDto.getCollectionName() != null) {
-                builder.and(orderItem.isNotNull()
-                        .and(orderItem.productSize.isNotNull())
-                        .and(orderItem.productSize.productColor.isNotNull())
-                        .and(orderItem.productSize.productColor.product.isNotNull())
-                        .and(orderItem.productSize.productColor.product.collection.isNotNull())
-                        .and(orderItem.productSize.productColor.product.collection.name.eq(filterRequestDto.getCollectionName())));
-            }
-
-            if (filterRequestDto.getCategoryId() != null) {
-                builder.and(orderItem.isNotNull()
-                        .and(orderItem.productSize.isNotNull())
-                        .and(orderItem.productSize.productColor.isNotNull())
-                        .and(orderItem.productSize.productColor.product.isNotNull())
-                        .and(orderItem.productSize.productColor.product.category.isNotNull())
-                        .and(orderItem.productSize.productColor.product.category.id.eq(filterRequestDto.getCategoryId())));
-            }
-
-            if (filterRequestDto.getProfileName() != null) {
-                builder.and(profile.isNotNull()
-                        .and(profile.profileName.eq(filterRequestDto.getProfileName())));
-            }
-        }
-
-        // 쿼리 생성
-        var query = queryFactory.select(Projections.constructor(
-                        StyleResponseDto.class,
-                        style.id,
-                        profile.id,
-                        profile.profileName,
-                        profile.profileImageUrl,
-                        style.content,
-                        // 가장 먼저 저장된 MediaUrl
-                        JPAExpressions
-                                .select(mediaUrl.url)
-                                .from(mediaUrl)
-                                .where(mediaUrl.style.eq(style)
-                                        .and(mediaUrl.id.eq(
-                                                JPAExpressions
-                                                        .select(mediaUrl.id.min())
-                                                        .from(mediaUrl)
-                                                        .where(mediaUrl.style.eq(style))
-                                        ))),//.groupBy(mediaUrl.style.id),
-                        style.viewCount,
-                        style.likes.size() // 좋아요 수 계산
-                ))
-                .from(style)
-                .leftJoin(style.profile, profile).fetchJoin()
-                .leftJoin(style.styleOrderItems, styleOrderItem).fetchJoin()
-                .leftJoin(styleOrderItem.orderItem, orderItem).fetchJoin()
-                .leftJoin(orderItem.productSize, productSize).fetchJoin()
-                .leftJoin(productSize.productColor, productColor).fetchJoin()
-                .leftJoin(productColor.product, product).fetchJoin()
-                .leftJoin(product.brand, brand).fetchJoin()
-                .where(builder)
-                .offset(pageable.getOffset())
-                .limit(pageable.getPageSize());
-
-        // 정렬
-//        if (filterRequestDto != null && "popular".equals(filterRequestDto.getSortBy())) {
-//            query.orderBy(style.likes.size().desc());
-//        } else {
-//            query.orderBy(style.id.desc());
+//            if (filterRequestDto.getCollectionName() != null) {
+//                builder.and(orderItem.isNotNull()
+//                        .and(orderItem.productSize.isNotNull())
+//                        .and(orderItem.productSize.productColor.isNotNull())
+//                        .and(orderItem.productSize.productColor.product.isNotNull())
+//                        .and(orderItem.productSize.productColor.product.collection.isNotNull())
+//                        .and(orderItem.productSize.productColor.product.collection.name.eq(filterRequestDto.getCollectionName())));
+//            }
+//
+//            if (filterRequestDto.getCategoryId() != null) {
+//                builder.and(orderItem.isNotNull()
+//                        .and(orderItem.productSize.isNotNull())
+//                        .and(orderItem.productSize.productColor.isNotNull())
+//                        .and(orderItem.productSize.productColor.product.isNotNull())
+//                        .and(orderItem.productSize.productColor.product.category.isNotNull())
+//                        .and(orderItem.productSize.productColor.product.category.id.eq(filterRequestDto.getCategoryId())));
+//            }
+//
+//            if (filterRequestDto.getProfileName() != null) {
+//                builder.and(profile.isNotNull()
+//                        .and(profile.profileName.eq(filterRequestDto.getProfileName())));
+//            }
 //        }
-        if (filterRequestDto != null && "popular".equals(filterRequestDto.getSortBy())) {
-            query.orderBy(style.viewCount.desc(), style.id.desc()); // Sort by viewCount, then by id for ties
-        } else {
-            query.orderBy(style.id.desc()); // Default to latest
+//
+//        // 쿼리 생성
+//        var query = queryFactory.select(Projections.constructor(
+//                        StyleResponseDto.class,
+//                        style.id,
+//                        profile.id,
+//                        profile.profileName,
+//                        profile.profileImageUrl,
+//                        style.content,
+//                        // 가장 먼저 저장된 MediaUrl
+//                        JPAExpressions
+//                                .select(mediaUrl.url)
+//                                .from(mediaUrl)
+//                                .where(mediaUrl.style.eq(style)
+//                                        .and(mediaUrl.id.eq(
+//                                                JPAExpressions
+//                                                        .select(mediaUrl.id.min())
+//                                                        .from(mediaUrl)
+//                                                        .where(mediaUrl.style.eq(style))
+//                                        ))),//.groupBy(mediaUrl.style.id),
+//                        style.viewCount,
+//                        style.likes.size() // 좋아요 수 계산
+//                ))
+//                .from(style)
+//                .leftJoin(style.profile, profile).fetchJoin()
+//                .leftJoin(style.styleOrderItems, styleOrderItem).fetchJoin()
+//                .leftJoin(styleOrderItem.orderItem, orderItem).fetchJoin()
+//                .leftJoin(orderItem.productSize, productSize).fetchJoin()
+//                .leftJoin(productSize.productColor, productColor).fetchJoin()
+//                .leftJoin(productColor.product, product).fetchJoin()
+//                .leftJoin(product.brand, brand).fetchJoin()
+//                .where(builder)
+//                .offset(pageable.getOffset())
+//                .limit(pageable.getPageSize());
+//
+//        // 정렬
+////        if (filterRequestDto != null && "popular".equals(filterRequestDto.getSortBy())) {
+////            query.orderBy(style.likes.size().desc());
+////        } else {
+////            query.orderBy(style.id.desc());
+////        }
+//        if (filterRequestDto != null && "popular".equals(filterRequestDto.getSortBy())) {
+//            query.orderBy(style.viewCount.desc(), style.id.desc()); // Sort by viewCount, then by id for ties
+//        } else {
+//            query.orderBy(style.id.desc()); // Default to latest
+//        }
+//
+//        // 데이터 조회
+//        List<StyleResponseDto> content = query.fetch();
+//
+//        // 총 카운트 계산
+//        var countQuery = queryFactory.select(style.count())
+//                .from(style)
+//                .leftJoin(style.styleOrderItems, styleOrderItem)
+//                .leftJoin(styleOrderItem.orderItem, orderItem)
+//                .where(builder);
+//
+//        return PageableExecutionUtils.getPage(content, pageable, countQuery::fetchOne);
+//    }
+@Override
+public Page<StyleResponseDto> filterStyles(StyleFilterRequestDto filterRequestDto, Pageable pageable) {
+    QStyle style = QStyle.style;
+    QProfile profile = QProfile.profile;
+    QStyleOrderItem styleOrderItem = QStyleOrderItem.styleOrderItem;
+    QOrderItem orderItem = QOrderItem.orderItem;
+    QMediaUrl mediaUrl = QMediaUrl.mediaUrl;
+    QProductSize productSize = QProductSize.productSize;
+    QProductColor productColor = QProductColor.productColor;
+    QProduct product = QProduct.product;
+    QBrand brand = QBrand.brand;
+
+    // 1단계: 필터링 조건에 맞는 스타일 ID 찾기
+    BooleanBuilder filterBuilder = new BooleanBuilder();
+
+    if (filterRequestDto != null) {
+        if (filterRequestDto.getBrandName() != null) {
+            filterBuilder.and(brand.name.eq(filterRequestDto.getBrandName()));
         }
-
-        // 데이터 조회
-        List<StyleResponseDto> content = query.fetch();
-
-        // 총 카운트 계산
-        var countQuery = queryFactory.select(style.count())
-                .from(style)
-                .leftJoin(style.styleOrderItems, styleOrderItem)
-                .leftJoin(styleOrderItem.orderItem, orderItem)
-                .where(builder);
-
-        return PageableExecutionUtils.getPage(content, pageable, countQuery::fetchOne);
+        if (filterRequestDto.getCollectionName() != null) {
+            filterBuilder.and(product.collection.name.eq(filterRequestDto.getCollectionName()));
+        }
+        if (filterRequestDto.getCategoryId() != null) {
+            filterBuilder.and(product.category.id.eq(filterRequestDto.getCategoryId()));
+        }
+        if (filterRequestDto.getProfileName() != null) {
+            filterBuilder.and(profile.profileName.eq(filterRequestDto.getProfileName()));
+        }
     }
+
+    List<Long> filteredStyleIds = queryFactory
+            .select(style.id)
+            .from(style)
+            .leftJoin(style.profile, profile)
+            .leftJoin(style.styleOrderItems, styleOrderItem)
+            .leftJoin(styleOrderItem.orderItem, orderItem)
+            .leftJoin(orderItem.productSize, productSize)
+            .leftJoin(productSize.productColor, productColor)
+            .leftJoin(productColor.product, product)
+            .leftJoin(product.brand, brand)
+            .where(filterBuilder)
+            .distinct()
+            .fetch();
+
+    // 2단계: 찾은 ID로 실제 필요한 데이터 조회
+    var query = queryFactory.select(Projections.constructor(
+                    StyleResponseDto.class,
+                    style.id,
+                    profile.id,
+                    profile.profileName,
+                    profile.profileImageUrl,
+                    style.content,
+                    // 가장 먼저 저장된 MediaUrl
+                    JPAExpressions
+                            .select(mediaUrl.url)
+                            .from(mediaUrl)
+                            .where(mediaUrl.style.eq(style)
+                                    .and(mediaUrl.id.eq(
+                                            JPAExpressions
+                                                    .select(mediaUrl.id.min())
+                                                    .from(mediaUrl)
+                                                    .where(mediaUrl.style.eq(style))
+                                    ))),
+                    style.viewCount,
+                    style.likes.size() // 좋아요 수 계산
+            ))
+            .from(style)
+            .leftJoin(style.profile, profile)
+            .where(style.id.in(filteredStyleIds))
+            .offset(pageable.getOffset())
+            .limit(pageable.getPageSize());
+
+    // 정렬
+    if (filterRequestDto != null && "popular".equals(filterRequestDto.getSortBy())) {
+        query.orderBy(style.viewCount.desc(), style.id.desc());
+    } else {
+        query.orderBy(style.id.desc());
+    }
+
+    // 데이터 조회
+    List<StyleResponseDto> content = query.fetch();
+
+    // 총 카운트 계산
+    long total = filteredStyleIds.size();
+
+    return PageableExecutionUtils.getPage(content, pageable, () -> total);
+}
 
 
     @Override
