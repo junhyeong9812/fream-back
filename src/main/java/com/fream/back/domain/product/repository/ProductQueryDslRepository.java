@@ -249,17 +249,46 @@ public class ProductQueryDslRepository {
     }
 
 
+//    private BooleanExpression buildKeywordPredicate(String keyword, QProduct product, QProductColor productColor, QProductSize productSize) {
+//        if (keyword == null || keyword.trim().isEmpty()) {
+//            return null;
+//        }
+//        String trimmedKeyword = "%" + keyword.trim().toLowerCase() + "%";
+//        return product.name.lower().like(trimmedKeyword)
+//                .or(product.englishName.lower().like(trimmedKeyword))
+//                .or(productColor.colorName.lower().like(trimmedKeyword))
+//                .or(productSize.size.like(trimmedKeyword));
+//    }
+
     private BooleanExpression buildKeywordPredicate(String keyword, QProduct product, QProductColor productColor, QProductSize productSize) {
         if (keyword == null || keyword.trim().isEmpty()) {
             return null;
         }
-        String trimmedKeyword = "%" + keyword.trim().toLowerCase() + "%";
-        return product.name.lower().like(trimmedKeyword)
-                .or(product.englishName.lower().like(trimmedKeyword))
-                .or(productColor.colorName.lower().like(trimmedKeyword))
-                .or(productSize.size.like(trimmedKeyword));
-    }
 
+        // 키워드를 공백, 하이픈, 괄호 등으로 분리
+        String[] keywords = keyword.trim().toLowerCase().split("\\s+|\\-|\\(|\\)");
+
+        BooleanExpression result = null;
+        for (String k : keywords) {
+            if (k.trim().isEmpty()) continue;
+
+            String likePattern = "%" + k.trim() + "%";
+            BooleanExpression expr = product.name.lower().like(likePattern)
+                    .or(product.englishName.lower().like(likePattern))
+                    .or(productColor.colorName.lower().like(likePattern))
+                    .or(productSize.size.like(likePattern));
+
+            if (result == null) {
+                result = expr;
+            } else {
+                // AND 조건으로 결합하면 모든 키워드가 포함된 결과만 나옴
+                // OR 조건으로 결합하면 어느 하나라도 포함된 결과가 나옴
+                result = result.and(expr); // 여기서는 AND 조건을 사용
+            }
+        }
+
+        return result;
+    }
     // 카테고리 조건 빌드
     private BooleanExpression buildCategoryPredicate(List<Long> categoryIds, QProduct product) {
         return categoryIds == null || categoryIds.isEmpty() ? null : product.category.id.in(categoryIds);
