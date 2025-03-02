@@ -10,6 +10,7 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 
+import java.util.List;
 import java.util.stream.Collectors;
 
 @Service
@@ -39,6 +40,13 @@ public class FAQQueryService {
     // FAQ 검색
     public Page<FAQResponseDto> searchFAQs(String keyword, Pageable pageable) {
         return faqRepository.searchFAQs(keyword, pageable).map(this::toResponseDto);
+    }
+
+    // 모든 FAQ 조회
+    public List<FAQResponseDto> getAllFAQs() {
+        return faqRepository.findAll().stream()
+                .map(this::toResponseDto)
+                .collect(Collectors.toList());
     }
 
     private FAQResponseDto toResponseDto(FAQ faq) {

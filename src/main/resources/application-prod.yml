@@ -58,5 +58,11 @@ imp:
   pg: ${IMP_PG} # PG사와 가맹점 ID
   storeId: ${IMP_STOREID}
 
+openai:
+  api:
+    key: ${OPENAPI_KEY}  # 실제 API 키로 대체 필요
+    url: https://api.openai.com/v1/chat/completions
+  model: gpt-3.5-turbo
+
 server:
   use-forward-headers: true
