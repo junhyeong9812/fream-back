@@ -17,10 +17,6 @@ public class GPTConfig {
     @Value("${openai.api.url:https://api.openai.com/v1/chat/completions}")
     private String apiUrl;
 
-    @Bean
-    public RestTemplate restTemplate() {
-        return new RestTemplate();
-    }
 
     public String getApiKey() {
         return apiKey;
