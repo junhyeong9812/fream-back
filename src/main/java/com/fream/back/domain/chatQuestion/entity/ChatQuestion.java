@@ -8,6 +8,8 @@ import lombok.Builder;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 
+import java.time.LocalDateTime;
+
 @Entity
 @Getter
 @NoArgsConstructor
@@ -26,14 +28,22 @@ public class ChatQuestion extends BaseTimeEntity {
     private String answer;
 
     @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "user_id", nullable = false)  // 로그인 사용자만 질문 가능하므로 nullable = false
+    @JoinColumn(name = "user_id", nullable = false)
     private User user;
 
     @Column(nullable = false)
     private Boolean isAnswered;
 
+    @Column(updatable = false)
+    private LocalDateTime createdAt;
+
     @Column
     private String clientIp;
+
+    @PrePersist
+    protected void onCreateAt() {
+        this.createdAt = LocalDateTime.now();
+    }
 
     // 답변 설정 메서드
     public void setAnswer(String answer) {

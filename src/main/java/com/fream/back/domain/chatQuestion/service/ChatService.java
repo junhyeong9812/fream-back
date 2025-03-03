@@ -64,7 +64,7 @@ public class ChatService {
         return QuestionResponseDto.builder()
                 .question(question)
                 .answer(answer)
-                .createdAt(chatQuestion.getCreatedDate())
+                .createdAt(chatQuestion.getCreatedAt())
                 .build();
     }
 
@@ -82,7 +82,7 @@ public class ChatService {
                 .id(chat.getId())
                 .question(chat.getQuestion())
                 .answer(chat.getAnswer())
-                .createdAt(chat.getCreatedDate())
+                .createdAt(chat.getCreatedAt())
                 .build());
     }
 
