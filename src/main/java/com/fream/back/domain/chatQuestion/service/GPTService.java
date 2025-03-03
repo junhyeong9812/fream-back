@@ -29,7 +29,7 @@ public class GPTService {
             GPTResponseDto response = getGPTResponseWithUsage(question, faqList);
             return response.getAnswer();
         } catch (Exception e) {
-            log.error("GPT API 호출 중 오류 발생: ", e);
+            log.error("GPT API 호출 중 오류 발생: {}", e.getMessage(), e);
             return "서비스 연결 중 오류가 발생했습니다. 잠시 후 다시 시도해주세요.";
         }
     }
@@ -37,8 +37,11 @@ public class GPTService {
     // 토큰 사용량 포함한 전체 응답 반환
     public GPTResponseDto getGPTResponseWithUsage(String question, List<FAQResponseDto> faqList) {
         try {
+            log.info("GPT API 호출 시작: 질문=\"{}\"", question.length() > 50 ? question.substring(0, 47) + "..." : question);
+
             // FAQ 데이터를 문자열 리스트로 변환
             List<String> faqData = formatFAQData(faqList);
+            log.debug("FAQ 데이터 변환 완료: {} 개 FAQ 항목", faqData.size());
 
             // API 요청 DTO 생성
             GPTRequestDto requestDto = GPTRequestDto.of(
@@ -56,6 +59,7 @@ public class GPTService {
             HttpEntity<GPTRequestDto> requestEntity = new HttpEntity<>(requestDto, headers);
 
             // API 호출 및 응답 받기
+            log.debug("OpenAI API 호출 중: 모델={}", gptConfig.getModel());
             GPTResponseDto response = restTemplate.postForObject(
                     gptConfig.getApiUrl(),
                     requestEntity,
@@ -64,15 +68,19 @@ public class GPTService {
 
             // 응답 반환
             if (response != null) {
+                log.info("GPT API 응답 성공: 모델={}, 토큰 사용량={}",
+                        response.getModel(),
+                        response.getUsage() != null ? response.getUsage().getTotal_tokens() : "알 수 없음");
                 return response;
             } else {
+                log.warn("GPT API 응답이 null입니다.");
                 GPTResponseDto errorResponse = new GPTResponseDto();
                 errorResponse.setModel(gptConfig.getModel());
                 return errorResponse;
             }
 
         } catch (Exception e) {
-            log.error("GPT API 호출 중 오류 발생: ", e);
+            log.error("GPT API 호출 중 오류 발생: {} - {}", e.getClass().getName(), e.getMessage(), e);
             throw e;
         }
     }

@@ -85,4 +85,19 @@ public class ChatService {
                 .createdAt(chat.getCreatedDate())
                 .build());
     }
+
+    /**
+     * 채팅 기록 총 페이지 수 계산
+     */
+    @Transactional(readOnly = true)
+    public int getChatHistoryPageCount(String email, int size) {
+        // 사용자 정보 조회
+        User user = userQueryService.findByEmail(email);
+
+        // 전체 레코드 수 조회
+        long totalRecords = chatQuestionRepository.countByUserId(user.getId());
+
+        // 페이지 수 계산 (나머지가 있으면 1 페이지 추가)
+        return (int) Math.ceil((double) totalRecords / size);
+    }
 }

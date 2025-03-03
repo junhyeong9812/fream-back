@@ -1,4 +1,4 @@
-package com.fream.back.domain.chat.controller;
+package com.fream.back.domain.chatQuestion.controller;
 
 import com.fream.back.domain.chatQuestion.dto.chat.ChatHistoryDto;
 import com.fream.back.domain.chatQuestion.dto.chat.QuestionRequestDto;
@@ -16,7 +16,7 @@ import org.springframework.web.bind.annotation.*;
 
 @RestController
 @RequiredArgsConstructor
-@RequestMapping("/api/chat")
+@RequestMapping("/chat")
 public class ChatController {
 
     private final ChatService chatService;
@@ -25,11 +25,10 @@ public class ChatController {
      * 질문 전송 및 응답 받기 (로그인 사용자만 가능)
      */
     @PostMapping("/question")
-    @PreAuthorize("isAuthenticated()")  // 인증된 사용자만 접근 가능
+    @PreAuthorize("isAuthenticated()")
     public ResponseEntity<ResponseDto<QuestionResponseDto>> askQuestion(
             @RequestBody QuestionRequestDto requestDto
     ) {
-        // SecurityUtils로 이메일 추출
         String email = SecurityUtils.extractEmailFromSecurityContext();
         QuestionResponseDto responseDto = chatService.processQuestion(email, requestDto);
         return ResponseEntity.ok(ResponseDto.success(responseDto));
@@ -37,15 +36,28 @@ public class ChatController {
 
     /**
      * 채팅 기록 조회 (로그인 사용자만 가능)
+     * 기본적으로 최신순(DESC) 정렬, 명시적인 정렬 방향 지정 가능
      */
     @GetMapping("/history")
-    @PreAuthorize("isAuthenticated()")  // 인증된 사용자만 접근 가능
+    @PreAuthorize("isAuthenticated()")
     public ResponseEntity<ResponseDto<Page<ChatHistoryDto>>> getChatHistory(
-            @PageableDefault(size = 10, sort = "createdAt") Pageable pageable
+            @PageableDefault(size = 2, sort = "createdAt", direction = Sort.Direction.DESC) Pageable pageable
     ) {
-        // SecurityUtils로 이메일 추출
         String email = SecurityUtils.extractEmailFromSecurityContext();
         Page<ChatHistoryDto> history = chatService.getChatHistory(email, pageable);
         return ResponseEntity.ok(ResponseDto.success(history));
+    }
+
+    /**
+     * 채팅 기록 페이지 수 조회 (로그인 사용자만 가능)
+     */
+    @GetMapping("/history/count")
+    @PreAuthorize("isAuthenticated()")
+    public ResponseEntity<ResponseDto<Integer>> getChatHistoryPageCount(
+            @RequestParam(defaultValue = "2") int size
+    ) {
+        String email = SecurityUtils.extractEmailFromSecurityContext();
+        int totalPages = chatService.getChatHistoryPageCount(email, size);
+        return ResponseEntity.ok(ResponseDto.success(totalPages));
     }
 }

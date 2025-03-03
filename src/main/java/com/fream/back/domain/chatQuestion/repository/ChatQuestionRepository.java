@@ -28,4 +28,6 @@ public interface ChatQuestionRepository extends JpaRepository<ChatQuestion, Long
     @Query("SELECT c FROM ChatQuestion c WHERE c.clientIp = :clientIp AND c.user IS NULL ORDER BY c.createdAt DESC LIMIT 10")
     List<ChatQuestion> findRecentQuestionsByClientIp(@Param("clientIp") String clientIp);
 
+    // 사용자별 채팅 기록 개수 조회
+    long countByUserId(Long userId);
 }
