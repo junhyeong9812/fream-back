@@ -315,9 +315,13 @@ public Page<StyleResponseDto> filterStyles(StyleFilterRequestDto filterRequestDt
                         style.id,
                         JPAExpressions.select(mediaUrl.url)
                                 .from(mediaUrl)
-                                .where(mediaUrl.style.id.eq(style.id))
-                                .orderBy(mediaUrl.id.asc()) // 첫 번째 URL 가져오기
-                                .limit(1),
+                                .where(mediaUrl.style.id.eq(style.id)
+                                        .and(mediaUrl.id.eq(
+                                                JPAExpressions
+                                                        .select(mediaUrl.id.min())
+                                                        .from(mediaUrl)
+                                                        .where(mediaUrl.style.id.eq(style.id))
+                                        ))),
                         style.likes.size().longValue()  // 좋아요 수
                 ))
                 .from(style)
