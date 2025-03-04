@@ -24,7 +24,8 @@ public class UserAccessLogQueryController {
      */
     @GetMapping("/today")
     public long getTodayAccessCount() {
-        return userAccessLogQueryService.getTodayAccessCount();
+//        return userAccessLogQueryService.getTodayAccessCount();
+        return userAccessLogQueryService.getTodayUniqueVisitorCount();
     }
 
     /**

@@ -10,9 +10,6 @@ import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.List;
 
-/**
- * QueryDSL 구현부
- */
 @RequiredArgsConstructor
 public class UserAccessLogRepositoryImpl implements UserAccessLogRepositoryCustom {
 
@@ -27,6 +24,23 @@ public class UserAccessLogRepositoryImpl implements UserAccessLogRepositoryCusto
 
         return queryFactory
                 .select(qLog.count())
+                .from(qLog)
+                .where(qLog.accessTime.between(startOfToday, now))
+                .fetchOne();
+    }
+
+    /**
+     * ip기반 접속자 수
+     */
+    @Override
+    public long countTodayUniqueVisitors() {
+        QUserAccessLog qLog = QUserAccessLog.userAccessLog;
+
+        LocalDateTime startOfToday = LocalDate.now().atStartOfDay(); // 오늘 00:00
+        LocalDateTime now = LocalDateTime.now();                     // 현재
+
+        return queryFactory
+                .select(qLog.ipAddress.countDistinct())
                 .from(qLog)
                 .where(qLog.accessTime.between(startOfToday, now))
                 .fetchOne();

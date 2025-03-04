@@ -32,4 +32,11 @@ public class UserAccessLogQueryService {
         return userAccessLogRepository.findRecent7DaysAccessCount();
     }
 
+    /**
+     * 오늘 고유 방문자 수 (IP 기준)
+     */
+    public long getTodayUniqueVisitorCount() {
+        return userAccessLogRepository.countTodayUniqueVisitors();
+    }
+
 }

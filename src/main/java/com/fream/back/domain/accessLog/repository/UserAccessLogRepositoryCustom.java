@@ -17,4 +17,9 @@ public interface UserAccessLogRepositoryCustom {
      * - 반환: DailyAccessCountDto(date, count)
      */
     List<DailyAccessCountDto> findRecent7DaysAccessCount();
+    /**
+     * 오늘 0시 ~ 현재까지 접속자 수(IP기준)
+     *
+     */
+    long countTodayUniqueVisitors();
 }
