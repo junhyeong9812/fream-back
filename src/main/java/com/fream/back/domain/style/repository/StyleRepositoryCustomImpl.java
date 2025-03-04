@@ -271,7 +271,8 @@ public Page<StyleResponseDto> filterStyles(StyleFilterRequestDto filterRequestDt
                         .and(orderItem.isNotNull())
                         .and(productSize.isNotNull())
                         .and(productColor.isNotNull()))
-                .distinct()
+//                .distinct()
+                .groupBy(product.id, productColor.id)
                 .fetch();
 
         // 3. 스타일 정보 조회
