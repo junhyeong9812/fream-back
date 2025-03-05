@@ -1,425 +1,276 @@
-# 사용자(User) 도메인
+# 사용자 시스템 (User System)
 
-이 문서는 Fream 프로젝트의 사용자(User) 도메인에 대한 상세 정보를 제공합니다.
+## 개요
 
-## 목차
-- [엔티티 구조](#엔티티-구조)
-- [API 엔드포인트](#api-엔드포인트)
-    - [인증(Auth) API](#인증auth-api)
-    - [사용자(User) API](#사용자user-api)
-    - [프로필(Profile) API](#프로필profile-api)
-    - [팔로우(Follow) API](#팔로우follow-api)
-    - [포인트(Point) API](#포인트point-api)
-    - [계좌정보(Bank Account) API](#계좌정보bank-account-api)
-    - [차단(Block) API](#차단block-api)
+사용자 시스템은 애플리케이션의 인증, 사용자 관리, 프로필 관리 등을 담당하는 종합적인 모듈입니다. JWT(JSON Web Token)를 활용한 보안 인증 메커니즘과 Redis를 이용한 토큰 관리를 통해 안전하고 효율적인 사용자 인증 시스템을 제공합니다. 사용자 계정 생성부터 프로필 관리, 비밀번호 재설정, 계정 삭제까지 사용자 관련 전체 라이프사이클을 지원합니다.
 
-## 엔티티 구조
+## 아키텍처
 
-### User
+이 시스템은 CQRS(Command Query Responsibility Segregation) 패턴을 따르며 다음과 같이 구성되어 있습니다:
 
-사용자의 기본 정보와 계정 정보를 관리합니다.
+```
+com.fream.back.domain.user/
+├── controller/
+│   ├── command/          # 사용자 생성, 업데이트, 인증 등 명령 컨트롤러
+│   └── query/            # 사용자 정보 조회 컨트롤러
+├── dto/                  # 데이터 전송 객체
+├── entity/               # 데이터베이스 엔티티 및 열거형
+├── redis/                # Redis 관련 서비스
+├── repository/           # 데이터 접근 계층
+├── security/             # 보안 관련 컴포넌트
+├── service/              
+│   ├── command/          # 사용자 관련 명령 서비스
+│   └── query/            # 사용자 관련 조회 서비스
+└── utils/                # 유틸리티 클래스
+```
 
-| 필드                       | 설명                       | 타입               |
-|--------------------------|--------------------------|-------------------|
-| id                       | 사용자 ID (PK)              | Long              |
-| email                    | 이메일 주소 (Unique)          | String            |
-| password                 | 암호화된 비밀번호               | String            |
-| referralCode             | 고유 추천인 코드 (Unique)       | String            |
-| phoneNumber              | 전화번호 (Unique)            | String            |
-| shoeSize                 | 신발 사이즈 (Enum)            | ShoeSize          |
-| termsAgreement           | 이용약관 동의 여부               | boolean           |
-| phoneNotificationConsent | 전화 알림 수신 동의 여부           | boolean           |
-| emailNotificationConsent | 이메일 수신 동의 여부             | boolean           |
-| optionalPrivacyAgreement | 선택적 개인정보 동의 여부           | boolean           |
-| role                     | 사용자 역할 (USER, ADMIN)     | Role              |
-| sellerGrade              | 판매자 등급 (1~5)             | Integer           |
-| age                      | 나이                       | Integer           |
-| gender                   | 성별 (MALE, FEMALE, OTHER) | Gender            |
-| profile                  | 사용자 프로필 (1:1)            | Profile           |
-| interests                | 관심 상품 (1:N)              | List\<Interest\>   |
-| addresses                | 주소록 (1:N)                | List\<Address\>    |
-| paymentInfos             | 결제 정보 (1:N)              | List\<PaymentInfo\> |
-| bankAccount              | 판매 정산 계좌 (1:1)           | BankAccount       |
-| points                   | 포인트 내역 (1:N)             | List\<Point\>      |
-| referredUsers            | 내가 추천한 사용자 (1:N)         | List\<User\>       |
-| referrer                 | 나를 추천한 사용자 (N:1)         | User              |
+## 주요 기능
 
-### Profile
+### 인증 (Authentication)
 
-사용자의 프로필 정보를 관리합니다.
+1. **로그인**: 이메일/비밀번호 기반 인증 및 JWT 토큰 발급
+2. **토큰 관리**: Access Token 및 Refresh Token 발급 및 관리
+3. **Redis 기반 토큰 저장소**: 화이트리스트 방식의 토큰 관리
+4. **로그아웃**: 토큰 무효화 및 쿠키 제거
 
-| 필드              | 설명                | 타입                     |
-|-----------------|-------------------|------------------------|
-| id              | 프로필 ID (PK)       | Long                    |
-| user            | 프로필 소유 사용자 (1:1) | User                    |
-| profileName     | 프로필 이름 (Unique)   | String                  |
-| Name            | 실명                | String                  |
-| bio             | 소개글               | String                  |
-| isPublic        | 프로필 공개 여부         | boolean                 |
-| profileImageUrl | 프로필 이미지 URL       | String                  |
-| followings      | 내가 팔로우한 프로필 (1:N) | List\<Follow\>          |
-| followers       | 나를 팔로우한 프로필 (1:N) | List\<Follow\>          |
-| blockedByProfiles | 나를 차단한 프로필 (1:N) | List\<BlockedProfile\> |
-| styles          | 스타일 (1:N)         | List\<Style\>           |
+### 사용자 관리
 
-### Follow
+1. **회원가입**: 새 사용자 등록 및 기본 프로필 생성
+2. **계정 정보 업데이트**: 이메일, 비밀번호, 전화번호 등 사용자 정보 변경
+3. **계정 삭제**: 회원 탈퇴 및 관련 데이터 정리
+4. **비밀번호 찾기/재설정**: 이메일을 통한 임시 비밀번호 발급 및 비밀번호 변경
 
-사용자 간의 팔로우 관계를 관리합니다.
+### 프로필 관리
 
-| 필드               | 설명                | 타입     |
-|------------------|-------------------|--------|
-| id               | 팔로우 ID (PK)       | Long   |
-| follower         | 팔로우를 한 프로필 (N:1) | Profile |
-| following        | 팔로우된 프로필 (N:1)   | Profile |
+1. **프로필 정보 조회**: 사용자 프로필 정보 조회
+2. **프로필 업데이트**: 프로필 사진, 소개, 닉네임 등 변경
+3. **계정 설정**: 알림 설정, 개인정보 제공 동의 등 관리
 
-### Point
+## 데이터 모델
 
-사용자의 포인트 적립 및 사용 내역을 관리합니다.
+### 사용자 (User) 엔티티
 
-| 필드              | 설명                                 | 타입           |
-|-----------------|------------------------------------|--------------|
-| id              | 포인트 ID (PK)                        | Long         |
-| user            | 포인트 소유 사용자 (N:1)                   | User         |
-| amount          | 초기 포인트 금액                          | int          |
-| remainingAmount | 남은 포인트 금액                          | int          |
-| reason          | 포인트 적립/사용 이유                       | String       |
-| expirationDate  | 포인트 유효기간                           | LocalDate    |
-| status          | 포인트 상태 (AVAILABLE, USED, EXPIRED) | PointStatus  |
+사용자 엔티티는 다음과 같은 주요 필드를 포함합니다:
 
-### BankAccount
+- **id**: 사용자 ID (PK)
+- **email**: 이메일 주소 (유니크)
+- **password**: 암호화된 비밀번호
+- **phoneNumber**: 전화번호 (유니크)
+- **referralCode**: 추천인 코드 (유니크)
+- **shoeSize**: 신발 사이즈 (Enum)
+- **age**: 나이
+- **gender**: 성별 (Enum)
+- **role**: 사용자 역할 (USER, ADMIN 등)
+- **sellerGrade**: 판매자 등급
+- **termsAgreement**: 이용약관 동의 여부
+- **phoneNotificationConsent**: 전화 알림 동의 여부
+- **emailNotificationConsent**: 이메일 알림 동의 여부
+- **optionalPrivacyAgreement**: 선택적 개인정보 동의 여부
 
-사용자의 판매 정산 계좌 정보를 관리합니다.
+### 관계 엔티티
 
-| 필드            | 설명                | 타입     |
-|---------------|-------------------|--------|
-| id            | 계좌 ID (PK)        | Long   |
-| user          | 계좌 소유 사용자 (1:1)   | User   |
-| bankName      | 은행명               | String |
-| accountNumber | 계좌 번호             | String |
-| accountHolder | 예금주 이름            | String |
-
-### BlockedProfile
-
-사용자 간의 차단 관계를 관리합니다.
-
-| 필드            | 설명                | 타입     |
-|---------------|-------------------|--------|
-| id            | 차단 ID (PK)        | Long   |
-| profile       | 차단을 설정한 프로필 (N:1) | Profile |
-| blockedProfile | 차단된 프로필 (N:1)    | Profile |
+- **Profile**: 사용자 프로필 정보 (1:1)
+- **Address**: 주소록 (1:N)
+- **PaymentInfo**: 결제 정보 (1:N)
+- **Interest**: 관심 상품 (1:N)
+- **BankAccount**: 은행 계좌 정보 (1:1)
+- **Point**: 포인트 내역 (1:N)
 
 ## API 엔드포인트
 
-### 인증(Auth) API
-
-#### 로그인
-
-**POST /auth/login**
-- 요청: `LoginRequestDto`
-  ```json
-  {
-    "email": "user@example.com",
-    "password": "password123"
-  }
-  ```
-- 응답: JWT 토큰이 쿠키로 설정됨 (ACCESS_TOKEN, REFRESH_TOKEN)
-
-#### 토큰 새로 고침
-
-**POST /auth/refresh**
-- 요청: REFRESH_TOKEN 쿠키가 포함된 요청
-- 응답: 새 ACCESS_TOKEN이 쿠키로 설정됨
-
-#### 로그아웃
-
-**POST /auth/logout**
-- 요청: ACCESS_TOKEN 및 REFRESH_TOKEN 쿠키가 포함된 요청
-- 응답: 쿠키 만료 및 토큰 무효화
-
-#### 이메일 확인
-
-**GET /auth/email**
-- 요청: ACCESS_TOKEN 쿠키가 포함된 요청
-- 응답: 현재 로그인한 사용자의 이메일
-
-### 사용자(User) API
-
-#### 회원가입
-
-**POST /users/register**
-- 요청: `UserRegistrationDto`
-  ```json
-  {
-    "email": "user@example.com",
-    "password": "password123",
-    "phoneNumber": "01012345678",
-    "referralCode": "ABC123",
-    "shoeSize": "SIZE_270",
-    "isOver14": true,
-    "termsAgreement": true,
-    "privacyAgreement": true,
-    "optionalPrivacyAgreement": false,
-    "adConsent": false
-  }
-  ```
-- 응답: 회원가입 성공 메시지
-
-#### 사용자 정보 업데이트
-
-**PUT /users/update**
-- 요청: `LoginInfoUpdateDto`
-  ```json
-  {
-    "newEmail": "newuser@example.com",
-    "Password": "currentPassword",
-    "newPassword": "newPassword123",
-    "newPhoneNumber": "01098765432",
-    "newShoeSize": "SIZE_275",
-    "adConsent": true,
-    "privacyConsent": true,
-    "smsConsent": true,
-    "emailConsent": true
-  }
-  ```
-- 응답: 업데이트된 `LoginInfoDto`
-
-#### 로그인 정보 조회
-
-**GET /users/login-info**
-- 응답: `LoginInfoDto`
-  ```json
-  {
-    "email": "user@example.com",
-    "phoneNumber": "01012345678",
-    "shoeSize": "SIZE_270",
-    "optionalPrivacyAgreement": true,
-    "smsConsent": true,
-    "emailConsent": true
-  }
-  ```
-
-#### 이메일 찾기
-
-**POST /users/find-email**
-- 요청: `EmailFindRequestDto`
-  ```json
-  {
-    "phoneNumber": "01012345678"
-  }
-  ```
-- 응답: 해당 전화번호로 등록된 이메일
-
-#### 비밀번호 재설정 자격 확인
-
-**POST /users/reset-password**
-- 요청: `PasswordResetRequestDto`
-  ```json
-  {
-    "email": "user@example.com",
-    "phoneNumber": "01012345678"
-  }
-  ```
-- 응답: 확인 상태
-
-#### 임시 비밀번호 이메일 발송
-
-**POST /users/reset-password-sandEmail**
-- 요청: `PasswordResetRequestDto`
-  ```json
-  {
-    "email": "user@example.com",
-    "phoneNumber": "01012345678"
-  }
-  ```
-- 응답: 이메일 발송 상태
-
-#### 비밀번호 재설정
-
-**POST /users/reset**
-- 요청: `PasswordResetRequestDto`
-  ```json
-  {
-    "email": "user@example.com",
-    "phoneNumber": "01012345678",
-    "newPassword": "newPassword123",
-    "confirmPassword": "newPassword123"
-  }
-  ```
-- 응답: 비밀번호 변경 성공 메시지
-
-#### 회원 탈퇴
-
-**DELETE /users/delete-account**
-- 응답: 회원 탈퇴 완료 메시지
-
-### 프로필(Profile) API
-
-#### 프로필 조회
-
-**GET /profiles**
-- 응답: `ProfileInfoDto`
-  ```json
-  {
-    "profileId": 1,
-    "profileImage": "profile_1_abc123.jpg",
-    "profileName": "username",
-    "realName": "User Name",
-    "email": "user@example.com",
-    "bio": "자기소개",
-    "isPublic": true,
-    "blockedProfiles": []
-  }
-  ```
-
-#### 프로필 업데이트
-
-**PUT /profiles**
-- 요청: Multipart 요청
-    - `profileImage`: 프로필 이미지 파일 (선택)
-    - `dto`: `ProfileUpdateDto`
-      ```json
-      {
-        "profileName": "newUsername",
-        "Name": "New Name",
-        "bio": "새로운 자기소개",
-        "isPublic": true
-      }
-      ```
-- 응답: 프로필 업데이트 성공 메시지
-
-#### 프로필 이미지 조회
-
-**GET /profiles/{profileId}/image**
-- 응답: 프로필 이미지 파일
-
-### 팔로우(Follow) API
-
-#### 팔로우 생성
-
-**POST /follows/{profileId}**
-- 응답: 팔로우 성공 메시지
-
-#### 팔로우 삭제
-
-**DELETE /follows/{profileId}**
-- 응답: 팔로우 삭제 성공 메시지
-
-#### 팔로워 목록 조회
-
-**GET /follows/followers**
-- 응답: 페이지네이션된 `FollowDto` 목록
-
-#### 팔로잉 목록 조회
-
-**GET /follows/followings**
-- 응답: 페이지네이션된 `FollowDto` 목록
-
-### 포인트(Point) API
-
-#### 포인트 적립
-
-**POST /points/commands**
-- 요청: `PointDto.AddPointRequest`
-  ```json
-  {
-    "amount": 1000,
-    "reason": "회원가입 보너스"
-  }
-  ```
-- 응답: `PointDto.PointResponse`
-
-#### 포인트 사용
-
-**POST /points/commands/use**
-- 요청: `PointDto.UsePointRequest`
-  ```json
-  {
-    "amount": 500,
-    "reason": "상품 구매"
-  }
-  ```
-- 응답: `PointDto.UsePointResponse`
-
-#### 포인트 내역 조회
-
-**GET /points/queries**
-- 응답: `PointDto.PointResponse` 목록
-
-#### 사용 가능 포인트 조회
-
-**GET /points/queries/available**
-- 응답: 사용 가능한 `PointDto.PointResponse` 목록
-
-#### 포인트 요약 정보 조회
-
-**GET /points/queries/summary**
-- 응답: `PointDto.PointSummaryResponse`
-
-#### 포인트 상세 조회
-
-**GET /points/queries/{pointId}**
-- 응답: `PointDto.PointResponse`
-
-### 계좌정보(Bank Account) API
-
-#### 계좌 등록/수정
-
-**POST /bank-account**
-- 요청: `BankAccountDto`
-  ```json
-  {
-    "bankName": "신한은행",
-    "accountNumber": "110-123-456789",
-    "accountHolder": "홍길동"
-  }
-  ```
-- 응답: 계좌 등록/수정 성공 메시지
-
-#### 계좌 정보 조회
-
-**GET /bank-account**
-- 응답: `BankAccountInfoDto`
-  ```json
-  {
-    "bankName": "신한은행",
-    "accountNumber": "110-123-456789",
-    "accountHolder": "홍길동"
-  }
-  ```
-
-#### 계좌 정보 삭제
-
-**DELETE /bank-account**
-- 응답: 계좌 삭제 성공 메시지
-
-### 차단(Block) API
-
-#### 프로필 차단
-
-**POST /profiles/blocked**
-- 요청:
-  ```json
-  {
-    "blockedProfileId": 2
-  }
-  ```
-- 응답: 차단 성공 메시지
-
-#### 차단 해제
-
-**DELETE /profiles/blocked?blockedProfileId={profileId}**
-- 응답: 차단 해제 성공 메시지
-
-#### 차단 목록 조회
-
-**GET /profiles/blocked**
-- 응답: `BlockedProfileDto` 목록
-  ```json
-  [
-    {
-      "profileId": 2,
-      "profileName": "blockedUser",
-      "profileImageUrl": "profile_2_xyz987.jpg"
-    }
-  ]
-  ```
+### 인증 관련 API
+
+```
+POST /auth/login
+```
+이메일과 비밀번호로 로그인하고 JWT 토큰을 쿠키로 발급합니다.
+
+**요청 본문 예시:**
+```json
+{
+  "email": "user@example.com",
+  "password": "securePassword123"
+}
+```
+
+```
+POST /auth/refresh
+```
+Refresh Token을 사용하여 새로운 Access Token을 발급합니다.
+
+```
+POST /auth/logout
+```
+현재 세션을 로그아웃 처리하고 토큰을 무효화합니다.
+
+```
+GET /auth/email
+```
+현재 로그인한 사용자의 이메일을 반환합니다.
+
+### 사용자 관리 API
+
+```
+POST /users/register
+```
+새 사용자를 등록합니다.
+
+**요청 본문 예시:**
+```json
+{
+  "email": "newuser@example.com",
+  "password": "securePassword123",
+  "phoneNumber": "01012345678",
+  "shoeSize": "SIZE_270",
+  "isOver14": true,
+  "termsAgreement": true,
+  "privacyAgreement": true,
+  "optionalPrivacyAgreement": false,
+  "adConsent": false
+}
+```
+
+```
+PUT /users/update
+```
+현재 로그인한 사용자의 정보를 업데이트합니다.
+
+**요청 본문 예시:**
+```json
+{
+  "Password": "currentPassword",
+  "newEmail": "newemail@example.com",
+  "newPassword": "newSecurePassword123",
+  "newPhoneNumber": "01087654321",
+  "newShoeSize": "SIZE_275",
+  "smsConsent": true,
+  "emailConsent": false
+}
+```
+
+```
+GET /users/login-info
+```
+현재 로그인한 사용자의 기본 정보를 조회합니다.
+
+```
+POST /users/find-email
+```
+전화번호를 이용해 이메일을 찾습니다.
+
+**요청 본문 예시:**
+```json
+{
+  "phoneNumber": "01012345678"
+}
+```
+
+```
+POST /users/reset-password
+```
+비밀번호 재설정 자격을 확인합니다.
+
+**요청 본문 예시:**
+```json
+{
+  "email": "user@example.com",
+  "phoneNumber": "01012345678"
+}
+```
+
+```
+POST /users/reset-password-sandEmail
+```
+이메일로 임시 비밀번호를 발송합니다.
+
+```
+DELETE /users/delete-account
+```
+현재 로그인한 사용자의 계정을 삭제합니다.
+
+## 인증 메커니즘
+
+### JWT 토큰 관리
+
+1. **토큰 발급**: 로그인 시 Access Token과 Refresh Token이 발급됩니다.
+  - Access Token: 짧은 만료 시간 (기본 30분)
+  - Refresh Token: 긴 만료 시간 (기본 1일)
+
+2. **토큰 저장**: 모든 토큰은 클라이언트의 쿠키에 저장됩니다.
+  - HttpOnly: 자바스크립트로 접근 불가
+  - Secure: HTTPS 전용
+  - SameSite: None (크로스 사이트 요청 허용)
+
+3. **토큰 갱신**: Access Token이 만료되면 Refresh Token을 사용하여 새로운 토큰을 발급받을 수 있습니다.
+
+4. **Redis 기반 화이트리스트**: 유효한 토큰만 Redis에 저장되어 있으며, 로그아웃 시 Redis에서 제거됩니다.
+
+### 보안 고려사항
+
+1. **비밀번호 암호화**: BCrypt를 사용하여 모든 비밀번호가 해싱되어 저장됩니다.
+2. **CSRF 보호**: API 요청에 대한 CSRF 토큰 검증이 구현되어 있습니다.
+3. **토큰 무효화**: 로그아웃 또는 비밀번호 변경 시 모든 기존 토큰이 무효화됩니다.
+4. **IP 기반 추적**: 로그인 시 IP 주소가 기록되어 의심스러운 활동을 감지합니다.
+
+## 이메일 변경 프로세스
+
+사용자가 이메일을 변경할 경우 다음과 같은 프로세스가 진행됩니다:
+
+1. 현재 비밀번호 확인을 통한 본인 인증
+2. 새 이메일 주소 유효성 검증
+3. 기존 토큰 제거 및 Redis에서 세션 삭제
+4. 새 이메일 주소로 새 토큰 발급
+5. 쿠키 업데이트 및 세션 갱신
+
+## 비밀번호 재설정 프로세스
+
+비밀번호를 잊어버린 사용자를 위한 프로세스:
+
+1. 이메일과 전화번호 검증
+2. 임시 비밀번호 생성 및 사용자 이메일로 전송
+3. 임시 비밀번호로 로그인 후 비밀번호 변경 권장
+
+## 구현 참고사항
+
+### 개발자를 위한 안내
+
+1. **새 사용자 속성 추가**:
+  - 엔티티에 필드 추가
+  - DTO 업데이트
+  - 관련 서비스 메서드 추가
+
+2. **토큰 유효 기간 변경**:
+  - `application.properties` 또는 환경 변수에서 다음 값 수정:
+    - `jwt.expiration`: Access Token 만료 시간 (밀리초)
+    - `jwt.refreshExpiration`: Refresh Token 만료 시간 (밀리초)
+
+3. **비밀번호 정책 변경**:
+  - `UserControllerValidator` 클래스의 비밀번호 검증 로직 수정
+
+### 설정 요구사항
+
+1. **Redis 설정**:
+  - 토큰 저장을 위한 Redis 서버 필요
+  - 다음 속성 설정 필요:
+    - `spring.redis.host`: Redis 호스트
+    - `spring.redis.port`: Redis 포트
+
+2. **SMTP 설정**:
+  - 비밀번호 찾기 이메일 전송을 위한 SMTP 서버 설정
+  - 다음 속성 설정 필요:
+    - `spring.mail.host`: SMTP 서버 호스트
+    - `spring.mail.port`: SMTP 서버 포트
+    - `spring.mail.username`: SMTP 계정
+    - `spring.mail.password`: SMTP 비밀번호
+    - `spring.mail.properties.mail.smtp.auth`: SMTP 인증 사용 여부
+    - `spring.mail.properties.mail.smtp.starttls.enable`: STARTTLS 사용 여부
+
+## 문제 해결
+
+1. **토큰 인증 실패**: 쿠키가 올바르게 설정되었는지, Redis 서버가 실행 중인지 확인하세요.
+
+2. **비밀번호 재설정 이메일이 도착하지 않음**: SMTP 설정을 확인하고, 이메일 서비스 로그를 검토하세요.
+
+3. **중복된 이메일/전화번호 오류**: 해당 필드가 이미 데이터베이스에 존재하는지 확인하세요.
+
+4. **세션이 빠르게 만료됨**: 토큰 유효 기간 설정을 검토하고, 클라이언트의 시간이 서버와 동기화되어 있는지 확인하세요.
