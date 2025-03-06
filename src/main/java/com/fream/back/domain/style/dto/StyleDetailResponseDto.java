@@ -21,10 +21,28 @@ public class StyleDetailResponseDto {
     private List<String> mediaUrls; // 미디어 URL 목록
     private Long likeCount; // 좋아요 수
     private Long commentCount; // 댓글 수
-    private Boolean liked; // 좋아요 상태 필드 추가
+    private Boolean liked = false; // 좋아요 상태 필드(기본값 설정)
     private List<ProductInfoDto> productInfos; // 상품 정보 목록
     private LocalDateTime createdDate;
 
+    // 기존 필드만 사용하는 생성자 추가 (필요시)
+    public StyleDetailResponseDto(Long id, Long profileId, String profileName,
+                                  String profileImageUrl, String content,
+                                  List<String> mediaUrls, Long likeCount,
+                                  Long commentCount, List<ProductInfoDto> productInfos,
+                                  LocalDateTime createdDate) {
+        this.id = id;
+        this.profileId = profileId;
+        this.profileName = profileName;
+        this.profileImageUrl = profileImageUrl;
+        this.content = content;
+        this.mediaUrls = mediaUrls;
+        this.likeCount = likeCount;
+        this.commentCount = commentCount;
+        this.productInfos = productInfos;
+        this.createdDate = createdDate;
+        this.liked = false;
+    }
     @Data
     @Builder
     @AllArgsConstructor

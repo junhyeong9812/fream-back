@@ -17,4 +17,18 @@ public class StyleResponseDto {
     private Long viewCount;
     private Integer likeCount;
     private Boolean liked;
+
+    public StyleResponseDto(Long id, Long profileId, String profileName,
+                            String profileImageUrl, String content,
+                            String mediaUrl, Long viewCount, Integer likeCount) {
+        this.id = id;
+        this.profileId = profileId;
+        this.profileName = profileName;
+        this.profileImageUrl = profileImageUrl;
+        this.content = content;
+        this.mediaUrl = mediaUrl;
+        this.viewCount = viewCount;
+        this.likeCount = likeCount;
+        this.liked = false; // 기본값 설정
+    }
 }
