@@ -42,8 +42,8 @@ public class StyleQueryService {
     public Page<StyleResponseDto> getFilteredStyles(StyleFilterRequestDto filterRequestDto, Pageable pageable, String email) {
         Page<StyleResponseDto> styles = styleRepository.filterStyles(filterRequestDto, pageable);
 
-        // 로그인한 사용자인 경우 좋아요 상태 확인
-        if (email != null && !email.isEmpty()) {
+        // 로그인한 사용자이고, anonymousUser가 아닌 경우에만 좋아요 상태 확인
+        if (email != null && !email.isEmpty() && !"anonymousUser".equals(email)) {
             List<Long> styleIds = styles.getContent().stream()
                     .map(StyleResponseDto::getId)
                     .collect(Collectors.toList());
@@ -55,19 +55,20 @@ public class StyleQueryService {
                 style.setLiked(likedStyleIds.contains(style.getId()));
             });
         } else {
-            // 로그인하지 않은 경우 모두 false로 설정
+            // 로그인하지 않은 경우 또는 anonymousUser인 경우 모두 false로 설정
             styles.getContent().forEach(style -> style.setLiked(false));
         }
 
         return styles;
     }
 
+
     // 프로필별 스타일 목록 조회
     public Page<ProfileStyleResponseDto> getStylesByProfile(Long profileId, Pageable pageable, String email) {
         Page<ProfileStyleResponseDto> styles = styleRepository.getStylesByProfile(profileId, pageable);
 
-        // 로그인한 사용자인 경우 좋아요 상태 확인
-        if (email != null && !email.isEmpty()) {
+        // 로그인한 사용자이고, anonymousUser가 아닌 경우에만 좋아요 상태 확인
+        if (email != null && !email.isEmpty() && !"anonymousUser".equals(email)) {
             List<Long> styleIds = styles.getContent().stream()
                     .map(ProfileStyleResponseDto::getId)
                     .collect(Collectors.toList());
@@ -79,7 +80,7 @@ public class StyleQueryService {
                 style.setLiked(likedStyleIds.contains(style.getId()));
             });
         } else {
-            // 로그인하지 않은 경우 모두 false로 설정
+            // 로그인하지 않은 경우 또는 anonymousUser인 경우 모두 false로 설정
             styles.getContent().forEach(style -> style.setLiked(false));
         }
 
@@ -90,11 +91,12 @@ public class StyleQueryService {
     public StyleDetailResponseDto getStyleDetail(Long styleId, String email) {
         StyleDetailResponseDto detailDto = styleRepository.getStyleDetail(styleId);
 
-        // 로그인한 사용자인 경우 좋아요 상태 확인
-        if (email != null && !email.isEmpty()) {
+        // 로그인한 사용자이고, anonymousUser가 아닌 경우에만 좋아요 상태 확인
+        if (email != null && !email.isEmpty() && !"anonymousUser".equals(email)) {
             boolean isLiked = styleLikeQueryService.checkUserLiked(email, styleId);
             detailDto.setLiked(isLiked);
         } else {
+            // 로그인하지 않은 경우 또는 anonymousUser인 경우 false로 설정
             detailDto.setLiked(false);
         }
 
