@@ -21,6 +21,7 @@ public class StyleDetailResponseDto {
     private List<String> mediaUrls; // 미디어 URL 목록
     private Long likeCount; // 좋아요 수
     private Long commentCount; // 댓글 수
+    private Boolean liked; // 좋아요 상태 필드 추가
     private List<ProductInfoDto> productInfos; // 상품 정보 목록
     private LocalDateTime createdDate;
 

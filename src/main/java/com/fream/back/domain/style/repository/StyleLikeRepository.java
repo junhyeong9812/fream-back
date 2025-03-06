@@ -17,4 +17,18 @@ public interface StyleLikeRepository extends JpaRepository<StyleLike, Long> {
 
     // 특정 스타일 ID로 좋아요 목록 조회
     List<StyleLike> findByStyleId(Long styleId);
+    // 특정 프로필의 특정 스타일에 대한 좋아요 조회
+    Optional<StyleLike> findByProfileIdAndStyleId(Long profileId, Long styleId);
+
+    // 특정 프로필의 특정 스타일에 대한 좋아요 존재 여부 확인
+    boolean existsByProfileIdAndStyleId(Long profileId, Long styleId);
+
+    // 특정 프로필이 좋아요한 여러 스타일 조회
+    List<StyleLike> findByProfileIdAndStyleIdIn(Long profileId, List<Long> styleIds);
+
+    // 특정 스타일의 좋아요 수 계산
+    Long countByStyleId(Long styleId);
+
+    // 특정 프로필 & 스타일에 대한 좋아요 삭제
+    void deleteByProfileIdAndStyleId(Long profileId, Long styleId);
 }

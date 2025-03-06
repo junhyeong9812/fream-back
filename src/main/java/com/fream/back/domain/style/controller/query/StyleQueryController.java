@@ -5,6 +5,7 @@ import com.fream.back.domain.style.dto.StyleDetailResponseDto;
 import com.fream.back.domain.style.dto.StyleFilterRequestDto;
 import com.fream.back.domain.style.dto.StyleResponseDto;
 import com.fream.back.domain.style.service.query.StyleQueryService;
+import com.fream.back.global.utils.SecurityUtils;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -25,7 +26,9 @@ public class StyleQueryController {
     @GetMapping("/{styleId}")
     public ResponseEntity<StyleDetailResponseDto> getStyleDetail(
             @PathVariable("styleId") Long styleId) {
-        StyleDetailResponseDto detail = styleQueryService.getStyleDetail(styleId);
+        // 현재 로그인한 사용자의 이메일 추출 (없는 경우 null)
+        String email = SecurityUtils.extractEmailFromSecurityContext();
+        StyleDetailResponseDto detail = styleQueryService.getStyleDetail(styleId, email);
         return ResponseEntity.ok(detail);
     }
 
@@ -34,7 +37,9 @@ public class StyleQueryController {
             @ModelAttribute StyleFilterRequestDto filterRequestDto,
             Pageable pageable
     ) {
-        Page<StyleResponseDto> styles = styleQueryService.getFilteredStyles(filterRequestDto, pageable);
+        // 현재 로그인한 사용자의 이메일 추출 (없는 경우 null)
+        String email = SecurityUtils.extractEmailFromSecurityContext();
+        Page<StyleResponseDto> styles = styleQueryService.getFilteredStyles(filterRequestDto, pageable, email);
         return ResponseEntity.ok(styles);
     }
 
@@ -43,7 +48,9 @@ public class StyleQueryController {
             @PathVariable("profileId") Long profileId,
             Pageable pageable
     ) {
-        Page<ProfileStyleResponseDto> styles = styleQueryService.getStylesByProfile(profileId, pageable);
+        // 현재 로그인한 사용자의 이메일 추출 (없는 경우 null)
+        String email = SecurityUtils.extractEmailFromSecurityContext();
+        Page<ProfileStyleResponseDto> styles = styleQueryService.getStylesByProfile(profileId, pageable, email);
         return ResponseEntity.ok(styles);
     }
     @GetMapping("/{styleId}/media/{fileName}")

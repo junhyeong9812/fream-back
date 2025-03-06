@@ -8,8 +8,9 @@ import lombok.NoArgsConstructor;
 @AllArgsConstructor
 @NoArgsConstructor
 public class ProfileStyleResponseDto {
-    private Long id; // Style ID
-    private String mediaUrl; // 미디어 URL
-    private Long likeCount; // 좋아요 수
+    private Long id;
+    private String mediaUrl;
+    private Long likeCount;
+    private Long commentCount;
+    private Boolean liked; // 좋아요 상태 필드 추가
 }
-

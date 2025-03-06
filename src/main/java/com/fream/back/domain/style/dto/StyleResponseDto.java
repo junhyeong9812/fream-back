@@ -16,4 +16,5 @@ public class StyleResponseDto {
     private String mediaUrl;
     private Long viewCount;
     private Integer likeCount;
+    private Boolean liked;
 }
