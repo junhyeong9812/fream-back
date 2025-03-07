@@ -21,7 +21,8 @@ public class StyleDetailResponseDto {
     private List<String> mediaUrls; // 미디어 URL 목록
     private Long likeCount; // 좋아요 수
     private Long commentCount; // 댓글 수
-    private Boolean liked = false; // 좋아요 상태 필드(기본값 설정)
+    private Boolean liked = false; // 좋아요 상태 필드
+    private Boolean interested = false; // 관심 상태 필드
     private List<ProductInfoDto> productInfos; // 상품 정보 목록
     private LocalDateTime createdDate;
 
@@ -42,6 +43,7 @@ public class StyleDetailResponseDto {
         this.productInfos = productInfos;
         this.createdDate = createdDate;
         this.liked = false;
+        this.interested = false;
     }
     @Data
     @Builder
