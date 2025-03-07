@@ -50,8 +50,10 @@ public class StyleDetailResponseDto {
     @AllArgsConstructor
     @NoArgsConstructor
     public static class ProductInfoDto {
+        private Long productId;
         private String productName; // 상품명
         private String productEnglishName; // 상품 영어명
+        private String colorName; // 색상명
         private String thumbnailImageUrl; // 대표 이미지
         private Integer minSalePrice; // 최저 판매가
     }

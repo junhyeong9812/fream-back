@@ -257,8 +257,10 @@ public Page<StyleResponseDto> filterStyles(StyleFilterRequestDto filterRequestDt
         List<StyleDetailResponseDto.ProductInfoDto> productInfos = queryFactory
                 .select(Projections.fields(
                         StyleDetailResponseDto.ProductInfoDto.class,
+                        product.id.as("productId"),
                         product.name.as("productName"),
                         product.englishName.as("productEnglishName"),
+                        productColor.colorName.as("colorName"),
                         productColor.thumbnailImage.imageUrl.as("thumbnailImageUrl"),
                         productSize.salePrice.min().as("minSalePrice")
                 ))
