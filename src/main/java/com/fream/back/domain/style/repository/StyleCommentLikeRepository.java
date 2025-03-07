@@ -18,4 +18,7 @@ public interface StyleCommentLikeRepository extends JpaRepository<StyleCommentLi
 
     // 특정 댓글 ID로 좋아요 목록 조회
     List<StyleCommentLike> findByCommentId(Long commentId);
+
+    // 특정 프로필이 좋아요한 댓글 ID 목록 조회
+    List<StyleCommentLike> findByProfileIdAndCommentIdIn(Long profileId, List<Long> commentIds);
 }
