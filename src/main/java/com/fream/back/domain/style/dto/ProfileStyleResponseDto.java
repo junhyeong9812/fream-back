@@ -11,14 +11,12 @@ public class ProfileStyleResponseDto {
     private Long id;
     private String mediaUrl;
     private Long likeCount;
-    private Long commentCount;
     private Boolean liked = false; // 좋아요 상태 필드 추가
 
     public ProfileStyleResponseDto(Long id, String mediaUrl, Long likeCount, Long commentCount) {
         this.id = id;
         this.mediaUrl = mediaUrl;
         this.likeCount = likeCount;
-        this.commentCount = commentCount;
         this.liked = false; // 기본값 설정
     }
 }
