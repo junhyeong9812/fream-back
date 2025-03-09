@@ -50,6 +50,9 @@ public class Style extends BaseTimeEntity {
     @OneToMany(mappedBy = "style", cascade = CascadeType.ALL, orphanRemoval = true)
     private List<StyleInterest> interests = new ArrayList<>();
 
+    @Builder.Default
+    @OneToMany(mappedBy = "style", cascade = CascadeType.ALL, orphanRemoval = true)
+    private List<StyleHashtag> hashtags = new ArrayList<>();
 
 
     // 뷰 카운트 증가
@@ -120,6 +123,15 @@ public class Style extends BaseTimeEntity {
     public void removeStyleOrderItem(StyleOrderItem styleOrderItem) {
         this.styleOrderItems.remove(styleOrderItem);
         styleOrderItem.unassignStyle();
+    }
+
+    public void addStyleHashtag(StyleHashtag styleHashtag) {
+        this.hashtags.add(styleHashtag);
+        styleHashtag.assignStyle(this);
+    }
+
+    public void removeStyleHashtag(StyleHashtag styleHashtag) {
+        this.hashtags.remove(styleHashtag);
     }
 
 }
