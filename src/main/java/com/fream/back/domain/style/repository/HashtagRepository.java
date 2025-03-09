@@ -18,9 +18,7 @@ public interface HashtagRepository extends JpaRepository<Hashtag, Long> {
     List<Hashtag> findByNameStartingWithOrderByCountDesc(String prefix, Pageable pageable);
 
     // 한글 포함 검색을 위한 추가 메서드 (JPQL 또는 네이티브 쿼리)
-    @Query("SELECT h FROM Hashtag h WHERE FUNCTION('LOWER', h.name) LIKE LOWER(CONCAT(:keyword, '%')) OR " +
-            "FUNCTION('LOWER', h.name) LIKE LOWER(CONCAT('%', :keyword, '%')) " +
-            "ORDER BY h.count DESC")
+    @Query("SELECT h FROM Hashtag h WHERE LOWER(h.name) LIKE LOWER(CONCAT(:keyword, '%')) OR LOWER(h.name) LIKE LOWER(CONCAT('%', :keyword, '%')) ORDER BY h.count DESC")
     List<Hashtag> findByNameContainingKeywordOrderByCountDesc(@Param("keyword") String keyword, Pageable pageable);
 
     // 사용 빈도순으로 인기 해시태그 조회
