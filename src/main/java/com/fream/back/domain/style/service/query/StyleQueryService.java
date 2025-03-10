@@ -14,7 +14,9 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.util.Collections;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 import java.util.stream.Collectors;
 
@@ -26,8 +28,8 @@ public class StyleQueryService {
     private final StyleRepository styleRepository;
     private final StyleLikeQueryService styleLikeQueryService;
     private final StyleInterestQueryService styleInterestQueryService;
+    private final StyleHashtagQueryService styleHashtagQueryService;
     private final ProfileQueryService profileQueryService;
-
 
     // 스타일 ID로 조회
     public Style findStyleById(Long styleId) {
@@ -40,59 +42,109 @@ public class StyleQueryService {
         return styleRepository.findByProfileId(profileId);
     }
 
-
-
-    // 필터링된 스타일 목록 조회
+    // 필터링된 스타일 목록 조회 (해시태그 추가) - 최적화 버전
     public Page<StyleResponseDto> getFilteredStyles(StyleFilterRequestDto filterRequestDto, Pageable pageable, String email) {
+        // 스타일 목록 조회
         Page<StyleResponseDto> styles = styleRepository.filterStyles(filterRequestDto, pageable);
 
-        // 로그인한 사용자이고, anonymousUser가 아닌 경우에만 좋아요 상태 확인
+        // 결과가 없으면 빈 페이지 반환
+        if (styles.isEmpty()) {
+            return styles;
+        }
+
+        // 스타일 ID 목록 추출
+        List<Long> styleIds = styles.getContent().stream()
+                .map(StyleResponseDto::getId)
+                .collect(Collectors.toList());
+
+        // 해시태그 맵 한 번에 조회
+        Map<Long, List<com.fream.back.domain.style.dto.HashtagResponseDto>> styleToHashtagsMap =
+                styleHashtagQueryService.getHashtagMapByStyleIds(styleIds);
+
+        // 로그인한 사용자인 경우 - 좋아요 및 관심 상태 확인
         if (email != null && !email.isEmpty() && !"anonymousUser".equals(email)) {
-            List<Long> styleIds = styles.getContent().stream()
-                    .map(StyleResponseDto::getId)
-                    .collect(Collectors.toList());
+            try {
+                // 사용자 프로필 조회 (한 번만 실행)
+                Profile profile = profileQueryService.getProfileByEmail(email);
+                Long profileId = profile.getId();
 
-            Set<Long> likedStyleIds = styleLikeQueryService.getLikedStyleIds(email, styleIds);
+                // 좋아요 상태 한 번에 조회
+                Set<Long> likedStyleIds = styleLikeQueryService.getLikedStyleIds(email, styleIds);
 
-            // 좋아요 상태 설정
-            styles.getContent().forEach(style -> {
-                style.setLiked(likedStyleIds.contains(style.getId()));
-            });
+                // 관심 상태 한 번에 조회
+                Set<Long> interestedStyleIds = styleInterestQueryService.getInterestedStyleIds(profileId, styleIds);
+
+                // 각 스타일에 좋아요, 관심 상태, 해시태그 설정
+                for (StyleResponseDto dto : styles.getContent()) {
+                    dto.setLiked(likedStyleIds.contains(dto.getId()));
+                    dto.setInterested(interestedStyleIds.contains(dto.getId()));
+                    dto.setHashtags(styleToHashtagsMap.getOrDefault(dto.getId(), Collections.emptyList()));
+                }
+            } catch (Exception e) {
+                // 프로필 조회 실패 시 각 DTO는 이미 기본값이 설정되어 있으므로
+                // 해시태그만 설정
+                for (StyleResponseDto dto : styles.getContent()) {
+                    dto.setHashtags(styleToHashtagsMap.getOrDefault(dto.getId(), Collections.emptyList()));
+                }
+            }
         } else {
-            // 로그인하지 않은 경우 또는 anonymousUser인 경우 모두 false로 설정
-            styles.getContent().forEach(style -> style.setLiked(false));
+            // 로그인하지 않은 경우 - 해시태그만 설정 (liked, interested는 기본값 false)
+            for (StyleResponseDto dto : styles.getContent()) {
+                dto.setHashtags(styleToHashtagsMap.getOrDefault(dto.getId(), Collections.emptyList()));
+            }
         }
 
         return styles;
     }
 
-
-    // 프로필별 스타일 목록 조회
+    // 프로필별 스타일 목록 조회 (해시태그 추가) - 최적화 버전
     public Page<ProfileStyleResponseDto> getStylesByProfile(Long profileId, Pageable pageable, String email) {
+        // 스타일 목록 조회
         Page<ProfileStyleResponseDto> styles = styleRepository.getStylesByProfile(profileId, pageable);
 
-        // 로그인한 사용자이고, anonymousUser가 아닌 경우에만 좋아요 상태 확인
+        // 결과가 없으면 빈 페이지 반환
+        if (styles.isEmpty()) {
+            return styles;
+        }
+
+        // 스타일 ID 목록 추출
+        List<Long> styleIds = styles.getContent().stream()
+                .map(ProfileStyleResponseDto::getId)
+                .collect(Collectors.toList());
+
+        // 해시태그 맵 한 번에 조회
+        Map<Long, List<com.fream.back.domain.style.dto.HashtagResponseDto>> styleToHashtagsMap =
+                styleHashtagQueryService.getHashtagMapByStyleIds(styleIds);
+
+        // 로그인한 사용자인 경우 - 좋아요 상태 확인
         if (email != null && !email.isEmpty() && !"anonymousUser".equals(email)) {
-            List<Long> styleIds = styles.getContent().stream()
-                    .map(ProfileStyleResponseDto::getId)
-                    .collect(Collectors.toList());
+            try {
+                // 좋아요 상태 한 번에 조회
+                Set<Long> likedStyleIds = styleLikeQueryService.getLikedStyleIds(email, styleIds);
 
-            Set<Long> likedStyleIds = styleLikeQueryService.getLikedStyleIds(email, styleIds);
-
-            // 좋아요 상태 설정
-            styles.getContent().forEach(style -> {
-                style.setLiked(likedStyleIds.contains(style.getId()));
-            });
+                // 각 스타일에 좋아요 상태와 해시태그 설정
+                for (ProfileStyleResponseDto dto : styles.getContent()) {
+                    dto.setLiked(likedStyleIds.contains(dto.getId()));
+                    dto.setHashtags(styleToHashtagsMap.getOrDefault(dto.getId(), Collections.emptyList()));
+                }
+            } catch (Exception e) {
+                // 프로필 조회 실패 시 해시태그만 설정
+                for (ProfileStyleResponseDto dto : styles.getContent()) {
+                    dto.setHashtags(styleToHashtagsMap.getOrDefault(dto.getId(), Collections.emptyList()));
+                }
+            }
         } else {
-            // 로그인하지 않은 경우 또는 anonymousUser인 경우 모두 false로 설정
-            styles.getContent().forEach(style -> style.setLiked(false));
+            // 로그인하지 않은 경우 - 해시태그만 설정
+            for (ProfileStyleResponseDto dto : styles.getContent()) {
+                dto.setHashtags(styleToHashtagsMap.getOrDefault(dto.getId(), Collections.emptyList()));
+            }
         }
 
         return styles;
     }
 
     /**
-     * 스타일 상세 정보를 조회합니다.
+     * 스타일 상세 정보를 조회합니다. (해시태그 추가)
      * 사용자가 로그인한 경우, 좋아요 상태와 관심 등록 상태를 확인하여 반환합니다.
      *
      * @param styleId 조회할 스타일의 ID
@@ -102,6 +154,9 @@ public class StyleQueryService {
     public StyleDetailResponseDto getStyleDetail(Long styleId, String email) {
         // 스타일 상세 정보 조회
         StyleDetailResponseDto detailDto = styleRepository.getStyleDetail(styleId);
+
+        // 해시태그 조회 및 설정
+        detailDto.setHashtags(styleHashtagQueryService.getHashtagsByStyleId(styleId));
 
         // 로그인한 사용자이고, anonymousUser가 아닌 경우에만 좋아요 상태와 관심 상태 확인
         if (email != null && !email.isEmpty() && !"anonymousUser".equals(email)) {
@@ -118,17 +173,11 @@ public class StyleQueryService {
                 boolean isInterested = styleInterestQueryService.isStyleInterestedByProfile(styleId, profileId);
                 detailDto.setInterested(isInterested);
             } catch (Exception e) {
-                // 프로필 조회 또는 상태 확인 중 예외 발생 시, 기본값 유지
-                detailDto.setLiked(false);
-                detailDto.setInterested(false);
+
             }
-        } else {
-            // 로그인하지 않은 경우 또는 anonymousUser인 경우 모두 false로 설정
-            detailDto.setLiked(false);
-            detailDto.setInterested(false);
         }
+
 
         return detailDto;
     }
 }
-

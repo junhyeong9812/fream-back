@@ -17,4 +17,7 @@ public interface StyleInterestRepository extends JpaRepository<StyleInterest, Lo
 
     // 특정 스타일과 프로필로 관심 엔티티 조회
     Optional<StyleInterest> findByStyleAndProfile(Style style, Profile profile);
+
+    // 특정 프로필이 관심 등록한 여러 스타일 조회 (배치 처리용)
+    List<StyleInterest> findByProfileIdAndStyleIdIn(Long profileId, List<Long> styleIds);
 }

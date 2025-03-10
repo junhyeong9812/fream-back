@@ -94,6 +94,32 @@ public class FileUtils {
     }
 
     /**
+     * 디렉토리 삭제 (해당 디렉토리 내의 모든 파일 포함)
+     * @param directory 예) "styles/10"
+     */
+    public boolean deleteDirectory(String directory) {
+        File dir = new File(BASE_DIR + File.separator + directory);
+        if (!dir.exists() || !dir.isDirectory()) {
+            return false;
+        }
+
+        // 디렉토리 내의 모든 파일 삭제
+        File[] files = dir.listFiles();
+        if (files != null) {
+            for (File file : files) {
+                if (file.isDirectory()) {
+                    deleteDirectory(directory + File.separator + file.getName());
+                } else {
+                    file.delete();
+                }
+            }
+        }
+
+        // 빈 디렉토리 삭제
+        return dir.delete();
+    }
+
+    /**
      * 파일 존재 여부
      */
     public boolean isFileExist(String fullPath) {

@@ -9,6 +9,7 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.util.Comparator;
 import java.util.List;
 import java.util.stream.Collectors;
 
@@ -68,6 +69,11 @@ public class HashtagQueryService {
      * isKorean 파라미터를 통해 한글 검색 여부 결정
      */
     public List<HashtagResponseDto> autocomplete(String keyword, int limit, boolean isKorean) {
+
+        if (isKoreanChosung(keyword)) {
+            return chosungAutocomplete(keyword, limit);
+        }
+
         if (isKorean) {
             return koreanAutocomplete(keyword, limit);
         } else {
@@ -91,6 +97,24 @@ public class HashtagQueryService {
     private List<HashtagResponseDto> koreanAutocomplete(String keyword, int limit) {
         return hashtagRepository.findByNameContainingKeywordOrderByCountDesc(keyword, Pageable.ofSize(limit))
                 .stream()
+                .map(this::convertToDto)
+                .collect(Collectors.toList());
+    }
+
+    /**
+     * 초성 자동완성을 위한 메서드
+     */
+    private List<HashtagResponseDto> chosungAutocomplete(String keyword, int limit) {
+        // 전체 해시태그 조회
+        List<Hashtag> allHashtags = hashtagRepository.findAll();
+
+        return allHashtags.stream()
+                .filter(tag -> {
+                    String chosung = extractChosung(tag.getName());
+                    return chosung.contains(keyword);
+                })
+                .sorted(Comparator.comparing(Hashtag::getCount).reversed())
+                .limit(limit)
                 .map(this::convertToDto)
                 .collect(Collectors.toList());
     }
@@ -124,6 +148,49 @@ public class HashtagQueryService {
         }
         return false;
     }
+
+    /**
+     * 입력이 한글 초성인지 확인
+     */
+    private boolean isKoreanChosung(String text) {
+        if (text == null || text.isEmpty()) {
+            return false;
+        }
+
+        boolean hasChosung = false;
+        for (char c : text.toCharArray()) {
+            // 초성이 아닌 문자가 있으면 false
+            if (c >= 'ㄱ' && c <= 'ㅎ') {
+                hasChosung = true;
+            } else {
+                return false;
+            }
+        }
+        return hasChosung;
+    }
+
+    /**
+     * 한글 문자열에서 초성만 추출
+     */
+    private String extractChosung(String text) {
+        if (text == null || text.isEmpty()) {
+            return "";
+        }
+
+        StringBuilder result = new StringBuilder();
+
+        for (char c : text.toCharArray()) {
+            // 한글인 경우에만 초성 추출
+            if (c >= '가' && c <= '힣') {
+                // 한글 유니코드 수식: (한글 - 가) / (21 * 28) + 'ㄱ'
+                char chosung = (char) ((c - '가') / (21 * 28) + 'ㄱ');
+                result.append(chosung);
+            }
+        }
+
+        return result.toString();
+    }
+
 
 
     /**

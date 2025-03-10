@@ -9,6 +9,8 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
+import java.util.Set;
+import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
@@ -37,6 +39,25 @@ public class StyleInterestQueryService {
      */
     public List<StyleInterest> findByStyleId(Long styleId) {
         return styleInterestRepository.findByStyleId(styleId);
+    }
+
+    /**
+     * 여러 스타일에 대한 사용자의 관심 상태를 한 번에 확인합니다.
+     *
+     * @param profileId 프로필 ID
+     * @param styleIds 스타일 ID 목록
+     * @return 사용자가 관심 등록한 스타일 ID 집합
+     */
+    public Set<Long> getInterestedStyleIds(Long profileId, List<Long> styleIds) {
+        if (profileId == null || styleIds == null || styleIds.isEmpty()) {
+            return Set.of();
+        }
+
+        List<StyleInterest> interests = styleInterestRepository.findByProfileIdAndStyleIdIn(profileId, styleIds);
+
+        return interests.stream()
+                .map(interest -> interest.getStyle().getId())
+                .collect(Collectors.toSet());
     }
 
     /**
