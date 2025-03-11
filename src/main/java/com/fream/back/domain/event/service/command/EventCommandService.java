@@ -26,8 +26,6 @@ public class EventCommandService {
     private final BrandQueryService brandQueryService;
     private final FileUtils fileUtils; // 파일 저장 유틸
 
-    private final String BASE_DIRECTORY = System.getProperty("user.dir") + "/event/";
-
     /**
      * 이벤트 생성
      */
@@ -52,10 +50,10 @@ public class EventCommandService {
 
         // 3. 썸네일 파일 저장 (thumbnailFile이 있을 경우에만)
         if (thumbnailFile != null && !thumbnailFile.isEmpty()) {
-            String directory = BASE_DIRECTORY + event.getId() + "/";
-            String savedThumbnailName = fileUtils.saveFile(directory, "thumbnail_" + event.getId(), thumbnailFile);
+            String directory = "event/" + event.getId();
+            String savedThumbnailName = fileUtils.saveFile(directory, "thumbnail_" + event.getId() + "_", thumbnailFile);
 
-// DB에는 파일명만 저장
+            // DB에는 파일명만 저장
             event.updateThumbnailFileName(savedThumbnailName);
         }
 
@@ -87,25 +85,24 @@ public class EventCommandService {
         // 2) 기존 SimpleImage 전부 삭제 (파일 + DB)
         List<SimpleImage> oldImages = simpleImageQueryService.findByEventId(eventId);
         for (SimpleImage oldImg : oldImages) {
-            String directory = BASE_DIRECTORY + event.getId() + "/";
+            String directory = "event/" + event.getId();
             fileUtils.deleteFile(directory, oldImg.getSavedFileName());
         }
-        // DB에서도 삭제 필요. 보통 커맨드 서비스 내에서 repository.deleteAll(oldImages) or
-        // simpleImageCommandService.deleteAllByEvent(eventId);
-        // 로직을 호출.
+        // DB에서도 삭제
+        simpleImageCommandService.deleteAllByEvent(eventId);
 
         // 3) 썸네일 교체
         if (thumbnailFile != null && !thumbnailFile.isEmpty()) {
             // [3-1] 기존 썸네일 파일 삭제
             if (event.getThumbnailFileName() != null && !event.getThumbnailFileName().isEmpty()) {
-                String directory = BASE_DIRECTORY + event.getId() + "/";
+                String directory = "event/" + event.getId();
                 fileUtils.deleteFile(directory, event.getThumbnailFileName());
             }
 
             // [3-2] 새 썸네일 저장
-            String directory = BASE_DIRECTORY + eventId + "/";
+            String directory = "event/" + eventId;
             String savedThumbnailName = fileUtils.saveFile(directory,
-                    "thumbnail_" + eventId, thumbnailFile);
+                    "thumbnail_" + eventId + "_", thumbnailFile);
 
             // DB에는 파일명만 업데이트
             event.updateThumbnailFileName(savedThumbnailName);
@@ -114,7 +111,7 @@ public class EventCommandService {
             // 새 썸네일이 없으면, 기존 썸네일 유지/삭제 등 정책 결정
             // 여기서는 "삭제"로 가정
             if (event.getThumbnailFileName() != null && !event.getThumbnailFileName().isEmpty()) {
-                String directory = BASE_DIRECTORY + event.getId() + "/";
+                String directory = "event/" + event.getId();
                 fileUtils.deleteFile(directory, event.getThumbnailFileName());
             }
             event.updateThumbnailFileName("");
@@ -135,14 +132,14 @@ public class EventCommandService {
 
         // 2) 썸네일 파일 삭제
         if (event.getThumbnailFileName() != null && !event.getThumbnailFileName().isEmpty()) {
-            String directory = BASE_DIRECTORY + eventId + "/";
+            String directory = "event/" + eventId;
             fileUtils.deleteFile(directory, event.getThumbnailFileName());
         }
 
         // 3) 심플이미지 파일 삭제
         List<SimpleImage> images = simpleImageQueryService.findByEventId(eventId);
         for (SimpleImage image : images) {
-            String directory = BASE_DIRECTORY + eventId + "/";
+            String directory = "event/" + eventId;
             fileUtils.deleteFile(directory, image.getSavedFileName());
         }
         // DB에서 삭제
@@ -152,4 +149,3 @@ public class EventCommandService {
         eventRepository.delete(event);
     }
 }
-
