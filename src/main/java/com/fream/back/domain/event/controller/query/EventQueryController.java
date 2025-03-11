@@ -1,5 +1,8 @@
 package com.fream.back.domain.event.controller.query;
 
+import com.fream.back.domain.event.dto.EventDetailDto;
+import com.fream.back.domain.event.dto.EventListDto;
+import com.fream.back.domain.event.service.query.EventQueryService;
 import com.fream.back.global.utils.FileUtils;
 import lombok.RequiredArgsConstructor;
 import org.springframework.core.io.FileSystemResource;
@@ -13,15 +16,52 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
 import java.io.File;
+import java.util.List;
 
 @RestController
 @RequiredArgsConstructor
 @RequestMapping("/events")
 public class EventQueryController {
 
+    private final EventQueryService eventQueryService;
     private final FileUtils fileUtils;
     private static final String BASE_DIR = "/home/ubuntu/fream";
 
+    /**
+     * 모든 이벤트 목록 조회
+     * GET /events
+     */
+    @GetMapping
+    public ResponseEntity<List<EventListDto>> getAllEvents() {
+        return ResponseEntity.ok(eventQueryService.findAllEvents());
+    }
+
+    /**
+     * 활성 이벤트 목록 조회 (현재 진행 중인 이벤트)
+     * GET /events/active
+     */
+    @GetMapping("/active")
+    public ResponseEntity<List<EventListDto>> getActiveEvents() {
+        return ResponseEntity.ok(eventQueryService.findActiveEvents());
+    }
+
+    /**
+     * 특정 브랜드의 이벤트 목록 조회
+     * GET /events/brands/{brandId}
+     */
+    @GetMapping("/brands/{brandId}")
+    public ResponseEntity<List<EventListDto>> getEventsByBrand(@PathVariable Long brandId) {
+        return ResponseEntity.ok(eventQueryService.findEventsByBrandId(brandId));
+    }
+
+    /**
+     * 이벤트 상세 정보 조회
+     * GET /events/{eventId}
+     */
+    @GetMapping("/{eventId}")
+    public ResponseEntity<EventDetailDto> getEventDetail(@PathVariable Long eventId) {
+        return ResponseEntity.ok(eventQueryService.findEventDetail(eventId));
+    }
 
     // 서버 내부에 저장된 파일을 직접 읽어서 ResponseEntity<Resource>로 응답
     @GetMapping("/{eventId}/images/{fileName}")
