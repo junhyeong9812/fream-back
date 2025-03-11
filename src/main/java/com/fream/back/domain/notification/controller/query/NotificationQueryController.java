@@ -67,7 +67,7 @@ public class NotificationQueryController {
     // === 유형 + 읽음 여부 조회 (GET) ===
     @GetMapping("/filter/type/read-status")
     public List<NotificationDTO> filterByTypeAndIsRead(
-            @RequestParam(name = "type") NotificationType type,
+            @RequestParam(name = "type", required = false) NotificationType type,
             @RequestParam(name = "isRead") boolean isRead,
             @RequestParam(name = "page") int page,
             @RequestParam(name = "size") int size

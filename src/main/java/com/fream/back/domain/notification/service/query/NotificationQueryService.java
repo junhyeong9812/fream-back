@@ -41,8 +41,21 @@ public class NotificationQueryService {
     }
 
     // 유형별 + 읽음 여부 알림 조회
+//    public List<NotificationDTO> filterByTypeAndIsRead(String email, NotificationType type, boolean isRead, Pageable pageable) {
+//        Page<Notification> notifications = notificationRepository.findAllByUserEmailAndTypeAndIsRead(email, type, isRead, pageable);
+//        return notifications.stream().map(this::toDTO).collect(Collectors.toList());
+//    }
     public List<NotificationDTO> filterByTypeAndIsRead(String email, NotificationType type, boolean isRead, Pageable pageable) {
-        Page<Notification> notifications = notificationRepository.findAllByUserEmailAndTypeAndIsRead(email, type, isRead, pageable);
+        Page<Notification> notifications;
+
+        if (type == null) {
+            // type이 null이면 모든 알림을 조회
+            notifications = notificationRepository.findAllByUserEmailAndIsRead(email, isRead, pageable);
+        } else {
+            // 특정 type에 해당하는 알림만 조회
+            notifications = notificationRepository.findAllByUserEmailAndTypeAndIsRead(email, type, isRead, pageable);
+        }
+
         return notifications.stream().map(this::toDTO).collect(Collectors.toList());
     }
 
