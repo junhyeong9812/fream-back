@@ -112,6 +112,7 @@ services:
       - front
       - app
       - certbot
+      - stt_tts
     volumes:
       - letsencrypt_data:/etc/letsencrypt
       - certbot_www:/var/www/certbot
@@ -130,7 +131,7 @@ services:
       - mysql
       - redis
       - kafka
-#      - elasticsearch
+      - elasticsearch
     volumes:
       - /home/ubuntu/fream:/home/ubuntu/fream
   front:
