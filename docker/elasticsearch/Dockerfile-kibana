@@ -1,6 +1,12 @@
 FROM docker.elastic.co/kibana/kibana:8.10.2
 
+# 기본 Elasticsearch 연결
 ENV ELASTICSEARCH_HOSTS=http://elasticsearch:9200
+
+# (중요) Kibana를 /kibana/ 경로에서 서빙하기 위한 설정
+ENV SERVER_BASEPATH=/kibana
+ENV SERVER_REWRITEBASEPATH=true
+
 EXPOSE 5601
 
 CMD ["/usr/local/bin/kibana-docker"]

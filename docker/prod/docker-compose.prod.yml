@@ -87,6 +87,8 @@ services:
     environment:
       TZ: Asia/Seoul
       ELASTICSEARCH_HOSTS: http://elasticsearch:9200
+      SERVER_BASEPATH: /kibana
+      SERVER_REWRITEBASEPATH: true
     ports:
       - "5601:5601"
 
