@@ -112,7 +112,7 @@ services:
       - front
       - app
       - certbot
-      - stt_tts
+#      - stt_tts
     volumes:
       - letsencrypt_data:/etc/letsencrypt
       - certbot_www:/var/www/certbot
@@ -158,18 +158,18 @@ services:
       -d www.pinjun.xyz --email pickjog@naver.com --agree-tos --no-eff-email --force-renewal;
       while :; do sleep 12h; certbot renew -q; done"
 
-  stt_tts:
-    image: ghcr.io/junhyeong9812/fream-stt-tts:latest
-    container_name: stt_tts_prod
-    ports:
-      - "5000:5000"
-    environment:
-      TZ: Asia/Seoul
-    volumes:
-      - stt_tts_models:/app/models
-    restart: unless-stopped
-    depends_on:
-      - app
+#  stt_tts:
+#    image: ghcr.io/junhyeong9812/fream-stt-tts:latest
+#    container_name: stt_tts_prod
+#    ports:
+#      - "5000:5000"
+#    environment:
+#      TZ: Asia/Seoul
+#    volumes:
+#      - stt_tts_models:/app/models
+#    restart: unless-stopped
+#    depends_on:
+#      - app
 
 volumes:
   mysql_data_prod:
