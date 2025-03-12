@@ -47,7 +47,8 @@ public class GPTService {
             GPTRequestDto requestDto = GPTRequestDto.of(
                     gptConfig.getModel(),
                     question,
-                    faqData
+                    faqData,
+                    true
             );
 
             // HTTP 헤더 설정
