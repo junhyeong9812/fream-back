@@ -17,7 +17,9 @@ import java.util.List;
 public class SimpleImageQueryService {
 
     private final SimpleImageRepository simpleImageRepository;
-
+    /**
+     * 이벤트 ID로 심플 이미지 목록 조회
+     */
     public List<SimpleImage> findByEventId(Long eventId) {
         return simpleImageRepository.findByEventId(eventId);
     }

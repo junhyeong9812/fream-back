@@ -19,14 +19,16 @@ public class SimpleImageCommandService {
     private final FileUtils fileUtils;
 
     public void createSimpleImages(Event event, List<MultipartFile> imageFiles) {
-        // 예: /home/xxx/프로젝트경로/event/{eventId}/
-        String directory = System.getProperty("user.dir") + "/event/" + event.getId() + "/";
+        // 이벤트 ID에 해당하는 디렉토리 경로
+        String directory = "event/" + event.getId();
 
         for (int i = 0; i < imageFiles.size(); i++) {
             MultipartFile file = imageFiles.get(i);
             // "simple_eventId_순번" 형태의 프리픽스
-            String prefix = "simple_" + event.getId() + "_" + (i + 1);
-            // fileUtils.saveFile() 에서 고유 파일명(확장자 포함)이 생성됨
+            String prefix = "simple_" + event.getId() + "_" + (i + 1) + "_";
+
+            // fileUtils.saveFile()에서 고유 파일명(확장자 포함)이 생성됨
+            // FileUtils에서 BASE_DIR(/home/ubuntu/fream)에 directory를 추가해서 저장
             String savedFileName = fileUtils.saveFile(directory, prefix, file);
 
             // DB에는 "savedFileName"만 보관
@@ -49,4 +51,3 @@ public class SimpleImageCommandService {
 
     // 심플이미지 수정/삭제 등 추가 로직
 }
-

@@ -72,29 +72,4 @@ public class EventCommandController {
     }
 
 
-
-    // 서버 내부에 저장된 파일을 직접 읽어서 ResponseEntity<Resource>로 응답
-    @GetMapping("/{eventId}/images/{fileName}")
-    public ResponseEntity<?> getEventImage(
-            @PathVariable("eventId") Long eventId,
-            @PathVariable("fileName") String fileName
-    ) {
-        // 디렉토리 + 파일명
-        String directory = System.getProperty("user.dir") + "/event/" + eventId + "/";
-        File file = new File(directory + fileName);
-
-        if (!file.exists()) {
-            return ResponseEntity.notFound().build();
-        }
-
-        // 파일 확장자에 따라 ContentType 설정
-        // 여기서는 일단 모두 JPEG로 가정한 예시:
-        HttpHeaders headers = new HttpHeaders();
-        headers.setContentType(org.springframework.http.MediaType.IMAGE_JPEG);
-
-        org.springframework.core.io.Resource resource = new org.springframework.core.io.FileSystemResource(file);
-        return ResponseEntity.ok()
-                .headers(headers)
-                .body(resource);
-    }
 }
