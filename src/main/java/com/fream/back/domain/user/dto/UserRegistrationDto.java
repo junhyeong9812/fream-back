@@ -17,6 +17,8 @@ public class UserRegistrationDto {
 
     private String password; // 비밀번호
 
+    private String identityVerificationId; // 본인인증 ID
+
     private String phoneNumber; // 선택적 필드로 설정
 
     private String referralCode; // 추천인 코드 (선택)

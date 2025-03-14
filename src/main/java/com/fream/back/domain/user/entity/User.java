@@ -46,6 +46,16 @@ public class User extends BaseTimeEntity {
     private boolean emailNotificationConsent; // 이메일 수신 동의 여부
     private boolean optionalPrivacyAgreement; // 선택적 개인정보 동의 여부 추가
 
+    @Builder.Default
+    private boolean isVerified = false; // 본인인증 완료 여부
+
+    @Column
+    private String ci; // 연계정보 (Connecting Information)
+
+    @Column
+    private String di; // 중복가입확인정보 (Duplication Information)
+
+
     @Enumerated(EnumType.STRING)
     private Role role; // USER, ADMIN 등으로 역할 구분
 
