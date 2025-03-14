@@ -165,6 +165,11 @@ public class DataInitializer implements CommandLineRunner {
             return userRepository.findByEmail(email).orElseThrow();
         }
 
+        // 더미 CI/DI 값 생성 (실제 값은 88바이트/64바이트 길이의 특정 해시값입니다)
+        String dummyCi = "CI_" + UUID.randomUUID().toString().replaceAll("-", "") + UUID.randomUUID().toString().substring(0, 24);
+        String dummyDi = "DI_" + UUID.randomUUID().toString().replaceAll("-", "");
+
+
         User user = User.builder()
                 .email(email)
                 .password(passwordEncoder.encode(password))
@@ -178,6 +183,9 @@ public class DataInitializer implements CommandLineRunner {
                 .role(role)
                 .age(age)
                 .gender(gender)
+                .isVerified(true) // 본인인증 완료 상태
+                .ci(dummyCi) // CI 값 설정
+                .di(dummyDi) // DI 값 설정
                 .build();
 
         User savedUser = userRepository.save(user);
