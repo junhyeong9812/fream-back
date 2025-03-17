@@ -61,6 +61,10 @@ public class AuthController {
             return ResponseEntity.status(500).body("로그인 처리 중 오류 발생");
         }
     }
+
+
+
+
     @GetMapping("/email")
     public ResponseEntity<String> getUserEmail(@CookieValue(name = "ACCESS_TOKEN") String accessToken) {
         if (!jwtTokenProvider.validateToken(accessToken)) {

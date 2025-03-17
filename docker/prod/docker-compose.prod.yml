@@ -176,4 +176,4 @@ volumes:
   es_data_prod:
   letsencrypt_data:
   certbot_www:
-  stt_tts_models:
+#  stt_tts_models:
