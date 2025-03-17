@@ -6,6 +6,8 @@ import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.stereotype.Service;
 
 import java.time.Duration;
+import java.util.HashMap;
+import java.util.Map;
 
 /**
  * 예: User 전용 Redis 저장소 (화이트리스트, 토큰 정보 등)
@@ -24,17 +26,38 @@ public class AuthRedisService {
                                Integer age,
                                Gender gender,
                                long expirationMillis,
-                               String ip)
-    {
+                               String ip) {
         String key = "access:" + accessToken;
-        redisTemplate.opsForHash().put(key, "email", email);
-        redisTemplate.opsForHash().put(key, "age", String.valueOf(age));
-        redisTemplate.opsForHash().put(key, "gender", gender.toString());
+
+        // 모든 필드를 하나의 맵으로 구성
+        Map<String, String> fields = new HashMap<>();
+        fields.put("email", email);
+        fields.put("age", String.valueOf(age));
+        fields.put("gender", gender.toString());
         if (ip != null) {
-            redisTemplate.opsForHash().put(key, "ip", ip);
+            fields.put("ip", ip);
         }
+
+        // 한 번의 Redis 연산으로 모든 필드 저장
+        redisTemplate.opsForHash().putAll(key, fields);
         redisTemplate.expire(key, Duration.ofMillis(expirationMillis));
     }
+//    public void addAccessToken(String accessToken,
+//                               String email,
+//                               Integer age,
+//                               Gender gender,
+//                               long expirationMillis,
+//                               String ip)
+//    {
+//        String key = "access:" + accessToken;
+//        redisTemplate.opsForHash().put(key, "email", email);
+//        redisTemplate.opsForHash().put(key, "age", String.valueOf(age));
+//        redisTemplate.opsForHash().put(key, "gender", gender.toString());
+//        if (ip != null) {
+//            redisTemplate.opsForHash().put(key, "ip", ip);
+//        }
+//        redisTemplate.expire(key, Duration.ofMillis(expirationMillis));
+//    }
 
     /**
      * Refresh Token 저장 (email)

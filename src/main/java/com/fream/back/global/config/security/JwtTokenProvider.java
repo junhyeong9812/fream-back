@@ -61,6 +61,47 @@ public class JwtTokenProvider {
     }
 
     /**
+     * AccessToken + RefreshToken 동시 발급 (Redis 저장 없이)
+     * 비동기처리 하지만 위험요소가 존재하기 때문에 저장 최적화르 방향을 틀어야함.
+     */
+//    public TokenDto generateTokenPair(String email, Integer age, Gender gender, String ip) {
+//        long now = System.currentTimeMillis();
+//
+//        // Access Token 생성
+//        Date accessExpiry = new Date(now + accessTokenValidityMs);
+//        String accessToken = JWT.create()
+//                .withSubject(email)
+//                .withIssuedAt(new Date())
+//                .withExpiresAt(accessExpiry)
+//                .sign(Algorithm.HMAC512(secretKey));
+//
+//        // Refresh Token 생성
+//        Date refreshExpiry = new Date(now + refreshTokenValidityMs);
+//        String refreshToken = JWT.create()
+//                .withSubject(email)
+//                .withIssuedAt(new Date())
+//                .withExpiresAt(refreshExpiry)
+//                .sign(Algorithm.HMAC512(secretKey));
+//
+//        // Redis 저장은 비동기로 처리
+//        saveTokensToRedisAsync(accessToken, refreshToken, email, age, gender, ip);
+//
+//        return new TokenDto(accessToken, refreshToken, age, gender);
+//    }
+//
+//    /**
+//     * Redis에 토큰 정보 저장 (비동기)
+//     */
+//    @Async
+//    public CompletableFuture<Void> saveTokensToRedisAsync(String accessToken, String refreshToken,
+//                                                          String email, Integer age, Gender gender, String ip) {
+//        return CompletableFuture.runAsync(() -> {
+//            authRedisService.addAccessToken(accessToken, email, age, gender, accessTokenValidityMs, ip);
+//            authRedisService.addRefreshToken(refreshToken, email, refreshTokenValidityMs);
+//        });
+//    }
+
+    /**
      * JWT 서명 + 만료시간 검증
      */
     public boolean validateToken(String token) {
