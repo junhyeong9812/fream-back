@@ -61,3 +61,4 @@ jobs:
             cd /home/ubuntu/fream-back/docker/prod
             docker-compose -f docker-compose.prod.yml pull app   # pull ghcr.io/junhyeong9812/fream-back:latest
             docker-compose -f docker-compose.prod.yml up -d app
+            docker image prune -f

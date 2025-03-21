@@ -1,5 +1,6 @@
 package com.fream.back.global.exception;
 
+import com.fream.back.domain.weather.exception.WeatherException;
 import com.fream.back.global.exception.file.FileException;
 import com.fream.back.global.exception.security.SecurityException;
 import com.fream.back.global.exception.websocket.WebSocketException;
@@ -102,6 +103,29 @@ public class GlobalExceptionHandler {
             HttpServletRequest request, WebSocketException e) {
         ErrorCode errorCode = e.getErrorCode();
         log.error("WebSocketException: {} - {}", errorCode.getCode(), e.getMessage(), e);
+
+        return ResponseEntity
+                .status(errorCode.getStatus())
+                .body(ErrorResponse.of(
+                        errorCode.getCode(),
+                        errorCode.getMessage(),
+                        errorCode.getStatus(),
+                        request.getRequestURI()
+                ));
+    }
+
+    /**
+     * WeatherException 및 하위 예외 처리
+     *
+     * @param request 현재 HTTP 요청
+     * @param e 발생한 예외
+     * @return 에러 응답
+     */
+    @ExceptionHandler(WeatherException.class)
+    public ResponseEntity<ErrorResponse> handleWeatherException(
+            HttpServletRequest request, WeatherException e) {
+        ErrorCode errorCode = e.getErrorCode();
+        log.error("WeatherException: {} - {}", errorCode.getCode(), e.getMessage(), e);
 
         return ResponseEntity
                 .status(errorCode.getStatus())

@@ -44,4 +44,17 @@ public abstract class GlobalException extends RuntimeException {
         super(errorCode.getMessage(), cause);
         this.errorCode = errorCode;
     }
+
+    /**
+     * ErrorCode, 사용자 정의 메시지, 원인 예외로 예외 생성
+     * 사용자 정의 메시지와 원인 예외를 모두 포함할 때 사용
+     *
+     * @param errorCode 에러 코드 enum 값
+     * @param message 사용자 정의 에러 메시지
+     * @param cause 원인이 되는 예외
+     */
+    public GlobalException(ErrorCode errorCode, String message, Throwable cause) {
+        super(message, cause);
+        this.errorCode = errorCode;
+    }
 }
