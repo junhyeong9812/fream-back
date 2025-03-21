@@ -1,9 +1,14 @@
 package com.fream.back.domain.accessLog.controller.command;
 
 import com.fream.back.domain.accessLog.dto.UserAccessLogDto;
+import com.fream.back.domain.accessLog.exception.AccessLogErrorCode;
+import com.fream.back.domain.accessLog.exception.InvalidParameterException;
 import com.fream.back.domain.accessLog.service.command.UserAccessLogCommandService;
 import jakarta.servlet.http.HttpServletRequest;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 /**
@@ -13,6 +18,7 @@ import org.springframework.web.bind.annotation.*;
 @RestController
 @RequestMapping("/access-log/commands")
 @RequiredArgsConstructor
+@Slf4j
 public class UserAccessLogCommandController {
 
     private final UserAccessLogCommandService userAccessLogCommandService;
@@ -21,14 +27,18 @@ public class UserAccessLogCommandController {
      * 접근 로그 생성 엔드포인트
      * @param logDto 접근 로그 정보
      * @param request HttpServletRequest (IP, User-Agent, Referer 등 추출)
+     * @return 성공 시 204 No Content
+     * @throws InvalidParameterException 유효하지 않은 파라미터인 경우
      */
     @PostMapping("/create")
-    public void createAccessLog(@RequestBody UserAccessLogDto logDto, HttpServletRequest request) {
-        // IP 주소 처리
-        String clientIp = request.getHeader("X-Forwarded-For");
-        if (clientIp == null || clientIp.isEmpty()) {
-            clientIp = request.getRemoteAddr();
+    public ResponseEntity<Void> createAccessLog(@RequestBody UserAccessLogDto logDto, HttpServletRequest request) {
+        if (logDto == null) {
+            throw new InvalidParameterException(AccessLogErrorCode.INVALID_ACCESS_LOG_DATA,
+                    "접근 로그 데이터가 누락되었습니다.");
         }
+
+        // IP 주소 처리
+        String clientIp = extractClientIp(request);
         logDto.setIpAddress(clientIp);
 
         // User-Agent 처리
@@ -47,5 +57,44 @@ public class UserAccessLogCommandController {
 
         // Command Service 호출
         userAccessLogCommandService.createAccessLog(logDto);
+
+        // 처리 성공을 알리는 204 No Content 응답
+        return ResponseEntity.noContent().build();
+    }
+
+    /**
+     * 클라이언트 IP를 추출합니다.
+     * 프록시 서버가 있는 경우 X-Forwarded-For 헤더를 우선 확인합니다.
+     */
+    private String extractClientIp(HttpServletRequest request) {
+        String clientIp = request.getHeader("X-Forwarded-For");
+        if (clientIp == null || clientIp.isEmpty() || "unknown".equalsIgnoreCase(clientIp)) {
+            clientIp = request.getHeader("Proxy-Client-IP");
+        }
+        if (clientIp == null || clientIp.isEmpty() || "unknown".equalsIgnoreCase(clientIp)) {
+            clientIp = request.getHeader("WL-Proxy-Client-IP");
+        }
+        if (clientIp == null || clientIp.isEmpty() || "unknown".equalsIgnoreCase(clientIp)) {
+            clientIp = request.getHeader("HTTP_CLIENT_IP");
+        }
+        if (clientIp == null || clientIp.isEmpty() || "unknown".equalsIgnoreCase(clientIp)) {
+            clientIp = request.getHeader("HTTP_X_FORWARDED_FOR");
+        }
+        if (clientIp == null || clientIp.isEmpty() || "unknown".equalsIgnoreCase(clientIp)) {
+            clientIp = request.getRemoteAddr();
+        }
+
+        // X-Forwarded-For에 여러 IP가 있을 경우 첫 번째 IP만 사용
+        if (clientIp != null && clientIp.contains(",")) {
+            clientIp = clientIp.split(",")[0].trim();
+        }
+
+        // 유효하지 않은 IP인 경우 기본값 설정
+        if (clientIp == null || clientIp.isEmpty() || "unknown".equalsIgnoreCase(clientIp)) {
+            log.warn("클라이언트 IP 주소를 확인할 수 없습니다.");
+            clientIp = "0.0.0.0";
+        }
+
+        return clientIp;
     }
 }
