@@ -1,6 +1,7 @@
 package com.fream.back.global.exception;
 
 import com.fream.back.domain.accessLog.exception.AccessLogException;
+import com.fream.back.domain.chatQuestion.exception.ChatQuestionException;
 import com.fream.back.domain.weather.exception.WeatherException;
 import com.fream.back.global.exception.file.FileException;
 import com.fream.back.global.exception.security.SecurityException;
@@ -150,6 +151,29 @@ public class GlobalExceptionHandler {
             HttpServletRequest request, AccessLogException e) {
         ErrorCode errorCode = e.getErrorCode();
         log.error("AccessLogException: {} - {}", errorCode.getCode(), e.getMessage(), e);
+
+        return ResponseEntity
+                .status(errorCode.getStatus())
+                .body(ErrorResponse.of(
+                        errorCode.getCode(),
+                        errorCode.getMessage(),
+                        errorCode.getStatus(),
+                        request.getRequestURI()
+                ));
+    }
+
+    /**
+     * ChatQuestionException 및 하위 예외 처리
+     *
+     * @param request 현재 HTTP 요청
+     * @param e 발생한 예외
+     * @return 에러 응답
+     */
+    @ExceptionHandler(ChatQuestionException.class)
+    public ResponseEntity<ErrorResponse> handleChatQuestionException(
+            HttpServletRequest request, ChatQuestionException e) {
+        ErrorCode errorCode = e.getErrorCode();
+        log.error("ChatQuestionException: {} - {}", errorCode.getCode(), e.getMessage(), e);
 
         return ResponseEntity
                 .status(errorCode.getStatus())
