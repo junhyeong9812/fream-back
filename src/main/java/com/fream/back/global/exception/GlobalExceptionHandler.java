@@ -4,6 +4,8 @@ import com.fream.back.domain.accessLog.exception.AccessLogException;
 import com.fream.back.domain.chatQuestion.exception.ChatQuestionException;
 import com.fream.back.domain.faq.exception.FAQException;
 import com.fream.back.domain.inspection.exception.InspectionException;
+import com.fream.back.domain.notice.exception.NoticeException;
+import com.fream.back.domain.notification.exception.NotificationException;
 import com.fream.back.domain.weather.exception.WeatherException;
 import com.fream.back.global.exception.file.FileException;
 import com.fream.back.global.exception.security.SecurityException;
@@ -222,6 +224,52 @@ public class GlobalExceptionHandler {
             HttpServletRequest request, InspectionException e) {
         ErrorCode errorCode = e.getErrorCode();
         log.error("InspectionException: {} - {}", errorCode.getCode(), e.getMessage(), e);
+
+        return ResponseEntity
+                .status(errorCode.getStatus())
+                .body(ErrorResponse.of(
+                        errorCode.getCode(),
+                        errorCode.getMessage(),
+                        errorCode.getStatus(),
+                        request.getRequestURI()
+                ));
+    }
+
+    /**
+     * NoticeException 및 하위 예외 처리
+     *
+     * @param request 현재 HTTP 요청
+     * @param e 발생한 예외
+     * @return 에러 응답
+     */
+    @ExceptionHandler(NoticeException.class)
+    public ResponseEntity<ErrorResponse> handleNoticeException(
+            HttpServletRequest request, NoticeException e) {
+        ErrorCode errorCode = e.getErrorCode();
+        log.error("NoticeException: {} - {}", errorCode.getCode(), e.getMessage(), e);
+
+        return ResponseEntity
+                .status(errorCode.getStatus())
+                .body(ErrorResponse.of(
+                        errorCode.getCode(),
+                        errorCode.getMessage(),
+                        errorCode.getStatus(),
+                        request.getRequestURI()
+                ));
+    }
+
+    /**
+     * NotificationException 및 하위 예외 처리
+     *
+     * @param request 현재 HTTP 요청
+     * @param e 발생한 예외
+     * @return 에러 응답
+     */
+    @ExceptionHandler(NotificationException.class)
+    public ResponseEntity<ErrorResponse> handleNotificationException(
+            HttpServletRequest request, NotificationException e) {
+        ErrorCode errorCode = e.getErrorCode();
+        log.error("NotificationException: {} - {}", errorCode.getCode(), e.getMessage(), e);
 
         return ResponseEntity
                 .status(errorCode.getStatus())
