@@ -1,0 +1,42 @@
+package com.fream.back.domain.address.exception;
+
+/**
+ * 주소에 대한 접근 권한이 없을 때 발생하는 예외
+ */
+public class AddressAccessDeniedException extends AddressException {
+
+    /**
+     * 기본 에러 코드로 예외 생성
+     */
+    public AddressAccessDeniedException() {
+        super(AddressErrorCode.ADDRESS_ACCESS_DENIED);
+    }
+
+    /**
+     * 사용자 정의 메시지와 함께 예외 생성
+     *
+     * @param message 사용자 정의 에러 메시지
+     */
+    public AddressAccessDeniedException(String message) {
+        super(AddressErrorCode.ADDRESS_ACCESS_DENIED, message);
+    }
+
+    /**
+     * 원인 예외와 함께 예외 생성
+     *
+     * @param cause 원인이 되는 예외
+     */
+    public AddressAccessDeniedException(Throwable cause) {
+        super(AddressErrorCode.ADDRESS_ACCESS_DENIED, cause);
+    }
+
+    /**
+     * 사용자 정의 메시지와 원인 예외로 예외 생성
+     *
+     * @param message 사용자 정의 에러 메시지
+     * @param cause 원인이 되는 예외
+     */
+    public AddressAccessDeniedException(String message, Throwable cause) {
+        super(AddressErrorCode.ADDRESS_ACCESS_DENIED, message, cause);
+    }
+}
