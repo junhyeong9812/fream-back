@@ -9,6 +9,7 @@ import com.fream.back.domain.notice.exception.NoticeException;
 import com.fream.back.domain.notification.exception.NotificationException;
 import com.fream.back.domain.order.exception.OrderException;
 import com.fream.back.domain.payment.exception.PaymentException;
+import com.fream.back.domain.warehouseStorage.exception.WarehouseStorageException;
 import com.fream.back.domain.weather.exception.WeatherException;
 import com.fream.back.global.exception.file.FileException;
 import com.fream.back.global.exception.security.SecurityException;
@@ -342,6 +343,29 @@ public class GlobalExceptionHandler {
             HttpServletRequest request, PaymentException e) {
         ErrorCode errorCode = e.getErrorCode();
         log.error("PaymentException: {} - {}", errorCode.getCode(), e.getMessage(), e);
+
+        return ResponseEntity
+                .status(errorCode.getStatus())
+                .body(ErrorResponse.of(
+                        errorCode.getCode(),
+                        errorCode.getMessage(),
+                        errorCode.getStatus(),
+                        request.getRequestURI()
+                ));
+    }
+
+    /**
+     * WarehouseStorageException 및 하위 예외 처리
+     *
+     * @param request 현재 HTTP 요청
+     * @param e 발생한 예외
+     * @return 에러 응답
+     */
+    @ExceptionHandler(WarehouseStorageException.class)
+    public ResponseEntity<ErrorResponse> handleWarehouseStorageException(
+            HttpServletRequest request, WarehouseStorageException e) {
+        ErrorCode errorCode = e.getErrorCode();
+        log.error("WarehouseStorageException: {} - {}", errorCode.getCode(), e.getMessage(), e);
 
         return ResponseEntity
                 .status(errorCode.getStatus())
