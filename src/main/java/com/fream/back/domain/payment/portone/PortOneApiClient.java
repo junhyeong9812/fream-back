@@ -3,10 +3,16 @@ package com.fream.back.domain.payment.portone;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fream.back.domain.payment.dto.paymentInfo.PaymentInfoCreateDto;
 import com.fream.back.domain.payment.entity.PaymentInfo;
+import com.fream.back.domain.payment.exception.PaymentApiException;
+import com.fream.back.domain.payment.exception.PaymentErrorCode;
+import com.fream.back.domain.payment.exception.PaymentException;
+import com.fream.back.domain.payment.exception.PaymentProcessingException;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.*;
 import org.springframework.stereotype.Service;
+import org.springframework.web.client.RestClientException;
 import org.springframework.web.client.RestTemplate;
 
 import java.util.HashMap;
@@ -15,6 +21,7 @@ import java.util.UUID;
 
 @Service
 @RequiredArgsConstructor
+@Slf4j
 public class PortOneApiClient {
 
     private final RestTemplate restTemplate;
@@ -36,6 +43,8 @@ public class PortOneApiClient {
     public String getAccessToken() {
         String url = BASE_URL + "/users/getToken";
 
+        log.info("PortOne API 토큰 발급 요청 시작");
+
         // 요청 본문 생성
         Map<String, String> requestBody = new HashMap<>();
         requestBody.put("imp_key", impKey); // PortOne API 키
@@ -44,7 +53,6 @@ public class PortOneApiClient {
         // HTTP 헤더 설정
         HttpHeaders headers = new HttpHeaders();
         headers.setContentType(MediaType.APPLICATION_JSON);
-
 
         try {
             // JSON 직렬화
@@ -58,19 +66,44 @@ public class PortOneApiClient {
             if (response.getStatusCode() == HttpStatus.OK) {
                 Map<String, Object> responseBody = response.getBody();
                 Map<String, Object> responseContent = (Map<String, Object>) responseBody.get("response");
-                System.out.println("responseContent = " + (String) responseContent.get("access_token"));
-                return (String) responseContent.get("access_token"); // 발급된 토큰 반환
+
+                if (responseContent == null || responseContent.get("access_token") == null) {
+                    throw new PaymentApiException("토큰 발급 응답에서 access_token을 찾을 수 없습니다.");
+                }
+
+                String accessToken = (String) responseContent.get("access_token");
+                log.info("PortOne API 토큰 발급 성공: {}", accessToken.substring(0, Math.min(10, accessToken.length())) + "...");
+                return accessToken; // 발급된 토큰 반환
             } else {
-                throw new IllegalArgumentException("토큰 발급에 실패했습니다. 응답: " + response.getBody());
+                log.error("PortOne API 토큰 발급 실패: HTTP 상태 코드 {}", response.getStatusCodeValue());
+                throw new PaymentApiException("토큰 발급 실패: HTTP 상태 코드 " + response.getStatusCodeValue());
             }
+        } catch (PaymentException e) {
+            throw e; // 이미 PaymentException이면 그대로 전파
+        } catch (RestClientException e) {
+            log.error("PortOne API 통신 중 오류 발생: {}", e.getMessage(), e);
+            throw new PaymentApiException("결제 서비스 API 통신 중 오류가 발생했습니다.", e);
         } catch (Exception e) {
-            throw new RuntimeException("토큰 발급 중 에러 발생", e);
+            log.error("PortOne API 토큰 발급 중 예상치 못한 오류 발생: {}", e.getMessage(), e);
+            throw new PaymentException(PaymentErrorCode.TOKEN_ISSUANCE_FAILED, e);
         }
     }
 
     public String requestTestPayment(PaymentInfoCreateDto dto) {
         String url = BASE_URL + "/subscribe/payments/onetime";
-        String accessToken = getAccessToken(); // 인증 토큰 발급
+
+        log.info("PortOne API 테스트 결제 요청 시작: 카드번호={}", maskCardNumber(dto.getCardNumber()));
+
+        // 입력값 검증
+        validatePaymentInfoCreateDto(dto);
+
+        String accessToken;
+        try {
+            accessToken = getAccessToken(); // 인증 토큰 발급
+        } catch (PaymentException e) {
+            log.error("테스트 결제 요청 중 토큰 발급 실패: {}", e.getMessage());
+            throw e; // 토큰 발급 실패 예외 전파
+        }
 
         Map<String, Object> requestBody = new HashMap<>();
         requestBody.put("pg", "nice");
@@ -83,7 +116,6 @@ public class PortOneApiClient {
         requestBody.put("birth", dto.getBirthDate());
         requestBody.put("pwd_2digit", dto.getCardPassword());
 
-
         HttpHeaders headers = new HttpHeaders();
         headers.set("Authorization", "Bearer "+ accessToken); // 인증 토큰 포함
         headers.setContentType(MediaType.APPLICATION_JSON);
@@ -94,50 +126,85 @@ public class PortOneApiClient {
             String jsonBody = objectMapper.writeValueAsString(requestBody);
 
             // 디버깅 로그
-            System.out.println("Serialized JSON Body: " + jsonBody);
-            System.out.println("Request URL: " + url);
-            System.out.println("Request Body: " + jsonBody);
-            System.out.println("Request Headers: " + headers);
+            log.debug("PortOne API 테스트 결제 요청 정보: URL={}, Headers={}", url, headers);
 
             HttpEntity<String> requestEntity = new HttpEntity<>(jsonBody, headers);
 
             ResponseEntity<Map> response = restTemplate.exchange(url, HttpMethod.POST, requestEntity, Map.class);
 
             // 응답 상태와 내용 로그 출력
-            System.out.println("Response Status: " + response.getStatusCode());
-            System.out.println("Response Body: " + response.getBody());
+            log.debug("PortOne API 테스트 결제 응답: 상태코드={}, 응답내용={}",
+                    response.getStatusCodeValue(), response.getBody());
 
             if (response.getStatusCode() != HttpStatus.OK || !response.getBody().get("code").equals(0)) {
-                throw new IllegalArgumentException("결제 요청에 실패했습니다. 응답: " + response.getBody());
+                String errorMessage = "결제 요청 실패: " +
+                        (response.getBody().containsKey("message") ? response.getBody().get("message") : "알 수 없는 오류");
+                log.error("PortOne API 테스트 결제 요청 실패: {}", errorMessage);
+                throw new PaymentProcessingException(errorMessage);
             }
 
             Map<String, Object> paymentResponse = (Map<String, Object>) response.getBody().get("response");
-            return (String) paymentResponse.get("imp_uid");
+            String impUid = (String) paymentResponse.get("imp_uid");
+            log.info("PortOne API 테스트 결제 성공: impUid={}", impUid);
+            return impUid;
+        } catch (PaymentException e) {
+            throw e; // 이미 PaymentException이면 그대로 전파
+        } catch (RestClientException e) {
+            log.error("PortOne API 통신 중 오류 발생: {}", e.getMessage(), e);
+            throw new PaymentApiException("결제 서비스 API 통신 중 오류가 발생했습니다.", e);
         } catch (Exception e) {
-            throw new RuntimeException("결제 요청 중 오류 발생", e);
+            log.error("PortOne API 테스트 결제 요청 중 예상치 못한 오류 발생: {}", e.getMessage(), e);
+            throw new PaymentProcessingException("테스트 결제 처리 중 오류가 발생했습니다.", e);
         }
     }
-//    private void validatePaymentInfo(PaymentInfoCreateDto dto) {
-//        if (dto.getAmount() == null || dto.getAmount() <= 0) {
-//            throw new IllegalArgumentException("결제 금액(amount)은 필수 입력 값입니다.");
-//        }
-//        if (dto.getCardNumber() == null || dto.getCardNumber().isEmpty()) {
-//            throw new IllegalArgumentException("카드 번호(card_number)는 필수 입력 값입니다.");
-//        }
-//        if (dto.getExpirationDate() == null || dto.getExpirationDate().isEmpty()) {
-//            throw new IllegalArgumentException("카드 유효기간(expiry)은 필수 입력 값입니다.");
-//        }
-//        if (dto.getBirthDate() == null || dto.getBirthDate().isEmpty()) {
-//            throw new IllegalArgumentException("생년월일(birth)은 필수 입력 값입니다.");
-//        }
-//        if (dto.getCardPassword() == null || dto.getCardPassword().isEmpty()) {
-//            throw new IllegalArgumentException("카드 비밀번호 앞 2자리(pwd_2digit)는 필수 입력 값입니다.");
-//        }
-//    }
+
+    // 카드번호 마스킹 메서드
+    private String maskCardNumber(String cardNumber) {
+        if (cardNumber == null || cardNumber.length() < 8) {
+            return "Invalid";
+        }
+        return cardNumber.substring(0, 4) + "********" +
+                (cardNumber.length() > 12 ? cardNumber.substring(cardNumber.length() - 4) : "");
+    }
+
+    // 결제 정보 검증 메서드
+    private void validatePaymentInfoCreateDto(PaymentInfoCreateDto dto) {
+        if (dto == null) {
+            throw new PaymentException(PaymentErrorCode.INVALID_CARD_INFO, "결제 정보가 없습니다.");
+        }
+
+        if (dto.getCardNumber() == null || dto.getCardNumber().isBlank()) {
+            throw new PaymentException(PaymentErrorCode.INVALID_CARD_INFO, "카드 번호는 필수 입력 값입니다.");
+        }
+
+        if (dto.getExpirationDate() == null || dto.getExpirationDate().isBlank()) {
+            throw new PaymentException(PaymentErrorCode.INVALID_CARD_INFO, "카드 유효기간은 필수 입력 값입니다.");
+        }
+
+        if (dto.getBirthDate() == null || dto.getBirthDate().isBlank()) {
+            throw new PaymentException(PaymentErrorCode.INVALID_CARD_INFO, "생년월일은 필수 입력 값입니다.");
+        }
+
+        if (dto.getCardPassword() == null || dto.getCardPassword().isBlank()) {
+            throw new PaymentException(PaymentErrorCode.INVALID_CARD_INFO, "카드 비밀번호 앞 2자리는 필수 입력 값입니다.");
+        }
+    }
 
     public Map<String, Object> processCardPayment(PaymentInfo paymentInfo, double amount) {
         String url = BASE_URL + "/subscribe/payments/onetime";
-        String accessToken = getAccessToken();
+
+        log.info("PortOne API 카드 결제 요청 시작: 금액={}", amount);
+
+        // 입력값 검증
+        validatePaymentInfo(paymentInfo, amount);
+
+        String accessToken;
+        try {
+            accessToken = getAccessToken();
+        } catch (PaymentException e) {
+            log.error("카드 결제 요청 중 토큰 발급 실패: {}", e.getMessage());
+            throw e; // 토큰 발급 실패 예외 전파
+        }
 
         Map<String, Object> requestBody = new HashMap<>();
         requestBody.put("merchant_uid", UUID.randomUUID().toString());
@@ -161,20 +228,72 @@ public class PortOneApiClient {
             HttpEntity<String> requestEntity = new HttpEntity<>(jsonBody, headers);
             ResponseEntity<Map> response = restTemplate.exchange(url, HttpMethod.POST, requestEntity, Map.class);
 
+            log.debug("PortOne API 카드 결제 응답: 상태코드={}, 응답내용={}",
+                    response.getStatusCodeValue(), response.getBody());
+
             if (response.getStatusCode() != HttpStatus.OK || !response.getBody().get("code").equals(0)) {
-                throw new IllegalArgumentException("결제 요청에 실패했습니다. 응답: " + response.getBody());
+                String errorMessage = "카드 결제 요청 실패: " +
+                        (response.getBody().containsKey("message") ? response.getBody().get("message") : "알 수 없는 오류");
+                log.error("PortOne API 카드 결제 요청 실패: {}", errorMessage);
+                throw new PaymentProcessingException(errorMessage);
             }
 
-            return (Map<String, Object>) response.getBody().get("response");
-
+            Map<String, Object> paymentResponse = (Map<String, Object>) response.getBody().get("response");
+            log.info("PortOne API 카드 결제 성공: impUid={}", paymentResponse.get("imp_uid"));
+            return paymentResponse;
+        } catch (PaymentException e) {
+            throw e; // 이미 PaymentException이면 그대로 전파
+        } catch (RestClientException e) {
+            log.error("PortOne API 통신 중 오류 발생: {}", e.getMessage(), e);
+            throw new PaymentApiException("결제 서비스 API 통신 중 오류가 발생했습니다.", e);
         } catch (Exception e) {
-            throw new RuntimeException("결제 요청 중 오류 발생", e);
+            log.error("PortOne API 카드 결제 요청 중 예상치 못한 오류 발생: {}", e.getMessage(), e);
+            throw new PaymentProcessingException("카드 결제 처리 중 오류가 발생했습니다.", e);
+        }
+    }
+
+    private void validatePaymentInfo(PaymentInfo paymentInfo, double amount) {
+        if (paymentInfo == null) {
+            throw new PaymentException(PaymentErrorCode.INVALID_CARD_INFO, "결제 수단 정보가 없습니다.");
+        }
+
+        if (paymentInfo.getCardNumber() == null || paymentInfo.getCardNumber().isBlank()) {
+            throw new PaymentException(PaymentErrorCode.INVALID_CARD_INFO, "카드 번호는 필수 입력 값입니다.");
+        }
+
+        if (paymentInfo.getExpirationDate() == null || paymentInfo.getExpirationDate().isBlank()) {
+            throw new PaymentException(PaymentErrorCode.INVALID_CARD_INFO, "카드 유효기간은 필수 입력 값입니다.");
+        }
+
+        if (paymentInfo.getBirthDate() == null || paymentInfo.getBirthDate().isBlank()) {
+            throw new PaymentException(PaymentErrorCode.INVALID_CARD_INFO, "생년월일은 필수 입력 값입니다.");
+        }
+
+        if (paymentInfo.getCardPassword() == null || paymentInfo.getCardPassword().isBlank()) {
+            throw new PaymentException(PaymentErrorCode.INVALID_CARD_INFO, "카드 비밀번호 앞 2자리는 필수 입력 값입니다.");
+        }
+
+        if (amount <= 0) {
+            throw new PaymentException(PaymentErrorCode.INVALID_PAYMENT_AMOUNT, "결제 금액은 0보다 커야 합니다.");
         }
     }
 
     public boolean refundPayment(String impUid) {
         String url = BASE_URL + "/payments/cancel";
-        String accessToken = getAccessToken();
+
+        log.info("PortOne API 결제 환불 요청 시작: impUid={}", impUid);
+
+        if (impUid == null || impUid.isBlank()) {
+            throw new PaymentException(PaymentErrorCode.PAYMENT_CANCELLATION_FAILED, "환불할 결제 ID가 없습니다.");
+        }
+
+        String accessToken;
+        try {
+            accessToken = getAccessToken();
+        } catch (PaymentException e) {
+            log.error("결제 환불 요청 중 토큰 발급 실패: {}", e.getMessage());
+            throw e; // 토큰 발급 실패 예외 전파
+        }
 
         Map<String, String> requestBody = new HashMap<>();
         requestBody.put("imp_uid", impUid);
@@ -191,80 +310,34 @@ public class PortOneApiClient {
             HttpEntity<String> requestEntity = new HttpEntity<>(jsonBody, headers);
             ResponseEntity<Map> response = restTemplate.exchange(url, HttpMethod.POST, requestEntity, Map.class);
 
+            log.debug("PortOne API 결제 환불 응답: 상태코드={}, 응답내용={}",
+                    response.getStatusCodeValue(), response.getBody());
+
             if (response.getStatusCode() == HttpStatus.OK && response.getBody().get("code").equals(0)) {
+                log.info("PortOne API 결제 환불 성공: impUid={}", impUid);
                 return true; // 환불 성공
             } else {
+                String errorMessage = "결제 환불 요청 실패: " +
+                        (response.getBody().containsKey("message") ? response.getBody().get("message") : "알 수 없는 오류");
+                log.error("PortOne API 결제 환불 요청 실패: {}", errorMessage);
                 return false; // 환불 실패
             }
+        } catch (PaymentException e) {
+            throw e; // 이미 PaymentException이면 그대로 전파
+        } catch (RestClientException e) {
+            log.error("PortOne API 통신 중 오류 발생: {}", e.getMessage(), e);
+            throw new PaymentApiException("결제 서비스 API 통신 중 오류가 발생했습니다.", e);
         } catch (Exception e) {
-            throw new RuntimeException("환불 요청 중 오류 발생", e);
+            log.error("PortOne API 결제 환불 요청 중 예상치 못한 오류 발생: {}", e.getMessage(), e);
+            throw new PaymentException(PaymentErrorCode.PAYMENT_CANCELLATION_FAILED, "결제 환불 처리 중 오류가 발생했습니다.", e);
         }
     }
 
     public boolean cancelTestPayment(String impUid) {
-        String url = BASE_URL + "/payments/cancel";
-        String accessToken = getAccessToken(); // 인증 토큰 발급
-
-        Map<String, String> requestBody = new HashMap<>();
-        requestBody.put("imp_uid", impUid);
-        requestBody.put("reason", "테스트 결제 환불");
-
-        HttpHeaders headers = new HttpHeaders();
-        headers.set("Authorization", "Bearer "+ accessToken); // 인증 토큰 포함
-        headers.setContentType(MediaType.APPLICATION_JSON);
-
-        try {
-            // JSON 직렬화
-            ObjectMapper objectMapper = new ObjectMapper();
-            String jsonBody = objectMapper.writeValueAsString(requestBody);
-
-            HttpEntity<String> requestEntity = new HttpEntity<>(jsonBody, headers);
-
-            ResponseEntity<Map> response = restTemplate.exchange(url, HttpMethod.POST, requestEntity, Map.class);
-
-            if (response.getStatusCode() == HttpStatus.OK && response.getBody().get("code").equals(0)) {
-                return true; // 환불 성공
-            } else {
-                return false; // 환불 실패
-            }
-//            if (response.getStatusCode() != HttpStatus.OK || !response.getBody().get("code").equals(0)) {
-//                throw new IllegalArgumentException("결제 환불에 실패했습니다. 응답: " + response.getBody());
-//            }
-        } catch (Exception e) {
-            throw new RuntimeException("결제 환불 중 오류 발생", e);
-        }
+        return refundPayment(impUid); // 환불 메서드 재사용
     }
 
     public boolean cancelPayment(String impUid) {
-        String url = BASE_URL + "/payments/cancel";
-        String accessToken = getAccessToken(); // 인증 토큰 발급
-
-        // 요청 본문 생성
-        Map<String, String> requestBody = new HashMap<>();
-        requestBody.put("imp_uid", impUid);
-        requestBody.put("reason", "사용자 요청에 의한 환불");
-
-        // HTTP 헤더 설정
-        HttpHeaders headers = new HttpHeaders();
-        headers.set("Authorization", "Bearer " + accessToken); // 인증 토큰 포함
-        headers.setContentType(MediaType.APPLICATION_JSON);
-
-        try {
-            ObjectMapper objectMapper = new ObjectMapper();
-            String jsonBody = objectMapper.writeValueAsString(requestBody);
-
-            HttpEntity<String> requestEntity = new HttpEntity<>(jsonBody, headers);
-
-            ResponseEntity<Map> response = restTemplate.exchange(url, HttpMethod.POST, requestEntity, Map.class);
-
-            if (response.getStatusCode() == HttpStatus.OK && (int) response.getBody().get("code") == 0) {
-                return true; // 환불 성공
-            } else {
-                return false; // 환불 실패
-            }
-        } catch (Exception e) {
-            throw new RuntimeException("환불 요청 중 오류 발생: " + e.getMessage());
-        }
+        return refundPayment(impUid); // 환불 메서드 재사용
     }
-
 }
