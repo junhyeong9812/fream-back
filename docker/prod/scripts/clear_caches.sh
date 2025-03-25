@@ -6,4 +6,4 @@ curl -X POST "elasticsearch:9200/_cache/clear"
 redis-cli -h redis FLUSHDB
 
 # STT/TTS 임시 파일 정리
-curl -X POST "stt_tts:5000/cleanup/temp"
+#curl -X POST "stt_tts:5000/cleanup/temp"
