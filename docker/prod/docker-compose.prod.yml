@@ -112,7 +112,7 @@ services:
       - front
       - app
       - certbot
-#      - stt_tts
+      - stt_tts
     volumes:
       - letsencrypt_data:/etc/letsencrypt
       - certbot_www:/var/www/certbot
@@ -158,22 +158,36 @@ services:
       -d www.pinjun.xyz --email pickjog@naver.com --agree-tos --no-eff-email --force-renewal;
       while :; do sleep 12h; certbot renew -q; done"
 
-#  stt_tts:
-#    image: fream-stt-tts:latest
-#    container_name: stt_tts_prod
-#    ports:
-#      - "5000:5000"
-#    environment:
-#      TZ: Asia/Seoul
-#    volumes:
-#      - stt_tts_models:/app/models
-#    restart: unless-stopped
-#    depends_on:
-#      - app
+  cache-cleaner:
+    image: alpine:latest
+    container_name: cache_cleaner_prod
+    depends_on:
+      - elasticsearch
+      - redis
+    volumes:
+      - ./scripts:/scripts
+    command: >
+      sh -c "
+      echo '0 2 * * * sh /scripts/clear_caches.sh' > /etc/crontabs/root &&
+      crond -f
+      "
+
+  stt_tts:
+    image: fream-stt-tts:latest
+    container_name: stt_tts_prod
+    ports:
+      - "5000:5000"
+    environment:
+      TZ: Asia/Seoul
+    volumes:
+      - stt_tts_models:/app/models
+    restart: unless-stopped
+    depends_on:
+      - app
 
 volumes:
   mysql_data_prod:
   es_data_prod:
   letsencrypt_data:
   certbot_www:
-#  stt_tts_models:
+  stt_tts_models:
