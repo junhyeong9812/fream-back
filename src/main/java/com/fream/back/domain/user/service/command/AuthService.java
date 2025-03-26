@@ -2,6 +2,7 @@ package com.fream.back.domain.user.service.command;
 
 import com.fream.back.domain.user.dto.LoginRequestDto;
 import com.fream.back.domain.user.entity.Gender;
+import com.fream.back.domain.user.entity.Role;
 import com.fream.back.domain.user.entity.User;
 import com.fream.back.domain.user.repository.UserRepository;
 import com.fream.back.global.config.security.JwtTokenProvider;
@@ -36,9 +37,9 @@ public class AuthService {
         // (원한다면 role, 나이, 성별 등)
         Integer age = user.getAge();
         Gender gender = user.getGender();
-        // String role = user.getRole() ... etc.
+        Role role = user.getRole();
 
         // 토큰 발급
-        return jwtTokenProvider.generateTokenPair(user.getEmail(), age, gender, ip);
+        return jwtTokenProvider.generateTokenPair(user.getEmail(), age, gender, ip,role);
     }
 }

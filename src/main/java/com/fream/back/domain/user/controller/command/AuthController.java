@@ -2,6 +2,7 @@ package com.fream.back.domain.user.controller.command;
 
 import com.fream.back.domain.user.dto.LoginRequestDto;
 import com.fream.back.domain.user.entity.Gender;
+import com.fream.back.domain.user.entity.Role;
 import com.fream.back.domain.user.entity.User;
 import com.fream.back.domain.user.redis.AuthRedisService;
 import com.fream.back.domain.user.service.command.AuthService;
@@ -109,8 +110,9 @@ public class AuthController {
             Integer age = user.getAge();
             Gender gender = user.getGender();
             String ip = getClientIp(request);
+            Role role = user.getRole();
 
-            TokenDto newTokens = jwtTokenProvider.generateTokenPair(email, age, gender, ip);
+            TokenDto newTokens = jwtTokenProvider.generateTokenPair(email, age, gender, ip,role);
 
             // 6) 새 Access 토큰을 쿠키로 내려줌 (Refresh 토큰은 그대로)
             long accessTokenExpireSeconds = 30 * 60;

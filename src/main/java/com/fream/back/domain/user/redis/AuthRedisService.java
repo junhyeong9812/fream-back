@@ -1,6 +1,7 @@
 package com.fream.back.domain.user.redis;
 
 import com.fream.back.domain.user.entity.Gender;
+import com.fream.back.domain.user.entity.Role;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.stereotype.Service;
@@ -26,7 +27,8 @@ public class AuthRedisService {
                                Integer age,
                                Gender gender,
                                long expirationMillis,
-                               String ip) {
+                               String ip,
+                               Role role) {
         String key = "access:" + accessToken;
 
         // 모든 필드를 하나의 맵으로 구성
@@ -34,6 +36,7 @@ public class AuthRedisService {
         fields.put("email", email);
         fields.put("age", String.valueOf(age));
         fields.put("gender", gender.toString());
+        fields.put("role", role.toString()); // 권한 정보 추가
         if (ip != null) {
             fields.put("ip", ip);
         }
@@ -41,6 +44,12 @@ public class AuthRedisService {
         // 한 번의 Redis 연산으로 모든 필드 저장
         redisTemplate.opsForHash().putAll(key, fields);
         redisTemplate.expire(key, Duration.ofMillis(expirationMillis));
+    }
+
+    // Role 정보 조회 메서드 추가
+    public Role getRoleByAccessToken(String accessToken) {
+        Object value = redisTemplate.opsForHash().get("access:" + accessToken, "role");
+        return (value != null) ? Role.valueOf(value.toString()) : null;
     }
 //    public void addAccessToken(String accessToken,
 //                               String email,

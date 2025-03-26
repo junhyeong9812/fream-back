@@ -7,6 +7,7 @@ import com.auth0.jwt.exceptions.JWTVerificationException;
 import com.auth0.jwt.exceptions.TokenExpiredException;
 import com.auth0.jwt.interfaces.DecodedJWT;
 import com.fream.back.domain.user.entity.Gender;
+import com.fream.back.domain.user.entity.Role;
 import com.fream.back.domain.user.redis.AuthRedisService;
 import com.fream.back.global.config.security.dto.TokenDto;
 import com.fream.back.global.exception.security.ExpiredTokenException;
@@ -49,18 +50,19 @@ public class JwtTokenProvider {
      * @return 액세스 토큰과 리프레시 토큰을 포함한 DTO
      * @throws RuntimeException 토큰 생성 중 오류 발생 시
      */
-    public TokenDto generateTokenPair(String email, Integer age, Gender gender, String ip) {
-        log.info("토큰 생성 시작: 이메일={}, 나이={}, 성별={}, IP={}", email, age, gender, ip);
+    public TokenDto generateTokenPair(String email, Integer age, Gender gender, String ip, Role role) {
+        log.info("토큰 생성 시작: 이메일={}, 나이={}, 성별={}, IP={}, 권한={}", email, age, gender, ip, role);
 
         try {
             long now = System.currentTimeMillis();
 
-            // Access Token 생성
+            // Access Token 생성 (role 정보 추가)
             Date accessExpiry = new Date(now + accessTokenValidityMs);
             String accessToken = JWT.create()
                     .withSubject(email)
                     .withIssuedAt(new Date())
                     .withExpiresAt(accessExpiry)
+                    .withClaim("role", role.name()) // 권한 정보 추가
                     .sign(Algorithm.HMAC512(secretKey));
 
             // Refresh Token 생성
@@ -71,8 +73,8 @@ public class JwtTokenProvider {
                     .withExpiresAt(refreshExpiry)
                     .sign(Algorithm.HMAC512(secretKey));
 
-            // Redis에 저장
-            authRedisService.addAccessToken(accessToken, email, age, gender, accessTokenValidityMs, ip);
+            // Redis에 저장 (role 정보도 함께 저장)
+            authRedisService.addAccessToken(accessToken, email, age, gender, accessTokenValidityMs, ip, role);
             authRedisService.addRefreshToken(refreshToken, email, refreshTokenValidityMs);
 
             log.info("토큰 생성 완료: 이메일={}, 액세스 토큰 만료={}, 리프레시 토큰 만료={}",
@@ -81,7 +83,22 @@ public class JwtTokenProvider {
             return new TokenDto(accessToken, refreshToken);
         } catch (JWTCreationException e) {
             log.error("토큰 생성 실패: 이메일={}, 오류={}", email, e.getMessage(), e);
-            throw new TokenCreationException(e);  // 이 부분만 변경
+            throw new TokenCreationException(e);
+        }
+    }
+
+    // role 정보 추출 메서드 추가
+    public Role getRoleFromToken(String token) {
+        try {
+            DecodedJWT decoded = JWT.require(Algorithm.HMAC512(secretKey))
+                    .build()
+                    .verify(token);
+            String roleName = decoded.getClaim("role").asString();
+            log.debug("토큰에서 권한 추출: {}", roleName);
+            return Role.valueOf(roleName);
+        } catch (Exception e) {
+            log.error("토큰에서 권한 추출 중 오류: {}", e.getMessage(), e);
+            throw new InvalidTokenException("토큰에서 권한을 추출하는 중 오류가 발생했습니다.");
         }
     }
 
