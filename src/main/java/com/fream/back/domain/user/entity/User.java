@@ -10,6 +10,7 @@ import lombok.Builder;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 
+import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -55,7 +56,6 @@ public class User extends BaseTimeEntity {
     @Column
     private String di; // 중복가입확인정보 (Duplication Information)
 
-
     @Enumerated(EnumType.STRING)
     private Role role; // USER, ADMIN 등으로 역할 구분
 
@@ -97,7 +97,29 @@ public class User extends BaseTimeEntity {
     @JoinColumn(name = "referrerCode", referencedColumnName = "referralCode", insertable = false, updatable = false)
     private User referrer; // 나를 추천한 사용자 정보 (N:1 관계)
 
+    @OneToMany(mappedBy = "user", cascade = CascadeType.ALL, orphanRemoval = true)
+    private List<OAuthConnection> oauthConnections = new ArrayList<>();
     // **편의 메서드 - 값 업데이트**
+    public void addOAuthConnection(String provider, String providerId) {
+        OAuthConnection connection = OAuthConnection.builder()
+                .provider(provider)
+                .providerId(providerId)
+                .connectedAt(LocalDateTime.now())
+                .build();
+
+        connection.setUser(this);
+        this.oauthConnections.add(connection);
+    }
+
+    public void setVerified(boolean verified) {
+        this.isVerified = verified;
+    }
+
+    public boolean hasOAuthConnection(String provider) {
+        return this.oauthConnections.stream()
+                .anyMatch(conn -> conn.getProvider().equals(provider));
+    }
+
     public void updateUser(String email, String password, ShoeSize shoeSize, Boolean phoneNotificationConsent, Boolean emailNotificationConsent, Integer age, Gender gender) {
         if (email != null) {
             this.email = email;

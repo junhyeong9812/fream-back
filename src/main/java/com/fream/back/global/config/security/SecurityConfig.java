@@ -1,6 +1,8 @@
 package com.fream.back.global.config.security;
 
 import com.fream.back.domain.user.redis.AuthRedisService;
+import com.fream.back.domain.user.security.oauth2.CustomOAuth2UserService;
+import com.fream.back.domain.user.security.oauth2.OAuth2AuthenticationSuccessHandler;
 import lombok.RequiredArgsConstructor;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -19,7 +21,8 @@ import org.springframework.security.web.authentication.UsernamePasswordAuthentic
 public class SecurityConfig {
     private final JwtTokenProvider jwtTokenProvider;
     private final AuthRedisService authRedisService;
-    // CustomUserDetailsService도 필요하다면 주입
+    private final CustomOAuth2UserService customOAuth2UserService;
+    private final OAuth2AuthenticationSuccessHandler oAuth2AuthenticationSuccessHandler;
 
     @Bean
     public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
@@ -43,6 +46,16 @@ public class SecurityConfig {
 
                 // 5) 세션을 사용하지 않도록 설정 (STATELESS)
                 .sessionManagement(session -> session.disable())
+
+                // OAuth2 로그인 설정 추가
+                .oauth2Login(oauth2 -> oauth2
+                        .authorizationEndpoint(endpoint -> endpoint
+                                .baseUri("/api/oauth2/authorize"))
+                        .redirectionEndpoint(endpoint -> endpoint
+                                .baseUri("/api/login/oauth2/code/*"))
+                        .userInfoEndpoint(endpoint -> endpoint
+                                .userService(customOAuth2UserService))
+                        .successHandler(oAuth2AuthenticationSuccessHandler))
 
                 //커스텀 JWT필터 추가
                 .addFilterBefore(jwtFilter, UsernamePasswordAuthenticationFilter.class);
