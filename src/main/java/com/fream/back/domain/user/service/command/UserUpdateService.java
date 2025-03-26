@@ -75,7 +75,8 @@ public class UserUpdateService {
                 newUser.getEmail(),
                 newUser.getAge(),
                 newUser.getGender(),
-                ip
+                ip,
+                newUser.getRole()
         );
     }
 
