@@ -84,8 +84,8 @@ public class SecurityConfig {
         return config.getAuthenticationManager();
     }
     // PasswordEncoder 설정
-    @Bean
-    public PasswordEncoder passwordEncoder() {
-        return new BCryptPasswordEncoder();  // BCrypt 패스워드 암호화
-    }
+//    @Bean
+//    public PasswordEncoder passwordEncoder() {
+//        return new BCryptPasswordEncoder();  // BCrypt 패스워드 암호화
+//    }
 }
