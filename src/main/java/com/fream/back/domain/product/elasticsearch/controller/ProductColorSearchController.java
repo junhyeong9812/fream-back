@@ -30,7 +30,7 @@ public class ProductColorSearchController {
     @GetMapping
     public ResponseEntity<commonDto.PageDto<ProductSearchResponseDto>> esSearchProducts(
             @ModelAttribute ProductSearchDto searchDto,
-            @ModelAttribute SortOption sortOption,
+//            @ModelAttribute SortOption sortOption,
             Pageable pageable
     ) {
         Page<ProductSearchResponseDto> resultPage = productColorSearchService.searchToDto(
@@ -43,7 +43,7 @@ public class ProductColorSearchController {
                 searchDto.getSizes(),
                 searchDto.getMinPrice(),
                 searchDto.getMaxPrice(),
-                sortOption,
+                searchDto.getSortOption(),
                 pageable
         );
         commonDto.PageDto<ProductSearchResponseDto> responseDto = toPageDto(resultPage);
