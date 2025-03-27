@@ -71,7 +71,10 @@ public class SecurityConfig {
      */
     private String[] whiteListPaths() {
         return new String[] {
-                "/**", "/ws/**"
+                "/**", "/ws/**",
+                "/api/**",
+                "/oauth2/**",          // OAuth 관련 경로 허용
+                "/login/oauth2/**",    // OAuth 로그인 관련 경로 허용
 //                "/auth/**",       // 로그인, 회원가입, 리프레시, 로그아웃 등
 //                "/api/public/**", // 예시: 공개 API
 //                "/swagger-ui/**", // 예시: Swagger 문서
