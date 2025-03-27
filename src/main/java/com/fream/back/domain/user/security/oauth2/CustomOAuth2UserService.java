@@ -19,10 +19,7 @@ import org.springframework.security.oauth2.core.user.OAuth2User;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.util.Collections;
-import java.util.Map;
-import java.util.Optional;
-import java.util.UUID;
+import java.util.*;
 
 @Slf4j
 @Service
@@ -57,6 +54,10 @@ public class CustomOAuth2UserService implements OAuth2UserService<OAuth2UserRequ
 
         User user = saveOrUpdate(attributes, registrationId);
 
+        Map<String, Object> modifiedAttributes = new HashMap<>(attributes.getAttributes());
+        if (!modifiedAttributes.containsKey("id")) {
+            modifiedAttributes.put("id", user.getId().toString());
+        }
         // DefaultOAuth2User 객체 생성 및 반환
         return new DefaultOAuth2User(
                 Collections.singleton(new SimpleGrantedAuthority(user.getRole().name())),
