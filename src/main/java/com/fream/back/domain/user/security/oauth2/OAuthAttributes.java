@@ -2,9 +2,12 @@ package com.fream.back.domain.user.security.oauth2;
 
 import lombok.Builder;
 import lombok.Getter;
+import lombok.extern.slf4j.Slf4j;
 
 import java.util.Map;
+import java.util.UUID;
 
+@Slf4j
 @Getter
 public class OAuthAttributes {
     private Map<String, Object> attributes;
@@ -49,12 +52,9 @@ public class OAuthAttributes {
     }
 
     private static OAuthAttributes ofNaver(String userNameAttributeName, Map<String, Object> attributes) {
-        // 안전한 null 체크 및 타입 확인
-        if (attributes == null) {
-            throw new IllegalArgumentException("Naver OAuth attributes are null");
-        }
+        log.info("Naver OAuth Attributes: {}", attributes);
 
-        // response가 Map인지 확인
+        // attributes에서 response 객체 추출
         Object responseObj = attributes.get("response");
         if (!(responseObj instanceof Map)) {
             throw new IllegalArgumentException("Invalid Naver OAuth response structure");
@@ -63,7 +63,6 @@ public class OAuthAttributes {
         @SuppressWarnings("unchecked")
         Map<String, Object> response = (Map<String, Object>) responseObj;
 
-        // 각 필드에 대한 null 체크
         return OAuthAttributes.builder()
                 .name(response.containsKey("name") ? (String) response.get("name") : null)
                 .email(response.containsKey("email") ? (String) response.get("email") : null)
@@ -71,5 +70,31 @@ public class OAuthAttributes {
                 .attributes(attributes)  // 전체 원본 attributes 유지
                 .nameAttributeKey(userNameAttributeName)
                 .build();
+    }
+
+    private String extractProviderId(String registrationId, OAuthAttributes attributes) {
+        log.info("Extracting Provider ID - Registration ID: {}", registrationId);
+        log.info("Attributes for extraction: {}", attributes.getAttributes());
+
+        try {
+            if ("google".equals(registrationId)) {
+                return attributes.getAttributes().get(attributes.getNameAttributeKey()).toString();
+            } else if ("naver".equals(registrationId)) {
+                // 네이버는 response 객체 안에 정보가 있음
+                Object responseObj = attributes.getAttributes().get("response");
+                if (responseObj instanceof Map) {
+                    Map<String, Object> response = (Map<String, Object>) responseObj;
+                    return response.get("id").toString();
+                } else {
+                    log.error("Naver response is not a Map: {}", responseObj);
+                    throw new IllegalArgumentException("Invalid Naver OAuth response");
+                }
+            } else {
+                return UUID.randomUUID().toString();
+            }
+        } catch (Exception e) {
+            log.error("Error extracting provider ID", e);
+            throw e;
+        }
     }
 }

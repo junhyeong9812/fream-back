@@ -98,17 +98,24 @@ public class User extends BaseTimeEntity {
     private User referrer; // 나를 추천한 사용자 정보 (N:1 관계)
 
     @OneToMany(mappedBy = "user", cascade = CascadeType.ALL, orphanRemoval = true)
+    @Builder.Default
     private List<OAuthConnection> oauthConnections = new ArrayList<>();
     // **편의 메서드 - 값 업데이트**
     public void addOAuthConnection(String provider, String providerId) {
-        OAuthConnection connection = OAuthConnection.builder()
-                .provider(provider)
-                .providerId(providerId)
-                .connectedAt(LocalDateTime.now())
-                .build();
+        // 이미 해당 프로바이더에 대한 연결이 있는지 확인
+        boolean connectionExists = this.oauthConnections.stream()
+                .anyMatch(conn -> conn.getProvider().equals(provider));
 
-        connection.setUser(this);
-        this.oauthConnections.add(connection);
+        if (!connectionExists) {
+            OAuthConnection connection = OAuthConnection.builder()
+                    .provider(provider)
+                    .providerId(providerId)
+                    .connectedAt(LocalDateTime.now())
+                    .build();
+
+            connection.setUser(this);
+            this.oauthConnections.add(connection);
+        }
     }
 
     public void setVerified(boolean verified) {
