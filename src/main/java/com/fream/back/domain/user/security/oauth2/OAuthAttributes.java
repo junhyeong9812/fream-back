@@ -34,24 +34,41 @@ public class OAuthAttributes {
     }
 
     private static OAuthAttributes ofGoogle(String userNameAttributeName, Map<String, Object> attributes) {
+        // 안전한 null 체크 및 타입 확인
+        if (attributes == null) {
+            throw new IllegalArgumentException("Google OAuth attributes are null");
+        }
+
         return OAuthAttributes.builder()
-                .name((String) attributes.get("name"))
-                .email((String) attributes.get("email"))
-                .picture((String) attributes.get("picture"))
+                .name(attributes.containsKey("name") ? (String) attributes.get("name") : null)
+                .email(attributes.containsKey("email") ? (String) attributes.get("email") : null)
+                .picture(attributes.containsKey("picture") ? (String) attributes.get("picture") : null)
                 .attributes(attributes)
                 .nameAttributeKey(userNameAttributeName)
                 .build();
     }
 
     private static OAuthAttributes ofNaver(String userNameAttributeName, Map<String, Object> attributes) {
-        // 네이버는 response에 사용자 정보가 담겨있음
-        Map<String, Object> response = (Map<String, Object>) attributes.get("response");
+        // 안전한 null 체크 및 타입 확인
+        if (attributes == null) {
+            throw new IllegalArgumentException("Naver OAuth attributes are null");
+        }
 
+        // response가 Map인지 확인
+        Object responseObj = attributes.get("response");
+        if (!(responseObj instanceof Map)) {
+            throw new IllegalArgumentException("Invalid Naver OAuth response structure");
+        }
+
+        @SuppressWarnings("unchecked")
+        Map<String, Object> response = (Map<String, Object>) responseObj;
+
+        // 각 필드에 대한 null 체크
         return OAuthAttributes.builder()
-                .name((String) response.get("name"))
-                .email((String) response.get("email"))
-                .picture((String) response.get("profile_image"))
-                .attributes(response)
+                .name(response.containsKey("name") ? (String) response.get("name") : null)
+                .email(response.containsKey("email") ? (String) response.get("email") : null)
+                .picture(response.containsKey("profile_image") ? (String) response.get("profile_image") : null)
+                .attributes(attributes)  // 전체 원본 attributes 유지
                 .nameAttributeKey(userNameAttributeName)
                 .build();
     }

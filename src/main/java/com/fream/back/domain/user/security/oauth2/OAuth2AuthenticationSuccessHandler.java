@@ -37,6 +37,8 @@ public class OAuth2AuthenticationSuccessHandler extends SimpleUrlAuthenticationS
                                         Authentication authentication) throws IOException, ServletException {
         log.info("OAuth2 인증 성공 처리");
 
+        try {
+
         // OAuth2 인증 정보 가져오기
         OAuth2AuthenticationToken oauthToken = (OAuth2AuthenticationToken) authentication;
         OAuth2User oAuth2User = oauthToken.getPrincipal();
@@ -82,7 +84,11 @@ public class OAuth2AuthenticationSuccessHandler extends SimpleUrlAuthenticationS
         setCookie(response, "REFRESH_TOKEN", tokenDto.getRefreshToken(), 24 * 60 * 60); // 24시간
 
         // 프론트엔드 페이지로 리다이렉트
-        response.sendRedirect("/");
+        response.sendRedirect("http://www.pinjun.xyz");
+        } catch (Exception e) {
+            log.error("OAuth2 인증 중 오류 발생", e);
+            response.sendRedirect("http://www.pinjun.xyz/login?error=oauth_failed");
+        }
     }
 
     // 임시 토큰 생성 메서드 (회원가입 완료 전용)

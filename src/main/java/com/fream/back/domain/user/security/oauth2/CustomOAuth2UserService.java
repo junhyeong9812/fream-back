@@ -42,6 +42,9 @@ public class CustomOAuth2UserService implements OAuth2UserService<OAuth2UserRequ
         // OAuth2 서비스 ID (google, naver, kakao 등)
         String registrationId = userRequest.getClientRegistration().getRegistrationId();
 
+        log.info("OAuth2 Provider: {}", registrationId);
+        log.info("Full OAuth2 Attributes: {}", oAuth2User.getAttributes());
+
         // OAuth2 로그인 진행 시 키가 되는 필드 값 (Primary Key)
         String userNameAttributeName = userRequest.getClientRegistration()
                 .getProviderDetails().getUserInfoEndpoint().getUserNameAttributeName();
