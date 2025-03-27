@@ -16,6 +16,7 @@ import org.springframework.web.bind.annotation.*;
 
 import java.util.Collections;
 import java.util.List;
+import java.util.Map;
 import java.util.stream.Collectors;
 
 @RestController
@@ -137,5 +138,39 @@ public class ProductColorSearchController {
         // "MALE", "FEMALE", "KIDS", "UNISEX" 문자열 목록으로 변환
         if (genderTypes == null) return Collections.emptyList();
         return genderTypes.stream().map(GenderType::name).collect(Collectors.toList());
+    }
+
+    /**
+     * 엘라스틱서치에 저장된 모든 ProductColorIndex를 페이징하여 직접 반환 (디버깅용)
+     */
+    @GetMapping("/raw-indices")
+    public ResponseEntity<commonDto.PageDto<ProductColorIndex>> getRawIndices(Pageable pageable) {
+        Page<ProductColorIndex> indexPage = productColorSearchService.getAllIndexedColors(pageable);
+
+        commonDto.PageDto<ProductColorIndex> responseDto = toPageDto(indexPage);
+        return ResponseEntity.ok(responseDto);
+    }
+
+    /**
+     * 특정 카테고리의 인덱스만 조회 (디버깅용)
+     */
+    @GetMapping("/raw-indices/category/{categoryId}")
+    public ResponseEntity<commonDto.PageDto<ProductColorIndex>> getRawIndicesByCategory(
+            @PathVariable Long categoryId,
+            Pageable pageable) {
+
+        Page<ProductColorIndex> indexPage = productColorSearchService.getIndexedColorsByCategory(categoryId, pageable);
+
+        commonDto.PageDto<ProductColorIndex> responseDto = toPageDto(indexPage);
+        return ResponseEntity.ok(responseDto);
+    }
+
+    /**
+     * 인덱스 통계 정보 반환 (디버깅용)
+     */
+    @GetMapping("/index-stats")
+    public ResponseEntity<Map<String, Object>> getIndexStats() {
+        Map<String, Object> stats = productColorSearchService.getIndexStats();
+        return ResponseEntity.ok(stats);
     }
 }

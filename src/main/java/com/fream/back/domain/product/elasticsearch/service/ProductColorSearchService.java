@@ -20,6 +20,7 @@ import org.springframework.data.elasticsearch.core.ElasticsearchOperations;
 import org.springframework.data.elasticsearch.core.SearchHits;
 import org.springframework.stereotype.Service;
 
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
@@ -400,5 +401,117 @@ public class ProductColorSearchService {
         String colorName = idx.getColorName() != null ? idx.getColorName() : "";
 
         return String.format("%s - %s (%s)", brand, productName, colorName);
+    }
+
+    /**
+     * 엘라스틱서치에 저장된 모든 ProductColorIndex를 페이징하여 반환
+     */
+    public Page<ProductColorIndex> getAllIndexedColors(Pageable pageable) {
+        // match_all 쿼리 생성
+        Query matchAllQuery = new Query.Builder()
+                .matchAll(m -> m)
+                .build();
+
+        // NativeQuery 구성
+        NativeQuery nativeQuery = NativeQuery.builder()
+                .withQuery(matchAllQuery)
+                .withPageable(pageable)
+                .withSort(s -> s.field(f -> f.field("colorId").order(co.elastic.clients.elasticsearch._types.SortOrder.Asc)))
+                .build();
+
+        // 검색 실행
+        SearchHits<ProductColorIndex> searchHits = esOperations.search(nativeQuery, ProductColorIndex.class);
+
+        // 결과를 Page 객체로 변환
+        List<ProductColorIndex> content = searchHits.getSearchHits().stream()
+                .map(hit -> hit.getContent())
+                .collect(Collectors.toList());
+
+        long totalHits = searchHits.getTotalHits();
+
+        return new PageImpl<>(content, pageable, totalHits);
+    }
+
+    /**
+     * 특정 카테고리에 속한 인덱스만 조회 (디버깅용)
+     */
+    public Page<ProductColorIndex> getIndexedColorsByCategory(Long categoryId, Pageable pageable) {
+        // 특정 카테고리 ID로 필터링하는 쿼리
+        Query query = new Query.Builder()
+                .term(t -> t.field("categoryId").value(categoryId))
+                .build();
+
+        // NativeQuery 구성
+        NativeQuery nativeQuery = NativeQuery.builder()
+                .withQuery(query)
+                .withPageable(pageable)
+                .withSort(s -> s.field(f -> f.field("colorId").order(co.elastic.clients.elasticsearch._types.SortOrder.Asc)))
+                .build();
+
+        // 검색 실행
+        SearchHits<ProductColorIndex> searchHits = esOperations.search(nativeQuery, ProductColorIndex.class);
+
+        // 결과를 Page 객체로 변환
+        List<ProductColorIndex> content = searchHits.getSearchHits().stream()
+                .map(hit -> hit.getContent())
+                .collect(Collectors.toList());
+
+        long totalHits = searchHits.getTotalHits();
+
+        return new PageImpl<>(content, pageable, totalHits);
+    }
+
+    /**
+     * 엘라스틱서치 인덱스의 상태 확인 메서드
+     * 총 문서 수, 카테고리별 문서 수 등 요약 정보 반환
+     */
+    public Map<String, Object> getIndexStats() {
+        Map<String, Object> stats = new HashMap<>();
+
+        // 1. 전체 문서 수 계산
+        Query matchAllQuery = new Query.Builder()
+                .matchAll(m -> m)
+                .build();
+
+        NativeQuery countQuery = NativeQuery.builder()
+                .withQuery(matchAllQuery)
+                .withPageable(PageRequest.of(0, 1))  // 결과는 필요 없고 카운트만 필요
+                .build();
+
+        SearchHits<ProductColorIndex> countHits = esOperations.search(countQuery, ProductColorIndex.class);
+        stats.put("totalDocuments", countHits.getTotalHits());
+
+        // 2. 스니커즈 카테고리 문서 수 (카테고리 ID 알고 있다고 가정)
+        // 아래 ID는 예시이므로 실제 스니커즈 카테고리 ID로 교체 필요
+        Long sneakersId = 2L; // 예시 ID, 실제 ID로 교체 필요
+
+        Query sneakersQuery = new Query.Builder()
+                .term(t -> t.field("categoryId").value(sneakersId))
+                .build();
+
+        NativeQuery sneakersCountQuery = NativeQuery.builder()
+                .withQuery(sneakersQuery)
+                .withPageable(PageRequest.of(0, 1))
+                .build();
+
+        SearchHits<ProductColorIndex> sneakersHits = esOperations.search(sneakersCountQuery, ProductColorIndex.class);
+        stats.put("sneakersCount", sneakersHits.getTotalHits());
+
+        // 3. 티셔츠 카테고리 문서 수
+        Long tshirtsId = 3L; // 예시 ID, 실제 ID로 교체 필요
+
+        Query tshirtsQuery = new Query.Builder()
+                .term(t -> t.field("categoryId").value(tshirtsId))
+                .build();
+
+        NativeQuery tshirtsCountQuery = NativeQuery.builder()
+                .withQuery(tshirtsQuery)
+                .withPageable(PageRequest.of(0, 1))
+                .build();
+
+        SearchHits<ProductColorIndex> tshirtsHits = esOperations.search(tshirtsCountQuery, ProductColorIndex.class);
+        stats.put("tshirtsCount", tshirtsHits.getTotalHits());
+
+        return stats;
     }
 }
