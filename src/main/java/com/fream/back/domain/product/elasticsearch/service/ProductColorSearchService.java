@@ -343,6 +343,7 @@ public class ProductColorSearchService {
                 .colorName(idx.getColorName())
                 .colorId(idx.getColorId())
                 .interestCount(idx.getInterestCount())
+                .brandName(idx.getBrandName())  // 브랜드명 추가
                 .build();
     }
 
