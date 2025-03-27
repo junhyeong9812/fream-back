@@ -36,17 +36,14 @@ public class CustomOAuth2UserService implements OAuth2UserService<OAuth2UserRequ
         OAuth2UserService<OAuth2UserRequest, OAuth2User> delegate = new DefaultOAuth2UserService();
         OAuth2User oAuth2User = delegate.loadUser(userRequest);
 
-        // OAuth2 서비스 ID (google, naver, kakao 등)
         String registrationId = userRequest.getClientRegistration().getRegistrationId();
 
         log.info("OAuth2 Provider: {}", registrationId);
         log.info("Full OAuth2 Attributes: {}", oAuth2User.getAttributes());
 
-        // OAuth2 로그인 진행 시 키가 되는 필드 값 (Primary Key)
         String userNameAttributeName = userRequest.getClientRegistration()
                 .getProviderDetails().getUserInfoEndpoint().getUserNameAttributeName();
 
-        // OAuth2UserService를 통해 가져온 OAuth2User의 attribute를 담을 클래스
         OAuthAttributes attributes = OAuthAttributes.of(
                 registrationId, userNameAttributeName, oAuth2User.getAttributes());
 
@@ -54,15 +51,14 @@ public class CustomOAuth2UserService implements OAuth2UserService<OAuth2UserRequ
 
         User user = saveOrUpdate(attributes, registrationId);
 
+        // 사용자의 데이터베이스 ID를 사용
         Map<String, Object> modifiedAttributes = new HashMap<>(attributes.getAttributes());
-        if (!modifiedAttributes.containsKey("id")) {
-            modifiedAttributes.put("id", user.getId().toString());
-        }
-        // DefaultOAuth2User 객체 생성 및 반환
+        modifiedAttributes.put("id", user.getId().toString());
+
         return new DefaultOAuth2User(
                 Collections.singleton(new SimpleGrantedAuthority(user.getRole().name())),
-                attributes.getAttributes(),
-                attributes.getNameAttributeKey());
+                modifiedAttributes,
+                registrationId.equals("naver") ? "id" : attributes.getNameAttributeKey());
     }
 
     /**
