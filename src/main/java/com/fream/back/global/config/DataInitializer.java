@@ -378,7 +378,7 @@ public class DataInitializer implements CommandLineRunner {
                 productColor.addThumbnailImage(
                         productImageRepository.save(
                                 ProductImage.builder()
-                                        .imageUrl("/api/products/" + product.getId() + "/images?imageName=" + imageName)
+                                        .imageUrl("https://www.pinjun.xyz/api/products/query/" + product.getId() + "/images?imageName=" + imageName)
                                         .productColor(productColor)
                                         .build()
                         )

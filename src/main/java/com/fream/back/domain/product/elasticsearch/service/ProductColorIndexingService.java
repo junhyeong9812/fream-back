@@ -66,7 +66,13 @@ public class ProductColorIndexingService {
                 .collect(Collectors.toList());
 
         // 5) Elasticsearch에 저장
-        productColorEsRepository.saveAll(indexList);
+        // ProductColorIndexingService 클래스의 indexAllColors() 메서드에 로깅 추가
+        try {
+            productColorEsRepository.saveAll(indexList);
+        } catch (Exception e) {
+            System.err.println("인덱싱 중 오류 발생: " + e.getMessage());
+            e.printStackTrace();
+        }
     }
 
     /**
