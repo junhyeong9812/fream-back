@@ -196,10 +196,18 @@ public class ProductColorSearchService {
         Pageable finalPageable = pageable != null ? pageable : PageRequest.of(0, 20);
         nativeQueryBuilder.withPageable(finalPageable);
 
+        // NativeQuery 빌드
         NativeQuery nativeQuery = nativeQueryBuilder.build();
+
+    // 빌드 후에 로그 남기기
+        log.debug("ES Query: {}", nativeQuery.toString());
+        log.debug("Page number: {}, size: {}, offset: {}",
+                finalPageable.getPageNumber(), finalPageable.getPageSize(), finalPageable.getOffset());
 
         // 검색 실행 (Page 기능)
         SearchHits<ProductColorIndex> searchHits = esOperations.search(nativeQuery, ProductColorIndex.class);
+        log.debug("Search hit count: {}", searchHits.getSearchHits().size());
+        log.debug("Total hits: {}", searchHits.getTotalHits());
 
         // SearchHits → Page 로 변환
         //    Spring Data ES 4.x+에서 Page 구현체를 얻으려면 별도 변환 필요
