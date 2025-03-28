@@ -11,6 +11,7 @@ import com.fream.back.domain.product.elasticsearch.repository.ProductColorEsRepo
 import com.fream.back.domain.product.repository.SortOption;
 import com.fream.back.domain.style.repository.StyleRepository;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.PageRequest;
@@ -26,6 +27,7 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.stream.Collectors;
 
+@Slf4j
 @Service
 @RequiredArgsConstructor
 public class ProductColorSearchService {
@@ -147,8 +149,8 @@ public class ProductColorSearchService {
             SortOption sortOption,   // 새로 추가: 정렬 기준 (price, releaseDate, etc.) + order (asc/desc)
             Pageable pageable       // 새로 추가: 페이징 (page=..., size=...)
     ) {
-        logger.debug("Input Page Number: {}", pageable.getPageNumber());
-        logger.debug("Input Page Size: {}", pageable.getPageSize());
+        log.debug("Input Page Number: {}", pageable.getPageNumber());
+        log.debug("Input Page Size: {}", pageable.getPageSize());
         // 검색 쿼리 구성 (리팩토링한 메서드 사용)
         Query finalQuery = buildSearchQuery(
                 keyword, categoryIds, genders, brandIds,
