@@ -9,6 +9,7 @@ import com.fream.back.domain.product.repository.SortOption;
 import com.fream.back.domain.product.service.product.ProductQueryService;
 import com.fream.back.global.dto.commonDto;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.http.ResponseEntity;
@@ -19,6 +20,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
 
+@Slf4j
 @RestController
 @RequiredArgsConstructor
 @RequestMapping("/es/products")
@@ -34,6 +36,8 @@ public class ProductColorSearchController {
 //            @ModelAttribute SortOption sortOption,
             Pageable pageable
     ) {
+        log.info("Controller received pageable: page={}, size={}",
+                pageable.getPageNumber(), pageable.getPageSize());
         Page<ProductSearchResponseDto> resultPage = productColorSearchService.searchToDto(
                 searchDto.getKeyword(),
                 searchDto.getCategoryIds(),
