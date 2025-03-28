@@ -51,11 +51,16 @@ public class ProductColorSearchService {
             SortOption sortOption,
             Pageable pageable
     ) {
+        Pageable adjustedPageable = PageRequest.of(
+                pageable.getPageNumber(),
+                pageable.getPageSize(),
+                pageable.getSort()
+        );
         // 1) 우선 ES 검색
         Page<ProductColorIndex> pageResult = search(
                 keyword, categoryIds, genders, brandIds,
                 collectionIds, colorNames, sizes,
-                minPrice, maxPrice, sortOption, pageable
+                minPrice, maxPrice, sortOption, adjustedPageable
         );
 
         // 2) ProductColorIndex → ProductSearchResponseDto 변환
@@ -142,6 +147,8 @@ public class ProductColorSearchService {
             SortOption sortOption,   // 새로 추가: 정렬 기준 (price, releaseDate, etc.) + order (asc/desc)
             Pageable pageable       // 새로 추가: 페이징 (page=..., size=...)
     ) {
+        logger.debug("Input Page Number: {}", pageable.getPageNumber());
+        logger.debug("Input Page Size: {}", pageable.getPageSize());
         // 검색 쿼리 구성 (리팩토링한 메서드 사용)
         Query finalQuery = buildSearchQuery(
                 keyword, categoryIds, genders, brandIds,
