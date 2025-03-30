@@ -35,7 +35,7 @@ public class User extends BaseTimeEntity {
     @Column(nullable = false, unique = true)
     private String referralCode; // 고유 추천인 코드
 
-    @Column(nullable = false, unique = true)
+    @Column(nullable = false)
     private String phoneNumber; // 전화번호 추가
 
     @Enumerated(EnumType.STRING)
