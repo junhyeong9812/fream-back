@@ -134,6 +134,7 @@ services:
       - elasticsearch
     volumes:
       - /home/ubuntu/fream:/home/ubuntu/fream
+      - /home/ubuntu/springlog:/logs
   front:
     image: ghcr.io/junhyeong9812/fream-front:latest
     environment:
@@ -171,23 +172,114 @@ services:
       echo '0 2 * * * sh /scripts/clear_caches.sh' > /etc/crontabs/root &&
       crond -f
       "
-
-#  stt_tts:
-#    image: fream-stt-tts:latest
-#    container_name: stt_tts_prod
+  # 새로운 모니터링 서비스들 추가
+#  prometheus:
+#    image: prom/prometheus
+#    container_name: prometheus_prod
+#    volumes:
+#      - ./prometheus/prometheus.yml:/etc/prometheus/prometheus.yml
+#      - prometheus_data:/prometheus
 #    ports:
-#      - "5000:5000"
+#      - "9090:9090"
 #    environment:
 #      TZ: Asia/Seoul
+#    deploy:
+#      resources:
+#        limits:
+#          memory: 400M
+#
+#  node-exporter:
+#    image: prom/node-exporter
+#    container_name: node_exporter_prod
 #    volumes:
-#      - stt_tts_models:/app/models
-#    restart: unless-stopped
+#      - /proc:/host/proc:ro
+#      - /sys:/host/sys:ro
+#      - /:/rootfs:ro
+#    command:
+#      - '--path.procfs=/host/proc'
+#      - '--path.sysfs=/host/sys'
+#      - '--collector.filesystem.ignored-mount-points=^/(sys|proc|dev|host|etc)($$|/)'
+#    ports:
+#      - "9100:9100"
+#    environment:
+#      TZ: Asia/Seoul
+#    deploy:
+#      resources:
+#        limits:
+#          memory: 50M
+#
+#  nginx-prometheus-exporter:
+#    image: nginx/nginx-prometheus-exporter
+#    container_name: nginx_exporter_prod
+#    command:
+#      - '-nginx.scrape-uri=http://nginx:80/stub_status'
+#    ports:
+#      - "9113:9113"
 #    depends_on:
-#      - app
+#      - nginx
+#    environment:
+#      TZ: Asia/Seoul
+#    deploy:
+#      resources:
+#        limits:
+#          memory: 50M
+#
+#  loki:
+#    image: grafana/loki
+#    container_name: loki_prod
+#    ports:
+#      - "3100:3100"
+#    volumes:
+#      - loki_data:/loki
+#    environment:
+#      TZ: Asia/Seoul
+#    deploy:
+#      resources:
+#        limits:
+#          memory: 300M
+#
+#  promtail:
+#    image: grafana/promtail
+#    container_name: promtail_prod
+#    volumes:
+#      - ./promtail/promtail-config.yml:/etc/promtail/config.yml
+#      - /var/log/nginx:/var/log/nginx:ro
+#    command:
+#      - '-config.file=/etc/promtail/config.yml'
+#    environment:
+#      TZ: Asia/Seoul
+#    deploy:
+#      resources:
+#        limits:
+#          memory: 100M
+#
+#  grafana:
+#    image: grafana/grafana
+#    container_name: grafana_prod
+#    volumes:
+#      - grafana_data:/var/lib/grafana
+#    ports:
+#      - "3000:3000"
+#    environment:
+#      TZ: Asia/Seoul
+#      GF_SERVER_ROOT_URL: https://www.pinjun.xyz/grafana
+#      GF_SERVER_SERVE_FROM_SUB_PATH: "true"
+#    depends_on:
+#      - prometheus
+#      - loki
+#    deploy:
+#      resources:
+#        limits:
+#          memory: 200M
+
+
 
 volumes:
   mysql_data_prod:
   es_data_prod:
   letsencrypt_data:
   certbot_www:
-#  stt_tts_models:
+#  prometheus_data:
+#  grafana_data:
+#  loki_data:
+
