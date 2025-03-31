@@ -88,7 +88,7 @@ services:
       TZ: Asia/Seoul
       ELASTICSEARCH_HOSTS: http://elasticsearch:9200
       SERVER_BASEPATH: ""
-      SERVER_REWRITEBASEPATH: true
+      SERVER_REWRITEBASEPATH: false
     ports:
       - "5601:5601"
 
