@@ -32,9 +32,14 @@ metricbeat.modules:
 
 output.elasticsearch:
   hosts: ["elasticsearch:9200"]
-  index: "metricbeat-%{[agent.version]}-%{+yyyy.MM.dd}"
+  # 아래 인덱스 설정 대신 기본값 사용
+  # index: "metricbeat-%{[agent.version]}-%{+yyyy.MM.dd}"
 
 setup.kibana:
   host: "kibana:5601"
 
 setup.dashboards.enabled: true
+
+# 템플릿 설정 추가
+setup.template.name: "metricbeat"
+setup.template.pattern: "metricbeat-*"
