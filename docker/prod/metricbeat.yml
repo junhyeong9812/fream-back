@@ -1,0 +1,40 @@
+metricbeat.modules:
+  # 시스템 메트릭 수집
+  - module: system
+    metricsets:
+      - cpu
+      - load
+      - memory
+      - network
+      - process
+      - filesystem
+    enabled: true
+    period: 10s
+
+  # Spring Boot 메트릭 수집 (Actuator 사용)
+  - module: http
+    metricsets:
+      - json
+    period: 10s
+    hosts: ["app:8080"]
+    namespace: "springboot"
+    path: "/actuator/metrics"
+    method: "GET"
+    json.is_array: false
+    json.keys_under_root: true
+
+  # Nginx 모니터링
+  - module: nginx
+    metricsets:
+      - stubstatus
+    period: 10s
+    hosts: ["http://nginx:80/stub_status"]
+
+output.elasticsearch:
+  hosts: ["elasticsearch:9200"]
+  index: "metricbeat-%{[agent.version]}-%{+yyyy.MM.dd}"
+
+setup.kibana:
+  host: "kibana:5601"
+
+setup.dashboards.enabled: true

@@ -172,6 +172,27 @@ services:
       echo '0 2 * * * sh /scripts/clear_caches.sh' > /etc/crontabs/root &&
       crond -f
       "
+  metricbeat:
+    image: docker.elastic.co/beats/metricbeat:7.15.0
+    container_name: metricbeat_prod
+    user: root
+    volumes:
+      - /proc:/hostfs/proc:ro
+      - /sys/fs/cgroup:/hostfs/sys/fs/cgroup:ro
+      - /:/hostfs:ro
+      - ./metricbeat.yml:/usr/share/metricbeat/metricbeat.yml:ro
+    environment:
+      - ELASTICSEARCH_HOSTS=http://elasticsearch:9200
+      - TZ=Asia/Seoul
+    command: -e -system.hostfs=/hostfs
+    depends_on:
+      - elasticsearch
+      - kibana
+    deploy:
+      resources:
+        limits:
+          memory: 150M
+
   # 새로운 모니터링 서비스들 추가
 #  prometheus:
 #    image: prom/prometheus
