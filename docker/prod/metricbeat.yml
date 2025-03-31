@@ -37,6 +37,7 @@ output.elasticsearch:
 
 setup.kibana:
   host: "kibana:5601"
+  path: "/kibana"  # 추가된 부분 - Kibana의 basepath 설정
   protocol: "http"
 
 setup.dashboards.enabled: true
