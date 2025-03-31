@@ -173,7 +173,7 @@ services:
       crond -f
       "
   metricbeat:
-    image: docker.elastic.co/beats/metricbeat:7.15.0
+    image: docker.elastic.co/beats/metricbeat:8.13.4
     container_name: metricbeat_prod
     user: root
     volumes:
