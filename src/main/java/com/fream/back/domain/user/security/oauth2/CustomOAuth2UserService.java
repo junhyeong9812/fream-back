@@ -44,21 +44,26 @@ public class CustomOAuth2UserService implements OAuth2UserService<OAuth2UserRequ
         String userNameAttributeName = userRequest.getClientRegistration()
                 .getProviderDetails().getUserInfoEndpoint().getUserNameAttributeName();
 
-        OAuthAttributes attributes = OAuthAttributes.of(
-                registrationId, userNameAttributeName, oAuth2User.getAttributes());
+        try {
+            OAuthAttributes attributes = OAuthAttributes.of(
+                    registrationId, userNameAttributeName, oAuth2User.getAttributes());
 
-        log.info("OAuth2 로그인 시도: 제공자={}, 이메일={}", registrationId, attributes.getEmail());
+            log.info("OAuth2 로그인 시도: 제공자={}, 이메일={}", registrationId, attributes.getEmail());
 
-        User user = saveOrUpdate(attributes, registrationId);
+            User user = saveOrUpdate(attributes, registrationId);
 
-        // 사용자의 데이터베이스 ID를 사용
-        Map<String, Object> modifiedAttributes = new HashMap<>(attributes.getAttributes());
-        modifiedAttributes.put("id", user.getId().toString());
+            // 사용자의 데이터베이스 ID를 사용
+            Map<String, Object> modifiedAttributes = new HashMap<>(attributes.getAttributes());
+            modifiedAttributes.put("id", user.getId().toString());
 
-        return new DefaultOAuth2User(
-                Collections.singleton(new SimpleGrantedAuthority(user.getRole().name())),
-                modifiedAttributes,
-                registrationId.equals("naver") ? "id" : attributes.getNameAttributeKey());
+            return new DefaultOAuth2User(
+                    Collections.singleton(new SimpleGrantedAuthority(user.getRole().name())),
+                    modifiedAttributes,
+                    registrationId.equals("naver") || registrationId.equals("kakao") ? "id" : attributes.getNameAttributeKey());
+        } catch (Exception e) {
+            log.error("OAuth2 로그인 처리 중 오류 발생: {}", e.getMessage(), e);
+            throw new RuntimeException("OAuth2 로그인 처리 중 오류가 발생했습니다: " + e.getMessage(), e);
+        }
     }
 
     /**
@@ -109,14 +114,24 @@ public class CustomOAuth2UserService implements OAuth2UserService<OAuth2UserRequ
             return savedUser;
         }
     }
+
     private String extractProviderId(String registrationId, OAuthAttributes attributes) {
-        if ("google".equals(registrationId)) {
-            return attributes.getAttributes().get(attributes.getNameAttributeKey()).toString();
-        } else if ("naver".equals(registrationId)) {
-            Map<String, Object> response = (Map<String, Object>) attributes.getAttributes().get("response");
-            return response.get("id").toString();
-        } else {
-            return UUID.randomUUID().toString(); // 기본값 또는 다른 로직
+        try {
+            if ("google".equals(registrationId)) {
+                return attributes.getAttributes().get(attributes.getNameAttributeKey()).toString();
+            } else if ("naver".equals(registrationId)) {
+                Map<String, Object> response = (Map<String, Object>) attributes.getAttributes().get("response");
+                return response.get("id").toString();
+            } else if ("kakao".equals(registrationId)) {
+                // 카카오는 ID가 최상위 속성으로 제공됨
+                return attributes.getAttributes().get("id").toString();
+            } else {
+                return UUID.randomUUID().toString(); // 기본값 또는 다른 로직
+            }
+        } catch (Exception e) {
+            log.error("제공자 ID 추출 중 오류 발생: {}, 제공자: {}", e.getMessage(), registrationId, e);
+            // 에러 발생 시 무작위 UUID 반환
+            return UUID.randomUUID().toString();
         }
     }
 

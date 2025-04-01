@@ -44,6 +44,8 @@ public class OAuth2AuthenticationSuccessHandler extends SimpleUrlAuthenticationS
             OAuth2User oAuth2User = oauthToken.getPrincipal();
             String registrationId = oauthToken.getAuthorizedClientRegistrationId();
 
+            log.info("OAuth2 로그인 성공 - 제공자: {}, 속성: {}", registrationId, oAuth2User.getAttributes());
+
             // 이메일 가져오기 - 로그인 제공자별로 다르게 처리
             String emailTemp = null;
 
@@ -56,9 +58,21 @@ public class OAuth2AuthenticationSuccessHandler extends SimpleUrlAuthenticationS
                     emailTemp = (String) responseObj.get("email");
                     log.info("네이버 로그인 이메일: {}", emailTemp);
                 }
+            } else if ("kakao".equals(registrationId)) {
+                // 카카오 로그인 처리
+                Map<String, Object> attributes = oAuth2User.getAttributes();
+
+                // 카카오는 kakao_account 객체 내에 이메일이 있음
+                if (attributes.containsKey("kakao_account")) {
+                    @SuppressWarnings("unchecked")
+                    Map<String, Object> kakaoAccount = (Map<String, Object>) attributes.get("kakao_account");
+                    emailTemp = (String) kakaoAccount.get("email");
+                    log.info("카카오 로그인 이메일: {}", emailTemp);
+                }
             } else {
                 // 구글 등 다른 제공자
                 emailTemp = oAuth2User.getAttribute("email");
+                log.info("구글 로그인 이메일: {}", emailTemp);
             }
 
             // 이메일 검증
@@ -82,6 +96,7 @@ public class OAuth2AuthenticationSuccessHandler extends SimpleUrlAuthenticationS
             if (needsAdditionalInfo) {
                 // 임시 세션 ID나 토큰을 생성하여 추가 정보 입력 페이지로 전달
                 String tempToken = generateTempToken(user.getEmail());
+                log.info("사용자 추가 정보 입력 필요: {}", email);
                 response.sendRedirect("/oauth/complete-signup?token=" + tempToken);
                 return;
             }
@@ -98,6 +113,8 @@ public class OAuth2AuthenticationSuccessHandler extends SimpleUrlAuthenticationS
             // 쿠키에 토큰 설정
             setCookie(response, "ACCESS_TOKEN", tokenDto.getAccessToken(), 30 * 60); // 30분
             setCookie(response, "REFRESH_TOKEN", tokenDto.getRefreshToken(), 24 * 60 * 60); // 24시간
+
+            log.info("사용자 로그인 성공: {}, 제공자: {}", email, registrationId);
 
             // 프론트엔드 페이지로 리다이렉트
             response.sendRedirect("http://www.pinjun.xyz");

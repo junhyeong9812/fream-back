@@ -72,6 +72,40 @@ public class OAuthAttributes {
                 .build();
     }
 
+    private static OAuthAttributes ofKakao(String userNameAttributeName, Map<String, Object> attributes) {
+        log.info("Kakao OAuth Attributes: {}", attributes);
+
+        // attributes에서 kakao_account 객체 추출 (이메일, 성별 등의 정보가 있음)
+        Object kakaoAccountObj = attributes.get("kakao_account");
+        if (!(kakaoAccountObj instanceof Map)) {
+            throw new IllegalArgumentException("Invalid Kakao OAuth response structure - kakao_account missing");
+        }
+
+        @SuppressWarnings("unchecked")
+        Map<String, Object> kakaoAccount = (Map<String, Object>) kakaoAccountObj;
+
+        // kakao_account에서 profile 객체 추출 (닉네임, 프로필 이미지 등의 정보가 있음)
+        Object profileObj = kakaoAccount.get("profile");
+        if (!(profileObj instanceof Map)) {
+            throw new IllegalArgumentException("Invalid Kakao OAuth response structure - profile missing");
+        }
+
+        @SuppressWarnings("unchecked")
+        Map<String, Object> profile = (Map<String, Object>) profileObj;
+
+        String email = kakaoAccount.containsKey("email") ? (String) kakaoAccount.get("email") : null;
+        String nickname = profile.containsKey("nickname") ? (String) profile.get("nickname") : null;
+        String profileImage = profile.containsKey("profile_image_url") ? (String) profile.get("profile_image_url") : null;
+
+        return OAuthAttributes.builder()
+                .name(nickname)
+                .email(email)
+                .picture(profileImage)
+                .attributes(attributes)  // 전체 원본 attributes 유지
+                .nameAttributeKey(userNameAttributeName)
+                .build();
+    }
+
     private String extractProviderId(String registrationId, OAuthAttributes attributes) {
         log.info("Extracting Provider ID - Registration ID: {}", registrationId);
         log.info("Attributes for extraction: {}", attributes.getAttributes());
