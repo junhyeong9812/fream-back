@@ -32,6 +32,8 @@ public class OAuthAttributes {
             return ofGoogle(userNameAttributeName, attributes);
         } else if ("naver".equals(registrationId)) {
             return ofNaver("id", attributes);
+        } else if ("kakao".equals(registrationId)) {
+            return ofKakao("id", attributes);
         }
         throw new IllegalArgumentException("Unsupported provider: " + registrationId);
     }
