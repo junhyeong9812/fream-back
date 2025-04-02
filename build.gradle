@@ -49,7 +49,7 @@ dependencies {
 	// (기본적으로 Boot가 JUnit Jupiter를 포함하므로, 별도 버전 지정은 생략해도 됩니다)
 
 	// 모니터링 의존성 추가
-//	implementation 'org.springframework.boot:spring-boot-starter-actuator'
+	implementation 'org.springframework.boot:spring-boot-starter-actuator'
 //	implementation 'io.micrometer:micrometer-registry-prometheus'
 
 	// ---------------------------

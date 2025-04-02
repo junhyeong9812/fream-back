@@ -106,7 +106,7 @@ public class DataInitializer implements CommandLineRunner {
         // 사용자 생성
         User user1 = createUserWithProfile("user1@example.com", "password123!", "010-1234-5678", ShoeSize.SIZE_270, Role.USER, 25, Gender.MALE);
         User user2 = createUserWithProfile("user2@example.com", "password456!", "010-9876-5432", ShoeSize.SIZE_280, Role.USER, 30, Gender.FEMALE);
-        User admin = createUserWithProfile("admin@example.com", "adminpassword!", "010-0000-0000", null, Role.ADMIN, 35, Gender.MALE);
+        User admin = createUserWithProfile("admin@example.com", "adminpassword123!", "010-0000-0000", null, Role.ADMIN, 35, Gender.MALE);
 
         // 사용자 기본 주소 생성
         createAddress(user1, "홍길동", "010-1234-5678", "12345", "서울시 강남구 도산대로", "아파트 101호", true);
