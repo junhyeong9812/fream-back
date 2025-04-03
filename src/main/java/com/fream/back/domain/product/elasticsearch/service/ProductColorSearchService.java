@@ -127,7 +127,7 @@ public class ProductColorSearchService {
             // etc... (operator(Operator.And) 등 옵션 추가 가능)
 
             // BoolQuery.must(multiMatchQuery)
-            boolBuilder.must(new Query.Builder()
+            boolBuilder.filter(new Query.Builder()
                     .multiMatch(multiMatchBuilder.build())
                     .build());
         }
@@ -140,19 +140,23 @@ public class ProductColorSearchService {
                         .term(t -> t.field("categoryId").value(catId))
                         .build());
             }
-            boolBuilder.must(new Query.Builder().bool(catBuilder.build()).build());
+            boolBuilder.filter(new Query.Builder().bool(catBuilder.build()).build());
         }
 
         // 4) gender (OR 조건)
         if (genders != null && !genders.isEmpty()) {
             BoolQuery.Builder genderBuilder = new BoolQuery.Builder();
             for (String g : genders) {
-                String esGenderValue = convertGender(g);
+//                String esGenderValue = convertGender(g);
+//                genderBuilder.should(new Query.Builder()
+//                        .term(t -> t.field("gender").value(esGenderValue))
+//                        .build());
                 genderBuilder.should(new Query.Builder()
-                        .term(t -> t.field("gender").value(esGenderValue))
+                        .term(t -> t.field("gender").value(g))
                         .build());
             }
-            boolBuilder.must(new Query.Builder().bool(genderBuilder.build()).build());
+//            boolBuilder.must(new Query.Builder().bool(genderBuilder.build()).build());
+            boolBuilder.filter(new Query.Builder().bool(genderBuilder.build()).build());
         }
 
         // 5) brandIds (OR 조건)
@@ -163,7 +167,7 @@ public class ProductColorSearchService {
                         .term(t -> t.field("brandId").value(bId))
                         .build());
             }
-            boolBuilder.must(new Query.Builder().bool(brandBuilder.build()).build());
+            boolBuilder.filter(new Query.Builder().bool(brandBuilder.build()).build());
         }
 
         // 6) collectionIds (OR 조건)
@@ -174,7 +178,7 @@ public class ProductColorSearchService {
                         .term(t -> t.field("collectionId").value(cId))
                         .build());
             }
-            boolBuilder.must(new Query.Builder().bool(colBuilder.build()).build());
+            boolBuilder.filter(new Query.Builder().bool(colBuilder.build()).build());
         }
 
         // 7) colorNames
@@ -186,7 +190,7 @@ public class ProductColorSearchService {
                         .match(m -> m.field("colorName").query(cName))
                         .build());
             }
-            boolBuilder.must(new Query.Builder().bool(colorBuilder.build()).build());
+            boolBuilder.filter(new Query.Builder().bool(colorBuilder.build()).build());
         }
 
         // 8) sizes (OR 조건, Keyword Array)
@@ -197,17 +201,17 @@ public class ProductColorSearchService {
                         .term(t -> t.field("sizes").value(sz)) // sizes: Keyword array
                         .build());
             }
-            boolBuilder.must(new Query.Builder().bool(sizeBuilder.build()).build());
+            boolBuilder.filter(new Query.Builder().bool(sizeBuilder.build()).build());
             log.info("Added keyword search: {}", keyword);
         }
 
         // 9) minPrice / maxPrice (Range)
         if (minPrice != null && minPrice > 0) {
-            boolBuilder.must(rangeQuery("minPrice", null, minPrice));
+            boolBuilder.filter(rangeQuery("minPrice", null, minPrice));
             // 혹은 "maxPrice >= minPrice" 로 할 수도 있음
         }
         if (maxPrice != null && maxPrice > 0) {
-            boolBuilder.must(rangeQuery("maxPrice", maxPrice, null));
+            boolBuilder.filter(rangeQuery("maxPrice", maxPrice, null));
             // "maxPrice >= userMaxPrice" 방식
         }
 
