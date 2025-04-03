@@ -28,20 +28,47 @@ public class ProductColorSearchController {
 
     private final ProductColorSearchService productColorSearchService;
     private final ProductQueryService productQueryService;
-    // 기존 ProductSearchDto와 유사한 DTO를 @ModelAttribute로 받는다
 
     @GetMapping
     public ResponseEntity<commonDto.PageDto<ProductSearchResponseDto>> esSearchProducts(
             @ModelAttribute ProductSearchDto searchDto,
-//            @ModelAttribute SortOption sortOption,
             Pageable pageable
     ) {
-        log.info("Controller received pageable: page={}, size={}",
+        log.info("========== 검색 API 호출 시작 ==========");
+        log.info("검색 요청 - 페이지: {}, 사이즈: {}",
                 pageable.getPageNumber(), pageable.getPageSize());
+        log.info("검색 요청 - 키워드: {}", searchDto.getKeyword());
+        log.info("검색 요청 - 카테고리: {}", searchDto.getCategoryIds());
+        log.info("검색 요청 - 성별: {}", searchDto.getGenders());
+        log.info("검색 요청 - 브랜드: {}", searchDto.getBrandIds());
+        log.info("검색 요청 - 컬렉션: {}", searchDto.getCollectionIds());
+        log.info("검색 요청 - 색상: {}", searchDto.getColors());
+        log.info("검색 요청 - 사이즈: {}", searchDto.getSizes());
+        log.info("검색 요청 - 가격범위: {} ~ {}", searchDto.getMinPrice(), searchDto.getMaxPrice());
+        log.info("검색 요청 - 정렬옵션: {}", searchDto.getSortOption());
+
+        // 유효성 검증 추가
+        if (searchDto.getSortOption() == null) {
+            log.info("정렬옵션이 null이므로 기본값(interestCount, desc) 설정");
+            SortOption defaultSort = new SortOption();
+            defaultSort.setField("interestCount");
+            defaultSort.setOrder("desc");
+            searchDto.setSortOption(defaultSort);
+        }
+
+        // 성별 변환 전후 확인 로그
+        List<String> convertedGenders = null;
+        if (searchDto.getGenders() != null) {
+            log.info("변환 전 성별값: {}", searchDto.getGenders());
+            convertedGenders = convertGenders(searchDto.getGenders());
+            log.info("변환 후 성별값: {}", convertedGenders);
+        }
+
+        // 서비스 호출
         Page<ProductSearchResponseDto> resultPage = productColorSearchService.searchToDto(
                 searchDto.getKeyword(),
                 searchDto.getCategoryIds(),
-                convertGenders(searchDto.getGenders()),
+                convertedGenders,
                 searchDto.getBrandIds(),
                 searchDto.getCollectionIds(),
                 searchDto.getColors(),
@@ -51,10 +78,15 @@ public class ProductColorSearchController {
                 searchDto.getSortOption(),
                 pageable
         );
-        commonDto.PageDto<ProductSearchResponseDto> responseDto = toPageDto(resultPage);
 
+        log.info("검색 결과 - 총 항목 수: {}, 총 페이지 수: {}",
+                resultPage.getTotalElements(), resultPage.getTotalPages());
+
+        commonDto.PageDto<ProductSearchResponseDto> responseDto = toPageDto(resultPage);
+        log.info("========== 검색 API 호출 완료 ==========");
         return ResponseEntity.ok(responseDto);
     }
+
     private <T> commonDto.PageDto<T> toPageDto(Page<T> pageResult) {
         return new commonDto.PageDto<>(
                 pageResult.getContent(),
@@ -74,74 +106,45 @@ public class ProductColorSearchController {
     public ResponseEntity<List<String>> autocompleteProducts(
             @RequestParam(name = "q", required = false) String query
     ) {
+        log.info("자동완성 요청 - 쿼리: {}", query);
+
         // q가 null 또는 빈 문자열이면 빈 배열 반환
         if (query == null || query.isBlank()) {
+            log.info("자동완성 쿼리가 비어있어 빈 결과 반환");
             return ResponseEntity.ok(List.of());
         }
 
         // 서비스 호출
         List<String> suggestions = productColorSearchService.autocomplete(query, 10);
+        log.info("자동완성 결과 - 제안 수: {}", suggestions.size());
 
         // 문자열 리스트(자동완성용) 반환
         return ResponseEntity.ok(suggestions);
     }
 
-
-//    @GetMapping
-//    public ResponseEntity<Page<ProductColorIndex>> esSearchProducts(
-//            @ModelAttribute ProductSearchDto searchDto,
-//            @ModelAttribute SortOption sortOption,  // <-- 쿼리 파라미터 바인딩 예: ?field=price&order=asc
-//            Pageable pageable
-//    ) {
-//        // (1) 필터링 조건을 받아서 ElasticSearch 검색
-//        Page<ProductColorIndex> esPage = productColorSearchService.search(
-//                searchDto.getKeyword(),
-//                searchDto.getCategoryIds(),
-//                convertGenders(searchDto.getGenders()),
-//                searchDto.getBrandIds(),
-//                searchDto.getCollectionIds(),
-//                searchDto.getColors(),
-//                searchDto.getSizes(),
-//                searchDto.getMinPrice(),
-//                searchDto.getMaxPrice(),
-//                sortOption,
-//                pageable
-//        );
-//
-//        // (2) colorId 목록만 추출
-//        List<Long> colorIds = esPage.getContent().stream()
-//                .map(ProductColorIndex::getColorId)
-//                .distinct()
-//                .toList();
-//
-//        // (3) DB에서 해당 colorIds 상세 조회
-//        //     만약 DB 페이징/정렬이 필요 없다면, 단순히 colorIds를 IN query로 가져올 수도
-//        //     혹은 DB 정렬/페이징을 추가로 하고 싶다면 DB에 별도 pageable을 넘길 수 있음
-//        //     예: Page<ProductSearchResponseDto> result = productQueryService.searchProductsByColorIds(
-//        //            colorIds, sortOption, pageable
-//        //         );
-//        // (4) 최종 리턴
-//        return ResponseEntity.ok(esPage); // 또는 ResponseEntity.ok(result);
-//    }
-
-    private ProductSearchResponseDto toDto(ProductColorIndex idx) {
-        return ProductSearchResponseDto.builder()
-                .id(idx.getProductId())  // 또는 colorId / productId
-                .name(idx.getProductName())
-                .englishName(idx.getProductEnglishName())
-                .releasePrice(idx.getReleasePrice())
-                .thumbnailImageUrl("")  // 썸네일 URL은 DB 추가 조회 or 인덱스에 넣어도 됨
-                .price(idx.getMinPrice())  // 최저 구매가
-                .colorName(idx.getColorName())
-                .colorId(idx.getColorId())
-                .interestCount(idx.getInterestCount())
-                .build();
-    }
-
+    /**
+     * GenderType 열거형을 String으로 변환 (Elasticsearch 인덱스와 일치하도록)
+     * 로깅 강화 및 안전한 변환 보장
+     */
     private List<String> convertGenders(List<GenderType> genderTypes) {
-        // "MALE", "FEMALE", "KIDS", "UNISEX" 문자열 목록으로 변환
-        if (genderTypes == null) return Collections.emptyList();
-        return genderTypes.stream().map(GenderType::name).collect(Collectors.toList());
+        // null 체크
+        if (genderTypes == null) {
+            log.info("성별 목록이 null이므로 빈 리스트 반환");
+            return Collections.emptyList();
+        }
+
+        // 안전한 매핑 (null 요소가 있을 경우 제외)
+        List<String> result = genderTypes.stream()
+                .filter(gender -> gender != null)
+                .map(gender -> {
+                    String genderName = gender.name();
+                    log.debug("성별 변환: {} -> {}", gender, genderName);
+                    return genderName;
+                })
+                .collect(Collectors.toList());
+
+        log.info("변환된 성별 목록: {}", result);
+        return result;
     }
 
     /**
@@ -149,7 +152,11 @@ public class ProductColorSearchController {
      */
     @GetMapping("/raw-indices")
     public ResponseEntity<commonDto.PageDto<ProductColorIndex>> getRawIndices(Pageable pageable) {
+        log.info("Raw indices 요청 - 페이지: {}, 사이즈: {}",
+                pageable.getPageNumber(), pageable.getPageSize());
+
         Page<ProductColorIndex> indexPage = productColorSearchService.getAllIndexedColors(pageable);
+        log.info("Raw indices 결과 - 총 항목 수: {}", indexPage.getTotalElements());
 
         commonDto.PageDto<ProductColorIndex> responseDto = toPageDto(indexPage);
         return ResponseEntity.ok(responseDto);
@@ -162,8 +169,11 @@ public class ProductColorSearchController {
     public ResponseEntity<commonDto.PageDto<ProductColorIndex>> getRawIndicesByCategory(
             @PathVariable Long categoryId,
             Pageable pageable) {
+        log.info("카테고리별 raw indices 요청 - 카테고리ID: {}, 페이지: {}, 사이즈: {}",
+                categoryId, pageable.getPageNumber(), pageable.getPageSize());
 
         Page<ProductColorIndex> indexPage = productColorSearchService.getIndexedColorsByCategory(categoryId, pageable);
+        log.info("카테고리별 raw indices 결과 - 총 항목 수: {}", indexPage.getTotalElements());
 
         commonDto.PageDto<ProductColorIndex> responseDto = toPageDto(indexPage);
         return ResponseEntity.ok(responseDto);
@@ -174,7 +184,11 @@ public class ProductColorSearchController {
      */
     @GetMapping("/index-stats")
     public ResponseEntity<Map<String, Object>> getIndexStats() {
+        log.info("인덱스 통계 요청");
+
         Map<String, Object> stats = productColorSearchService.getIndexStats();
+        log.info("인덱스 통계 결과 - 통계 항목 수: {}", stats.size());
+
         return ResponseEntity.ok(stats);
     }
 }
