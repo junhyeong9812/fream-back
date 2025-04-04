@@ -38,8 +38,10 @@ public class ProductColorSearchService {
     private final ProductColorEsRepository productColorEsRepository;
     private final StyleRepository styleRepository;       // <- custom
     private final OrderBidRepository orderBidRepository; // <- custom
-    private final ObjectMapper objectMapper;  // JSON 변환용
-
+    private final ObjectMapper objectMapper;
+    /**
+     * 고급 검색 (멀티매치 + 오타 허용 + 동의어 등)
+     */
     /**
      * 고급 검색 (멀티매치 + 오타 허용 + 동의어 등)
      */
@@ -70,10 +72,7 @@ public class ProductColorSearchService {
                 pageable != null ? pageable.getPageNumber() : "null",
                 pageable != null ? pageable.getPageSize() : "null");
 
-        // 1) 인덱스 확인을 위한 테스트 검색 수행
-        testIndexMapping();
-
-        // 2) 우선 ES 검색
+        // ES 검색
         Page<ProductColorIndex> pageResult = search(
                 keyword, categoryIds, genders, brandIds,
                 collectionIds, colorNames, sizes,
@@ -83,14 +82,14 @@ public class ProductColorSearchService {
         log.info("ES 검색 결과 - 총 항목 수: {}, 페이지 크기: {}",
                 pageResult.getTotalElements(), pageResult.getSize());
 
-        // 3) ProductColorIndex → ProductSearchResponseDto 변환
+        // ProductColorIndex → ProductSearchResponseDto 변환
         List<ProductSearchResponseDto> dtoList = pageResult.getContent().stream()
                 .map(this::toDto)
                 .collect(Collectors.toList());
 
         log.info("DTO 변환 완료 - DTO 개수: {}", dtoList.size());
 
-        // 4) colorIds 추출
+        // colorIds 추출
         List<Long> colorIds = dtoList.stream()
                 .map(ProductSearchResponseDto::getColorId)
                 .filter(Objects::nonNull)
@@ -100,14 +99,14 @@ public class ProductColorSearchService {
         log.info("추출된 컬러ID 개수: {}", colorIds.size());
 
         if (!colorIds.isEmpty()) {
-            // 5) styleCount, tradeCount Map
+            // styleCount, tradeCount Map
             Map<Long, Long> styleCountMap = styleRepository.styleCountByColorIds(colorIds);
             Map<Long, Long> tradeCountMap = orderBidRepository.tradeCountByColorIds(colorIds);
 
             log.info("스타일 카운트 맵 크기: {}", styleCountMap.size());
             log.info("거래 카운트 맵 크기: {}", tradeCountMap.size());
 
-            // 6) 주입
+            // 주입
             dtoList.forEach(dto -> {
                 Long cId = dto.getColorId();
                 dto.setStyleCount(styleCountMap.getOrDefault(cId, 0L));
@@ -117,88 +116,12 @@ public class ProductColorSearchService {
 
         log.info("=== searchToDto 호출 완료 ===");
 
-        // 7) 결과 반환
+        // 결과 반환
         return new PageImpl<>(
                 dtoList,
                 pageResult.getPageable(),
                 pageResult.getTotalElements()
         );
-    }
-
-    /**
-     * 인덱스 매핑 확인 및 간단한 테스트 검색 수행
-     */
-    private void testIndexMapping() {
-        try {
-            log.info("인덱스 테스트 검색 수행 시작");
-
-            // 1. match_all 쿼리로 모든 문서 가져오기 (최대 10개)
-            Query matchAllQuery = new Query.Builder()
-                    .matchAll(m -> m)
-                    .build();
-
-            SearchHits<ProductColorIndex> allHits = esOperations.search(
-                    NativeQuery.builder()
-                            .withQuery(matchAllQuery)
-                            .withPageable(PageRequest.of(0, 10))
-                            .build(),
-                    ProductColorIndex.class,
-                    IndexCoordinates.of("product-colors")
-            );
-
-            log.info("테스트 검색 결과 - 총 문서 수: {}", allHits.getTotalHits());
-
-            // 검색된 문서의 성별 값 로깅
-            allHits.getSearchHits().forEach(hit -> {
-                ProductColorIndex doc = hit.getContent();
-                log.info("문서 ID: {}, 성별: {}", doc.getColorId(), doc.getGender());
-            });
-
-            // 2. 하드코딩된 성별 쿼리 테스트
-            Query maleQuery = new Query.Builder()
-                    .match(m -> m.field("gender").query("MALE"))
-                    .build();
-
-            SearchHits<ProductColorIndex> maleHits = esOperations.search(
-                    NativeQuery.builder()
-                            .withQuery(maleQuery)
-                            .withPageable(PageRequest.of(0, 10))
-                            .build(),
-                    ProductColorIndex.class,
-                    IndexCoordinates.of("product-colors")
-            );
-
-            log.info("MALE 성별 검색 결과 수: {}", maleHits.getTotalHits());
-
-            // 하드코딩된 term 쿼리 테스트
-            Query maleTermQuery = new Query.Builder()
-                    .term(t -> t.field("gender").value("MALE"))
-                    .build();
-
-            SearchHits<ProductColorIndex> maleTermHits = esOperations.search(
-                    NativeQuery.builder()
-                            .withQuery(maleTermQuery)
-                            .withPageable(PageRequest.of(0, 10))
-                            .build(),
-                    ProductColorIndex.class,
-                    IndexCoordinates.of("product-colors")
-            );
-
-            log.info("MALE 성별 term 검색 결과 수: {}", maleTermHits.getTotalHits());
-
-            // 성별 값 분포 확인
-            Map<String, Long> genderCounts = new HashMap<>();
-            allHits.getSearchHits().forEach(hit -> {
-                String gender = hit.getContent().getGender();
-                genderCounts.put(gender, genderCounts.getOrDefault(gender, 0L) + 1);
-            });
-
-            log.info("성별 값 분포: {}", genderCounts);
-
-            log.info("인덱스 테스트 검색 완료");
-        } catch (Exception e) {
-            log.error("인덱스 테스트 중 오류 발생: {}", e.getMessage(), e);
-        }
     }
 
     public Page<ProductColorIndex> search(
@@ -333,7 +256,7 @@ public class ProductColorSearchService {
             boolBuilder.must(new Query.Builder().bool(catBuilder.build()).build());
         }
 
-        // 4) gender (OR 조건) - 수정된 부분: match 쿼리 사용 및 다양한 시도
+        // 4) gender (OR 조건) - 수정된 부분: match과 term 쿼리 모두 시도
         if (genders != null && !genders.isEmpty()) {
             log.info("성별 필터 적용 시도: {}", genders);
             BoolQuery.Builder genderBuilder = new BoolQuery.Builder();
@@ -344,19 +267,14 @@ public class ProductColorSearchService {
                     String normalizedGender = g.trim().toUpperCase();
                     log.info("정규화된 성별 값: {}", normalizedGender);
 
-                    // 1. match 쿼리 사용 (첫 번째 시도)
+                    // 1. match 쿼리 사용
                     genderBuilder.should(new Query.Builder()
                             .match(m -> m.field("gender").query(normalizedGender))
                             .build());
 
-                    // 2. term 쿼리도 백업으로 추가 (두 번째 시도)
+                    // 2. term 쿼리도 사용
                     genderBuilder.should(new Query.Builder()
                             .term(t -> t.field("gender").value(normalizedGender))
-                            .build());
-
-                    // 3. keyword 필드 변형 시도 (세 번째 시도)
-                    genderBuilder.should(new Query.Builder()
-                            .term(t -> t.field("gender.keyword").value(normalizedGender))
                             .build());
                 }
             }
@@ -470,15 +388,6 @@ public class ProductColorSearchService {
             log.info("최대 가격 필터 적용: {}", maxPrice);
             boolBuilder.must(rangeQuery("maxPrice", maxPrice, null));
         }
-
-        // 임시 테스트: 하드코딩된 MALE 필터 추가
-        BoolQuery.Builder testGenderBuilder = new BoolQuery.Builder();
-        testGenderBuilder.should(new Query.Builder()
-                .match(m -> m.field("gender").query("MALE"))
-                .build());
-
-        boolBuilder.must(new Query.Builder().bool(testGenderBuilder.build()).build());
-        log.info("테스트용 하드코딩된 MALE 필터 추가");
 
         // 최종 BoolQuery 빌드 및 조건 확인
         BoolQuery builtBool = boolBuilder.build();
@@ -804,7 +713,11 @@ public class ProductColorSearchService {
             log.info("자동완성 쿼리 구성 완료");
 
             // 5) 검색 실행
-            SearchHits<ProductColorIndex> searchHits = esOperations.search(nativeQuery, ProductColorIndex.class);
+            SearchHits<ProductColorIndex> searchHits = esOperations.search(
+                    nativeQuery,
+                    ProductColorIndex.class,
+                    IndexCoordinates.of("product-colors")
+            );
             log.info("자동완성 검색 결과 - 총 히트: {}", searchHits.getTotalHits());
 
             // 6) 결과 처리
@@ -886,7 +799,7 @@ public class ProductColorSearchService {
     }
 
     /**
-     * 엘라스틱서치에 저장된 모든 ProductColorIndex를 페이징하여 반환
+     * 엘라스틱서치에 저장된 모든 ProductColorIndex를 페이징하여 반환 (디버깅용)
      */
     public Page<ProductColorIndex> getAllIndexedColors(Pageable pageable) {
         log.info("전체 인덱스 조회 시작 - 페이지: {}, 크기: {}",
@@ -905,7 +818,11 @@ public class ProductColorSearchService {
                 .build();
 
         // 검색 실행
-        SearchHits<ProductColorIndex> searchHits = esOperations.search(nativeQuery, ProductColorIndex.class);
+        SearchHits<ProductColorIndex> searchHits = esOperations.search(
+                nativeQuery,
+                ProductColorIndex.class,
+                IndexCoordinates.of("product-colors")
+        );
         log.info("전체 인덱스 조회 결과 - 총 히트: {}", searchHits.getTotalHits());
 
         // 결과를 Page 객체로 변환
@@ -944,7 +861,11 @@ public class ProductColorSearchService {
                 .build();
 
         // 검색 실행
-        SearchHits<ProductColorIndex> searchHits = esOperations.search(nativeQuery, ProductColorIndex.class);
+        SearchHits<ProductColorIndex> searchHits = esOperations.search(
+                nativeQuery,
+                ProductColorIndex.class,
+                IndexCoordinates.of("product-colors")
+        );
         log.info("카테고리별 인덱스 조회 결과 - 총 히트: {}", searchHits.getTotalHits());
 
         // 결과를 Page 객체로 변환
@@ -959,7 +880,7 @@ public class ProductColorSearchService {
     }
 
     /**
-     * 엘라스틱서치 인덱스의 상태 확인 메서드
+     * 엘라스틱서치 인덱스의 상태 확인 메서드 (디버깅용)
      * 총 문서 수, 카테고리별 문서 수 등 요약 정보 반환
      */
     public Map<String, Object> getIndexStats() {
@@ -976,12 +897,53 @@ public class ProductColorSearchService {
                 .withPageable(PageRequest.of(0, 1))  // 결과는 필요 없고 카운트만 필요
                 .build();
 
-        SearchHits<ProductColorIndex> countHits = esOperations.search(countQuery, ProductColorIndex.class);
+        SearchHits<ProductColorIndex> countHits = esOperations.search(
+                countQuery,
+                ProductColorIndex.class,
+                IndexCoordinates.of("product-colors")
+        );
         stats.put("totalDocuments", countHits.getTotalHits());
         log.info("총 문서 수: {}", countHits.getTotalHits());
 
-        // 2. 스니커즈 카테고리 문서 수 (카테고리 ID 알고 있다고 가정)
-        // 아래 ID는 예시이므로 실제 스니커즈 카테고리 ID로 교체 필요
+        // 2. 성별별 문서 수 계산
+        // MALE 문서 수
+        Query maleQuery = new Query.Builder()
+                .match(m -> m.field("gender").query("MALE"))
+                .build();
+
+        NativeQuery maleCountQuery = NativeQuery.builder()
+                .withQuery(maleQuery)
+                .withPageable(PageRequest.of(0, 1))
+                .build();
+
+        SearchHits<ProductColorIndex> maleHits = esOperations.search(
+                maleCountQuery,
+                ProductColorIndex.class,
+                IndexCoordinates.of("product-colors")
+        );
+        stats.put("maleCount", maleHits.getTotalHits());
+        log.info("MALE 성별 문서 수: {}", maleHits.getTotalHits());
+
+        // FEMALE 문서 수
+        Query femaleQuery = new Query.Builder()
+                .match(m -> m.field("gender").query("FEMALE"))
+                .build();
+
+        NativeQuery femaleCountQuery = NativeQuery.builder()
+                .withQuery(femaleQuery)
+                .withPageable(PageRequest.of(0, 1))
+                .build();
+
+        SearchHits<ProductColorIndex> femaleHits = esOperations.search(
+                femaleCountQuery,
+                ProductColorIndex.class,
+                IndexCoordinates.of("product-colors")
+        );
+        stats.put("femaleCount", femaleHits.getTotalHits());
+        log.info("FEMALE 성별 문서 수: {}", femaleHits.getTotalHits());
+
+        // 3. 카테고리별 문서 수
+        // 스니커즈 카테고리
         Long sneakersId = 5L; // 실제 ID로 교체
 
         Query sneakersQuery = new Query.Builder()
@@ -993,25 +955,13 @@ public class ProductColorSearchService {
                 .withPageable(PageRequest.of(0, 1))
                 .build();
 
-        SearchHits<ProductColorIndex> sneakersHits = esOperations.search(sneakersCountQuery, ProductColorIndex.class);
+        SearchHits<ProductColorIndex> sneakersHits = esOperations.search(
+                sneakersCountQuery,
+                ProductColorIndex.class,
+                IndexCoordinates.of("product-colors")
+        );
         stats.put("sneakersCount", sneakersHits.getTotalHits());
         log.info("스니커즈 카테고리 문서 수: {}", sneakersHits.getTotalHits());
-
-        // 3. 티셔츠 카테고리 문서 수 (예시)
-        Long tshirtsId = 3L; // 실제 ID로 교체
-
-        Query tshirtsQuery = new Query.Builder()
-                .term(t -> t.field("categoryId").value(tshirtsId))
-                .build();
-
-        NativeQuery tshirtsCountQuery = NativeQuery.builder()
-                .withQuery(tshirtsQuery)
-                .withPageable(PageRequest.of(0, 1))
-                .build();
-
-        SearchHits<ProductColorIndex> tshirtsHits = esOperations.search(tshirtsCountQuery, ProductColorIndex.class);
-        stats.put("tshirtsCount", tshirtsHits.getTotalHits());
-        log.info("티셔츠 카테고리 문서 수: {}", tshirtsHits.getTotalHits());
 
         log.info("인덱스 통계 정보 조회 완료");
         return stats;
