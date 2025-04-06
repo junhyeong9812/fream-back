@@ -91,7 +91,7 @@ public class BrandController {
         return ResponseEntity.ok(ResponseDto.success(response));
     }
 
-    @GetMapping("/{brandId}")
+    @GetMapping("/{brandId:[0-9]+}")
     public ResponseEntity<ResponseDto<BrandResponseDto>> getBrandById(@PathVariable("brandId") Long id) {
         BrandResponseDto response = brandQueryService.findBrandById(id);
         return ResponseEntity.ok(ResponseDto.success(response));

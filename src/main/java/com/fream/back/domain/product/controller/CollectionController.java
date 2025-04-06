@@ -91,7 +91,7 @@ public class CollectionController {
         return ResponseEntity.ok(ResponseDto.success(response));
     }
 
-    @GetMapping("/{collectionId}")
+    @GetMapping("/{collectionId:[0-9]+}")
     public ResponseEntity<ResponseDto<CollectionResponseDto>> getCollectionById(@PathVariable("collectionId") Long id) {
         CollectionResponseDto response = collectionQueryService.findCollectionById(id);
         return ResponseEntity.ok(ResponseDto.success(response));
