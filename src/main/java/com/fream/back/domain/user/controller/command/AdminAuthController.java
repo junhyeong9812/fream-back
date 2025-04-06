@@ -3,8 +3,10 @@ package com.fream.back.domain.user.controller.command;
 import com.fream.back.domain.user.dto.EmailFindRequestDto;
 import com.fream.back.domain.user.dto.LoginRequestDto;
 import com.fream.back.domain.user.dto.PasswordResetRequestDto;
+import com.fream.back.domain.user.entity.Gender;
 import com.fream.back.domain.user.entity.Role;
 import com.fream.back.domain.user.entity.User;
+import com.fream.back.domain.user.redis.AuthRedisService;
 import com.fream.back.domain.user.service.command.AuthService;
 import com.fream.back.domain.user.service.command.PasswordResetService;
 import com.fream.back.domain.user.service.query.UserQueryService;
@@ -24,6 +26,8 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
 import java.time.Duration;
+import java.util.HashMap;
+import java.util.Map;
 
 @RestController
 @RequestMapping("/admin/auth")
@@ -34,6 +38,7 @@ public class AdminAuthController {
     private final UserQueryService userQueryService;
     private final JwtTokenProvider jwtTokenProvider;
     private final PasswordResetService passwordResetService;
+    private final AuthRedisService authRedisService;
 
     /**
      * [POST] /admin/auth/login
@@ -95,6 +100,69 @@ public class AdminAuthController {
             return ResponseEntity.ok(email);
         } catch (Exception e) {
             return ResponseEntity.status(404).body("일치하는 관리자 계정을 찾을 수 없습니다.");
+        }
+    }
+
+    /**
+     * [POST] /admin/auth/refresh
+     * - 관리자 전용 토큰 갱신 (REFRESH_TOKEN 쿠키로부터 새 ACCESS_TOKEN 발급)
+     */
+    @PostMapping("/refresh")
+    public ResponseEntity<?> refreshAdminToken(HttpServletRequest request, HttpServletResponse response) {
+        try {
+            // 1) 쿠키에서 Refresh Token 꺼내기
+            String refreshToken = getCookieValue(request, "REFRESH_TOKEN");
+            if (refreshToken == null || refreshToken.isBlank()) {
+                return ResponseEntity.status(400).body("리프레시 토큰이 없습니다");
+            }
+
+            // 2) 유효성 검사
+            boolean valid = jwtTokenProvider.validateToken(refreshToken);
+            if (!valid) {
+                return ResponseEntity.status(401).body("리프레시 토큰이 유효하지 않거나 만료되었습니다");
+            }
+
+            // 3) Redis 화이트리스트 확인
+            if (!authRedisService.isRefreshTokenValid(refreshToken)) {
+                return ResponseEntity.status(401).body("리프레시 토큰이 화이트리스트에 없습니다");
+            }
+
+            // 4) DB에서 유저 조회
+            String email = jwtTokenProvider.getEmailFromToken(refreshToken);
+            User user = userQueryService.findByEmail(email);
+            if (user == null) {
+                return ResponseEntity.status(404).body("사용자를 찾을 수 없습니다");
+            }
+
+            // 5) 관리자 권한 확인
+            try {
+                userQueryService.checkAdminRole(email); // 관리자 아니면 예외 발생
+            } catch (SecurityException e) {
+                return ResponseEntity.status(403).body("관리자 권한이 없습니다");
+            }
+
+            // 6) 새 토큰 페어 발급
+            Integer age = user.getAge();
+            Gender gender = user.getGender();
+            String ip = getClientIp(request);
+            Role role = user.getRole();
+
+            TokenDto newTokens = jwtTokenProvider.generateTokenPair(email, age, gender, ip, role);
+
+            // 7) 새 Access 토큰을 쿠키로 내려줌
+            long accessTokenExpireSeconds = 30 * 60; // 30분
+            setCookie(response, "ACCESS_TOKEN", newTokens.getAccessToken(), accessTokenExpireSeconds);
+
+            // 8) 응답 데이터 생성
+            Map<String, Object> responseData = new HashMap<>();
+            responseData.put("message", "관리자 토큰 갱신 성공");
+            responseData.put("accessToken", newTokens.getAccessToken());
+            responseData.put("accessTokenExpiry", accessTokenExpireSeconds);
+
+            return ResponseEntity.ok(responseData);
+        } catch (Exception e) {
+            e.printStackTrace();
+            return ResponseEntity.status(500).body("토큰 갱신 처리 중 오류: " + e.getMessage());
         }
     }
 
