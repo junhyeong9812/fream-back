@@ -20,10 +20,7 @@ import org.springframework.http.ResponseCookie;
 import org.springframework.http.ResponseEntity;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
-import org.springframework.web.bind.annotation.PostMapping;
-import org.springframework.web.bind.annotation.RequestBody;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.bind.annotation.*;
 
 import java.time.Duration;
 import java.util.HashMap;
@@ -100,6 +97,39 @@ public class AdminAuthController {
             return ResponseEntity.ok(email);
         } catch (Exception e) {
             return ResponseEntity.status(404).body("일치하는 관리자 계정을 찾을 수 없습니다.");
+        }
+    }
+    /**
+     * [GET] /admin/auth/check
+     * - 관리자 토큰 유효성 확인
+     */
+    @GetMapping("/check")
+    public ResponseEntity<?> checkAdminToken(HttpServletRequest request) {
+        try {
+            // 1) 쿠키에서 Access Token 꺼내기
+            String accessToken = getCookieValue(request, "ACCESS_TOKEN");
+            if (accessToken == null || accessToken.isBlank()) {
+                return ResponseEntity.status(401).body("토큰이 없습니다");
+            }
+
+            // 2) 유효성 검사
+            boolean valid = jwtTokenProvider.validateToken(accessToken);
+            if (!valid) {
+                return ResponseEntity.status(401).body("토큰이 유효하지 않거나 만료되었습니다");
+            }
+
+            // 3) 관리자 권한 확인
+            String email = jwtTokenProvider.getEmailFromToken(accessToken);
+            try {
+                userQueryService.checkAdminRole(email); // 관리자 아니면 예외 발생
+            } catch (SecurityException e) {
+                return ResponseEntity.status(403).body("관리자 권한이 없습니다");
+            }
+
+            return ResponseEntity.ok("토큰이 유효합니다");
+        } catch (Exception e) {
+            e.printStackTrace();
+            return ResponseEntity.status(500).body("토큰 검증 중 오류: " + e.getMessage());
         }
     }
 
