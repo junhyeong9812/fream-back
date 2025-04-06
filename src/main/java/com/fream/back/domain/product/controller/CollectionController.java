@@ -5,7 +5,12 @@ import com.fream.back.domain.product.dto.CollectionResponseDto;
 import com.fream.back.domain.product.service.collection.CollectionCommandService;
 import com.fream.back.domain.product.service.collection.CollectionQueryService;
 import com.fream.back.domain.user.service.query.UserQueryService;
+import com.fream.back.global.dto.ResponseDto;
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
+import org.springframework.data.web.PageableDefault;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
@@ -32,35 +37,69 @@ public class CollectionController {
     }
 
     @PostMapping
-    public ResponseEntity<CollectionResponseDto> createCollection(@RequestBody CollectionRequestDto request) {
+    public ResponseEntity<ResponseDto<CollectionResponseDto>> createCollection(@RequestBody CollectionRequestDto request) {
         String email = extractEmailFromSecurityContext();
         userQueryService.checkAdminRole(email); // 권한 확인
 
-        return ResponseEntity.ok(collectionCommandService.createCollection(request));
+        CollectionResponseDto response = collectionCommandService.createCollection(request);
+        return ResponseEntity.ok(ResponseDto.success(response));
     }
 
     @PutMapping("/{collectionId}")
-    public ResponseEntity<CollectionResponseDto> updateCollection(
+    public ResponseEntity<ResponseDto<CollectionResponseDto>> updateCollection(
             @PathVariable("collectionId") Long id,
             @RequestBody CollectionRequestDto request) {
         String email = extractEmailFromSecurityContext();
         userQueryService.checkAdminRole(email); // 권한 확인
 
-        return ResponseEntity.ok(collectionCommandService.updateCollection(id, request));
+        CollectionResponseDto response = collectionCommandService.updateCollection(id, request);
+        return ResponseEntity.ok(ResponseDto.success(response));
     }
 
     @DeleteMapping("/{collectionName}")
-    public ResponseEntity<Void> deleteCollection(
+    public ResponseEntity<ResponseDto<Void>> deleteCollection(
             @PathVariable("collectionName") String name) {
         String email = extractEmailFromSecurityContext();
         userQueryService.checkAdminRole(email); // 권한 확인
 
         collectionCommandService.deleteCollection(name);
-        return ResponseEntity.noContent().build();
+        return ResponseEntity.ok(ResponseDto.success(null));
     }
 
     @GetMapping
-    public ResponseEntity<List<CollectionResponseDto>> getAllCollections() {
-        return ResponseEntity.ok(collectionQueryService.findAllCollections());
+    public ResponseEntity<ResponseDto<List<CollectionResponseDto>>> getAllCollections() {
+        List<CollectionResponseDto> response = collectionQueryService.findAllCollections();
+        return ResponseEntity.ok(ResponseDto.success(response));
+    }
+
+    // 페이징된 컬렉션 조회
+    @GetMapping("/page")
+    public ResponseEntity<ResponseDto<Page<CollectionResponseDto>>> getCollectionsPaging(
+            @PageableDefault(page = 0, size = 10, sort = "name", direction = Sort.Direction.ASC) Pageable pageable
+    ) {
+        Page<CollectionResponseDto> response = collectionQueryService.findCollectionsPaging(pageable);
+        return ResponseEntity.ok(ResponseDto.success(response));
+    }
+
+    // 컬렉션 검색 (페이징)
+    @GetMapping("/search")
+    public ResponseEntity<ResponseDto<Page<CollectionResponseDto>>> searchCollections(
+            @RequestParam String keyword,
+            @PageableDefault(page = 0, size = 10, sort = "name", direction = Sort.Direction.ASC) Pageable pageable
+    ) {
+        Page<CollectionResponseDto> response = collectionQueryService.searchCollectionsByName(keyword, pageable);
+        return ResponseEntity.ok(ResponseDto.success(response));
+    }
+
+    @GetMapping("/{collectionId}")
+    public ResponseEntity<ResponseDto<CollectionResponseDto>> getCollectionById(@PathVariable("collectionId") Long id) {
+        CollectionResponseDto response = collectionQueryService.findCollectionById(id);
+        return ResponseEntity.ok(ResponseDto.success(response));
+    }
+
+    @GetMapping("/name/{collectionName}")
+    public ResponseEntity<ResponseDto<CollectionResponseDto>> getCollectionByName(@PathVariable("collectionName") String name) {
+        CollectionResponseDto response = collectionQueryService.findByName(name);
+        return ResponseEntity.ok(ResponseDto.success(response));
     }
 }

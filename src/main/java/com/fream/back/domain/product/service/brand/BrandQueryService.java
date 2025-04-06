@@ -3,6 +3,8 @@ package com.fream.back.domain.product.service.brand;
 import com.fream.back.domain.product.dto.BrandResponseDto;
 import com.fream.back.domain.product.entity.Brand;
 import com.fream.back.domain.product.repository.BrandRepository;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -34,6 +36,25 @@ public class BrandQueryService {
     public Brand findById(Long brandId){
         return brandRepository.findById(brandId)
                 .orElseThrow(() -> new IllegalArgumentException("해당 브랜드가 존재하지 않습니다."));
+    }
+
+    // 브랜드 ID로 DTO 조회
+    public BrandResponseDto findBrandById(Long id) {
+        Brand brand = brandRepository.findById(id)
+                .orElseThrow(() -> new IllegalArgumentException("해당 브랜드가 존재하지 않습니다."));
+        return BrandResponseDto.fromEntity(brand);
+    }
+
+    // 페이징으로 브랜드 조회
+    public Page<BrandResponseDto> findBrandsPaging(Pageable pageable) {
+        return brandRepository.findAll(pageable)
+                .map(BrandResponseDto::fromEntity);
+    }
+
+    // 브랜드명으로 검색 (페이징)
+    public Page<BrandResponseDto> searchBrandsByName(String keyword, Pageable pageable) {
+        return brandRepository.findByNameContainingIgnoreCase(keyword, pageable)
+                .map(BrandResponseDto::fromEntity);
     }
 
 }
