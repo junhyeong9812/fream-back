@@ -233,6 +233,55 @@ public class AdminAuthController {
     }
 
     /**
+     * [POST] /admin/auth/logout
+     * - 관리자 로그아웃: 쿠키 만료 + Redis(화이트리스트)에서 제거
+     */
+    @PostMapping("/logout")
+    public ResponseEntity<?> logout(HttpServletRequest request,
+                                    HttpServletResponse response) {
+        try {
+            // 1) ACCESS_TOKEN, REFRESH_TOKEN 쿠키 값
+            String accessToken = getCookieValue(request, "ACCESS_TOKEN");
+            String refreshToken = getCookieValue(request, "REFRESH_TOKEN");
+
+            // 2) Access Token 검증 및 관리자 권한 확인
+            if (accessToken != null && !accessToken.isBlank()) {
+                boolean accessValid = jwtTokenProvider.validateToken(accessToken);
+                if (!accessValid) {
+                    return ResponseEntity.status(401).body("토큰이 유효하지 않거나 만료되었습니다");
+                }
+
+                // 관리자 권한 확인 (선택적)
+                try {
+                    String email = jwtTokenProvider.getEmailFromToken(accessToken);
+                    userQueryService.checkAdminRole(email); // 관리자 아니면 예외 발생
+                } catch (SecurityException e) {
+                    // 권한 검증 실패해도 로그아웃은 진행
+                    // 로그 기록만 남김
+                    System.out.println("Warning: 관리자가 아닌 사용자의 로그아웃 시도 - " + e.getMessage());
+                }
+            }
+
+            // 3) Redis에서 삭제 (화이트리스트 무효화)
+            if (accessToken != null) {
+                authRedisService.removeAccessToken(accessToken);
+            }
+            if (refreshToken != null && !refreshToken.isBlank()) {
+                authRedisService.removeRefreshToken(refreshToken);
+            }
+
+            // 4) 쿠키 만료 (삭제)
+            expireCookie(response, "ACCESS_TOKEN");
+            expireCookie(response, "REFRESH_TOKEN");
+
+            return ResponseEntity.ok("관리자 로그아웃 성공");
+        } catch (Exception e) {
+            e.printStackTrace();
+            return ResponseEntity.status(500).body("로그아웃 처리 중 오류: " + e.getMessage());
+        }
+    }
+
+    /**
      * =====================================
      * Private Helper Methods
      * =====================================
