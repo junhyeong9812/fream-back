@@ -2,11 +2,15 @@ package com.fream.back.domain.event.service.query;
 
 import com.fream.back.domain.event.dto.EventDetailDto;
 import com.fream.back.domain.event.dto.EventListDto;
+import com.fream.back.domain.event.dto.EventSearchCondition;
 import com.fream.back.domain.event.entity.Event;
 import com.fream.back.domain.event.entity.SimpleImage;
 import com.fream.back.domain.event.repository.EventRepository;
+import com.fream.back.domain.event.repository.EventSearchRepository;
 import com.fream.back.global.utils.FileUtils;
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -20,8 +24,43 @@ import java.util.stream.Collectors;
 public class EventQueryService {
 
     private final EventRepository eventRepository;
+    private final EventSearchRepository eventSearchRepository;
     private final SimpleImageQueryService simpleImageQueryService;
     private final FileUtils fileUtils;
+
+
+    /**
+     * 모든 이벤트 목록 조회 (브랜드 정보 포함, 페이징)
+     */
+    public Page<EventListDto> findAllEventsWithPaging(Pageable pageable) {
+        return eventRepository.findAllWithBrandPaging(pageable)
+                .map(this::convertToEventListDto);
+    }
+
+    /**
+     * 이벤트 검색 (페이징)
+     */
+    public Page<EventListDto> searchEvents(EventSearchCondition condition, Pageable pageable) {
+        return eventSearchRepository.searchEvents(condition, pageable)
+                .map(this::convertToEventListDto);
+    }
+
+    /**
+     * 활성화된 이벤트 목록 조회 (페이징)
+     */
+    public Page<EventListDto> findActiveEventsWithPaging(Pageable pageable) {
+        LocalDateTime now = LocalDateTime.now();
+        return eventRepository.findActiveEventsWithBrandPaging(now, pageable)
+                .map(this::convertToEventListDto);
+    }
+
+    /**
+     * 특정 브랜드의 이벤트 목록 조회 (페이징)
+     */
+    public Page<EventListDto> findEventsByBrandIdWithPaging(Long brandId, Pageable pageable) {
+        return eventRepository.findByBrandIdWithBrandPaging(brandId, pageable)
+                .map(this::convertToEventListDto);
+    }
 
     /**
      * 모든 이벤트 목록 조회 (브랜드 정보 포함)
