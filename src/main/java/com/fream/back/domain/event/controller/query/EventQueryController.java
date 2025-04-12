@@ -85,14 +85,6 @@ public class EventQueryController {
         return ResponseEntity.ok(eventQueryService.findAllEvents());
     }
 
-    /**
-     * 활성 이벤트 목록 조회 (현재 진행 중인 이벤트)
-     * GET /events/active
-     */
-    @GetMapping("/active")
-    public ResponseEntity<List<EventListDto>> getActiveEvents() {
-        return ResponseEntity.ok(eventQueryService.findActiveEvents());
-    }
 
     /**
      * 특정 브랜드의 이벤트 목록 조회
