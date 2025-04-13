@@ -89,4 +89,17 @@ public class Point extends BaseTimeEntity {
         return this.status == PointStatus.AVAILABLE &&
                 expirationDate.isAfter(LocalDate.now());
     }
+    /**
+     * 포인트 만료일 설정
+     */
+    public void setExpirationDate(LocalDate expirationDate) {
+        this.expirationDate = expirationDate;
+    }
+
+    /**
+     * 포인트 상태 설정
+     */
+    public void setStatus(PointStatus status) {
+        this.status = status;
+    }
 }

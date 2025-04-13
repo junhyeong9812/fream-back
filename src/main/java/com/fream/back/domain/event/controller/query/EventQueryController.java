@@ -76,6 +76,8 @@ public class EventQueryController {
     ) {
         return ResponseEntity.ok(eventQueryService.findActiveEventsWithPaging(pageable));
     }
+
+
     /**
      * 모든 이벤트 목록 조회
      * GET /events

@@ -100,6 +100,13 @@ public class User extends BaseTimeEntity {
     @OneToMany(mappedBy = "user", cascade = CascadeType.ALL, orphanRemoval = true)
     @Builder.Default
     private List<OAuthConnection> oauthConnections = new ArrayList<>();
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "grade_id")
+    private UserGrade grade; // 회원 등급
+
+    private boolean isActive = true; // 계정 활성화 상태
+
     // **편의 메서드 - 값 업데이트**
     public void addOAuthConnection(String provider, String providerId) {
         // 이미 해당 프로바이더에 대한 연결이 있는지 확인
@@ -118,6 +125,21 @@ public class User extends BaseTimeEntity {
         }
     }
 
+    public void addGrade(UserGrade grade) {
+        this.grade = grade;
+    }
+
+    public void addActive(boolean active) {
+        isActive = active;
+    }
+
+    /**
+     * 회원 역할 변경
+     */
+    public void changeRole(Role role) {
+        this.role = role;
+    }
+
     public void setVerified(boolean verified) {
         this.isVerified = verified;
     }
@@ -127,7 +149,27 @@ public class User extends BaseTimeEntity {
                 .anyMatch(conn -> conn.getProvider().equals(provider));
     }
 
-    public void updateUser(String email, String password, ShoeSize shoeSize, Boolean phoneNotificationConsent, Boolean emailNotificationConsent, Integer age, Gender gender) {
+
+    public void updatePassword(String newPassword) {
+        this.password = newPassword; // 비밀번호는 반드시 해싱하여 저장해야 함
+    }
+    // **개인정보 동의 업데이트 메서드**
+    public void updateConsent(Boolean adConsent, Boolean optionalPrivacyAgreement) {
+        if (adConsent != null && adConsent) {
+            this.phoneNotificationConsent = true;
+            this.emailNotificationConsent = true;
+        }
+        if (optionalPrivacyAgreement != null) {
+            this.optionalPrivacyAgreement = optionalPrivacyAgreement;
+        }
+    }
+    /**
+     * 회원 정보 업데이트 (확장 버전)
+     * Role 파라미터 추가
+     */
+    public void updateUser(String email, String password, ShoeSize shoeSize,
+                           Boolean phoneNotificationConsent, Boolean emailNotificationConsent,
+                           Integer age, Gender gender, Boolean isActive, Role role) {
         if (email != null) {
             this.email = email;
         }
@@ -149,18 +191,11 @@ public class User extends BaseTimeEntity {
         if (gender != null) {
             this.gender = gender;
         }
-    }
-    public void updatePassword(String newPassword) {
-        this.password = newPassword; // 비밀번호는 반드시 해싱하여 저장해야 함
-    }
-    // **개인정보 동의 업데이트 메서드**
-    public void updateConsent(Boolean adConsent, Boolean optionalPrivacyAgreement) {
-        if (adConsent != null && adConsent) {
-            this.phoneNotificationConsent = true;
-            this.emailNotificationConsent = true;
+        if (isActive != null) {
+            this.isActive = isActive;
         }
-        if (optionalPrivacyAgreement != null) {
-            this.optionalPrivacyAgreement = optionalPrivacyAgreement;
+        if (role != null) {
+            this.role = role;
         }
     }
 
