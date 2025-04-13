@@ -133,13 +133,6 @@ public class User extends BaseTimeEntity {
         isActive = active;
     }
 
-    /**
-     * 회원 역할 변경
-     */
-    public void changeRole(Role role) {
-        this.role = role;
-    }
-
     public void setVerified(boolean verified) {
         this.isVerified = verified;
     }
@@ -148,8 +141,36 @@ public class User extends BaseTimeEntity {
         return this.oauthConnections.stream()
                 .anyMatch(conn -> conn.getProvider().equals(provider));
     }
+    /**
+     * 회원 역할 변경
+     */
+    public void changeRole(Role role) {
+        this.role = role;
+    }
 
-
+    public void updateUser(String email, String password, ShoeSize shoeSize, Boolean phoneNotificationConsent, Boolean emailNotificationConsent, Integer age, Gender gender) {
+        if (email != null) {
+            this.email = email;
+        }
+        if (password != null) {
+            this.password = password;
+        }
+        if (shoeSize != null) {
+            this.shoeSize = shoeSize;
+        }
+        if (phoneNotificationConsent != null) {
+            this.phoneNotificationConsent = phoneNotificationConsent;
+        }
+        if (emailNotificationConsent != null) {
+            this.emailNotificationConsent = emailNotificationConsent;
+        }
+        if (age != null) {
+            this.age = age;
+        }
+        if (gender != null) {
+            this.gender = gender;
+        }
+    }
     public void updatePassword(String newPassword) {
         this.password = newPassword; // 비밀번호는 반드시 해싱하여 저장해야 함
     }
