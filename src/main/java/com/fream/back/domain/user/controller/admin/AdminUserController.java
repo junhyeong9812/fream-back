@@ -191,8 +191,8 @@ public class AdminUserController {
             @RequestParam(required = false) Integer sellerGrade,
             @RequestParam(required = false) String shoeSize,
             @RequestParam(required = false) String role) {
-        String email = extractEmailFromSecurityContext();
-        userQueryService.checkAdminRole(email); // 관리자 권한 확인
+        String adminEmail = extractEmailFromSecurityContext();
+        userQueryService.checkAdminRole(adminEmail); // 관리자 권한 확인
         UserSearchRequestDto searchDto = UserSearchRequestDto.builder()
                 .keyword(keyword)
                 .email(email)
