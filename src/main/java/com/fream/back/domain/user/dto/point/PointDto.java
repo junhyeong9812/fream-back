@@ -82,4 +82,26 @@ public class PointDto {
         private int remainingTotalPoints;
         private String message;
     }
+    // 어드민 포인트 요청 DTO
+    @Data
+    @Builder
+    @NoArgsConstructor
+    @AllArgsConstructor
+    public static class AdminPointRequest {
+        private int amount;
+        private String reason;
+        private LocalDate expirationDate;
+    }
+
+    // 포인트 통계 응답 DTO
+    @Data
+    @Builder
+    @NoArgsConstructor
+    @AllArgsConstructor
+    public static class PointStatisticsResponse {
+        private int totalIssuedPoints;  // 총 발급 포인트
+        private int totalUsedPoints;    // 총 사용 포인트
+        private int totalExpiredPoints; // 총 만료 포인트
+        private String period;          // 조회 기간
+    }
 }

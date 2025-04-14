@@ -2,9 +2,12 @@ package com.fream.back.domain.user.controller.admin;
 
 import com.fream.back.domain.user.dto.UserManagementDto.*;
 import com.fream.back.domain.user.service.admin.AdminUserService;
+import com.fream.back.domain.user.service.query.UserQueryService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.Authentication;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.web.bind.annotation.*;
 
 import java.time.LocalDate;
@@ -17,7 +20,15 @@ public class AdminUserController {
 
     private final AdminUserService adminUserService;
     private final DateTimeFormatter dateFormatter = DateTimeFormatter.ofPattern("yyyy-MM-dd");
-
+    private final UserQueryService userQueryService; // 권한 확인 서비스
+    // SecurityContext에서 이메일 추출
+    private String extractEmailFromSecurityContext() {
+        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+        if (authentication != null && authentication.getPrincipal() instanceof String) {
+            return (String) authentication.getPrincipal(); // 이메일 반환
+        }
+        throw new IllegalStateException("인증된 사용자가 없습니다.");
+    }
     /**
      * 사용자 검색 (페이징)
      */
@@ -40,6 +51,8 @@ public class AdminUserController {
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "20") int size) {
 
+        String adminEmail = extractEmailFromSecurityContext();
+        userQueryService.checkAdminRole(adminEmail); // 관리자 권한 확인
         UserSearchRequestDto searchDto = UserSearchRequestDto.builder()
                 .keyword(keyword)
                 .email(email)
@@ -66,6 +79,8 @@ public class AdminUserController {
      */
     @GetMapping("/{userId}")
     public ResponseEntity<UserDetailResponseDto> getUserDetail(@PathVariable Long userId) {
+        String email = extractEmailFromSecurityContext();
+        userQueryService.checkAdminRole(email); // 관리자 권한 확인
         UserDetailResponseDto userDetail = adminUserService.getUserDetail(userId);
         return ResponseEntity.ok(userDetail);
     }
@@ -77,7 +92,8 @@ public class AdminUserController {
     public ResponseEntity<UserDetailResponseDto> updateUserStatus(
             @PathVariable Long userId,
             @RequestBody UserStatusUpdateRequestDto requestDto) {
-
+        String email = extractEmailFromSecurityContext();
+        userQueryService.checkAdminRole(email); // 관리자 권한 확인
         // userId를 요청 DTO에 설정
         if (requestDto.getUserId() == null) {
             requestDto = UserStatusUpdateRequestDto.builder()
@@ -98,7 +114,8 @@ public class AdminUserController {
     public ResponseEntity<UserDetailResponseDto> updateUserGrade(
             @PathVariable Long userId,
             @RequestBody UserGradeUpdateRequestDto requestDto) {
-
+        String email = extractEmailFromSecurityContext();
+        userQueryService.checkAdminRole(email); // 관리자 권한 확인
         // userId를 요청 DTO에 설정
         if (requestDto.getUserId() == null) {
             requestDto = UserGradeUpdateRequestDto.builder()
@@ -119,7 +136,8 @@ public class AdminUserController {
     public ResponseEntity<UserDetailResponseDto> updateUserRole(
             @PathVariable Long userId,
             @RequestBody UserRoleUpdateRequestDto requestDto) {
-
+        String email = extractEmailFromSecurityContext();
+        userQueryService.checkAdminRole(email); // 관리자 권한 확인
         // userId를 요청 DTO에 설정
         if (requestDto.getUserId() == null) {
             requestDto = UserRoleUpdateRequestDto.builder()
@@ -140,7 +158,8 @@ public class AdminUserController {
     public ResponseEntity<Void> manageUserPoints(
             @PathVariable Long userId,
             @RequestBody UserPointRequestDto requestDto) {
-
+        String email = extractEmailFromSecurityContext();
+        userQueryService.checkAdminRole(email); // 관리자 권한 확인
         // userId를 요청 DTO에 설정
         if (requestDto.getUserId() == null) {
             requestDto = UserPointRequestDto.builder()
@@ -172,7 +191,8 @@ public class AdminUserController {
             @RequestParam(required = false) Integer sellerGrade,
             @RequestParam(required = false) String shoeSize,
             @RequestParam(required = false) String role) {
-
+        String email = extractEmailFromSecurityContext();
+        userQueryService.checkAdminRole(email); // 관리자 권한 확인
         UserSearchRequestDto searchDto = UserSearchRequestDto.builder()
                 .keyword(keyword)
                 .email(email)

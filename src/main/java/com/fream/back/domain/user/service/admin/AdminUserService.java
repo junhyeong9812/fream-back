@@ -427,6 +427,7 @@ public class AdminUserService {
                 .gender(user.getGender())
                 .shoeSize(user.getShoeSize())
                 .isVerified(user.isVerified())
+                .isActive(user.isActive())
                 .ci(user.getCi())
                 .di(user.getDi())
                 .role(user.getRole())

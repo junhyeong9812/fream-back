@@ -2,8 +2,11 @@ package com.fream.back.domain.user.controller.admin;
 
 import com.fream.back.domain.user.dto.UserGradeDto.*;
 import com.fream.back.domain.user.service.admin.AdminGradeService;
+import com.fream.back.domain.user.service.query.UserQueryService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.Authentication;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
@@ -15,12 +18,24 @@ import java.util.Map;
 public class AdminGradeController {
 
     private final AdminGradeService adminGradeService;
-
+    private final UserQueryService userQueryService; // 권한 확인 서비스
+    // SecurityContext에서 이메일 추출
+    private String extractEmailFromSecurityContext() {
+        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+        if (authentication != null && authentication.getPrincipal() instanceof String) {
+            return (String) authentication.getPrincipal(); // 이메일 반환
+        }
+        throw new IllegalStateException("인증된 사용자가 없습니다.");
+    }
     /**
      * 모든 등급 조회
      */
     @GetMapping
     public ResponseEntity<List<GradeResponseDto>> getAllGrades() {
+        String email = extractEmailFromSecurityContext();
+        userQueryService.checkAdminRole(email); // 관리자 권한 확인
+
+
         List<GradeResponseDto> grades = adminGradeService.getAllGrades();
         return ResponseEntity.ok(grades);
     }
@@ -30,6 +45,10 @@ public class AdminGradeController {
      */
     @GetMapping("/{gradeId}")
     public ResponseEntity<GradeResponseDto> getGradeById(@PathVariable Long gradeId) {
+        String email = extractEmailFromSecurityContext();
+        userQueryService.checkAdminRole(email); // 관리자 권한 확인
+
+
         GradeResponseDto grade = adminGradeService.getGradeById(gradeId);
         return ResponseEntity.ok(grade);
     }
@@ -39,6 +58,9 @@ public class AdminGradeController {
      */
     @PostMapping
     public ResponseEntity<GradeResponseDto> createGrade(@RequestBody GradeRequestDto requestDto) {
+        String email = extractEmailFromSecurityContext();
+        userQueryService.checkAdminRole(email); // 관리자 권한 확인
+
         GradeResponseDto createdGrade = adminGradeService.createGrade(requestDto);
         return ResponseEntity.ok(createdGrade);
     }
@@ -51,6 +73,9 @@ public class AdminGradeController {
             @PathVariable Long gradeId,
             @RequestBody GradeUpdateRequestDto requestDto) {
 
+        String email = extractEmailFromSecurityContext();
+        userQueryService.checkAdminRole(email); // 관리자 권한 확인
+
         GradeResponseDto updatedGrade = adminGradeService.updateGrade(gradeId, requestDto);
         return ResponseEntity.ok(updatedGrade);
     }
@@ -60,6 +85,9 @@ public class AdminGradeController {
      */
     @DeleteMapping("/{gradeId}")
     public ResponseEntity<Void> deleteGrade(@PathVariable Long gradeId) {
+        String email = extractEmailFromSecurityContext();
+        userQueryService.checkAdminRole(email); // 관리자 권한 확인
+
         adminGradeService.deleteGrade(gradeId);
         return ResponseEntity.ok().build();
     }
@@ -69,6 +97,9 @@ public class AdminGradeController {
      */
     @GetMapping("/counts")
     public ResponseEntity<Map<Integer, Long>> getGradeUserCounts() {
+        String email = extractEmailFromSecurityContext();
+        userQueryService.checkAdminRole(email); // 관리자 권한 확인
+
         Map<Integer, Long> gradeCounts = adminGradeService.getGradeUserCounts();
         return ResponseEntity.ok(gradeCounts);
     }
@@ -78,6 +109,9 @@ public class AdminGradeController {
      */
     @GetMapping("/statistics")
     public ResponseEntity<List<GradeStatisticsDto>> getGradeStatistics() {
+        String email = extractEmailFromSecurityContext();
+        userQueryService.checkAdminRole(email); // 관리자 권한 확인
+
         List<GradeStatisticsDto> statistics = adminGradeService.getGradeStatistics();
         return ResponseEntity.ok(statistics);
     }
@@ -88,6 +122,9 @@ public class AdminGradeController {
      */
     @PostMapping("/auto-assign")
     public ResponseEntity<AutoAssignResultDto> runGradeAutoAssignment() {
+        String email = extractEmailFromSecurityContext();
+        userQueryService.checkAdminRole(email); // 관리자 권한 확인
+
         AutoAssignResultDto result = adminGradeService.runGradeAutoAssignment();
         return ResponseEntity.ok(result);
     }

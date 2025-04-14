@@ -4,10 +4,13 @@ import com.fream.back.domain.user.dto.SanctionDto.*;
 import com.fream.back.domain.user.entity.SanctionStatus;
 import com.fream.back.domain.user.entity.SanctionType;
 import com.fream.back.domain.user.service.admin.AdminSanctionService;
+import com.fream.back.domain.user.service.query.UserQueryService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.Authentication;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.web.bind.annotation.*;
 
 import java.time.LocalDateTime;
@@ -19,7 +22,16 @@ import java.util.List;
 public class AdminSanctionController {
 
     private final AdminSanctionService adminSanctionService;
+    private final UserQueryService userQueryService; // 권한 확인 서비스
 
+    // SecurityContext에서 이메일 추출
+    private String extractEmailFromSecurityContext() {
+        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+        if (authentication != null && authentication.getPrincipal() instanceof String) {
+            return (String) authentication.getPrincipal(); // 이메일 반환
+        }
+        throw new IllegalStateException("인증된 사용자가 없습니다.");
+    }
     /**
      * 제재 검색 (페이징)
      */
@@ -39,7 +51,8 @@ public class AdminSanctionController {
             @RequestParam(required = false, defaultValue = "desc") String direction,
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "20") int size) {
-
+        String adminEmail = extractEmailFromSecurityContext();
+        userQueryService.checkAdminRole(adminEmail); // 관리자 권한 확인
         SanctionSearchRequestDto searchDto = SanctionSearchRequestDto.builder()
                 .userId(userId)
                 .email(email)
@@ -64,6 +77,8 @@ public class AdminSanctionController {
      */
     @GetMapping("/{sanctionId}")
     public ResponseEntity<SanctionResponseDto> getSanctionById(@PathVariable Long sanctionId) {
+        String email = extractEmailFromSecurityContext();
+        userQueryService.checkAdminRole(email); // 관리자 권한 확인
         SanctionResponseDto sanction = adminSanctionService.getSanctionById(sanctionId);
         return ResponseEntity.ok(sanction);
     }
@@ -75,7 +90,8 @@ public class AdminSanctionController {
     public ResponseEntity<SanctionResponseDto> createSanction(
             @RequestBody SanctionCreateRequestDto requestDto,
             @RequestHeader("X-Admin-Email") String adminEmail) {
-
+        String email = extractEmailFromSecurityContext();
+        userQueryService.checkAdminRole(email); // 관리자 권한 확인
         SanctionResponseDto createdSanction = adminSanctionService.createSanction(requestDto, adminEmail);
         return ResponseEntity.ok(createdSanction);
     }
@@ -87,7 +103,8 @@ public class AdminSanctionController {
     public ResponseEntity<SanctionResponseDto> updateSanction(
             @PathVariable Long sanctionId,
             @RequestBody SanctionUpdateRequestDto requestDto) {
-
+        String email = extractEmailFromSecurityContext();
+        userQueryService.checkAdminRole(email); // 관리자 권한 확인
         SanctionResponseDto updatedSanction = adminSanctionService.updateSanction(sanctionId, requestDto);
         return ResponseEntity.ok(updatedSanction);
     }
@@ -100,7 +117,8 @@ public class AdminSanctionController {
             @PathVariable Long sanctionId,
             @RequestBody SanctionReviewRequestDto requestDto,
             @RequestHeader("X-Admin-Email") String adminEmail) {
-
+        String email = extractEmailFromSecurityContext();
+        userQueryService.checkAdminRole(email); // 관리자 권한 확인
         SanctionResponseDto reviewedSanction = adminSanctionService.reviewSanction(sanctionId, requestDto, adminEmail);
         return ResponseEntity.ok(reviewedSanction);
     }
@@ -110,6 +128,8 @@ public class AdminSanctionController {
      */
     @PatchMapping("/{sanctionId}/cancel")
     public ResponseEntity<SanctionResponseDto> cancelSanction(@PathVariable Long sanctionId) {
+        String email = extractEmailFromSecurityContext();
+        userQueryService.checkAdminRole(email); // 관리자 권한 확인
         SanctionResponseDto canceledSanction = adminSanctionService.cancelSanction(sanctionId);
         return ResponseEntity.ok(canceledSanction);
     }
@@ -119,6 +139,8 @@ public class AdminSanctionController {
      */
     @GetMapping("/user/{userId}")
     public ResponseEntity<List<SanctionResponseDto>> getUserSanctions(@PathVariable Long userId) {
+        String email = extractEmailFromSecurityContext();
+        userQueryService.checkAdminRole(email); // 관리자 권한 확인
         List<SanctionResponseDto> sanctions = adminSanctionService.getUserSanctions(userId);
         return ResponseEntity.ok(sanctions);
     }
@@ -128,6 +150,8 @@ public class AdminSanctionController {
      */
     @GetMapping("/statistics")
     public ResponseEntity<SanctionStatisticsDto> getSanctionStatistics() {
+        String email = extractEmailFromSecurityContext();
+        userQueryService.checkAdminRole(email); // 관리자 권한 확인
         SanctionStatisticsDto statistics = adminSanctionService.getSanctionStatistics();
         return ResponseEntity.ok(statistics);
     }

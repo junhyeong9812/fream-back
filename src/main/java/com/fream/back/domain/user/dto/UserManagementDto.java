@@ -69,6 +69,7 @@ public class UserManagementDto {
         private Gender gender;
         private ShoeSize shoeSize;
         private Boolean isVerified;
+        private Boolean isActive;
         private String ci;
         private String di;
         private Role role;
