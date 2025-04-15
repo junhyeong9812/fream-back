@@ -106,7 +106,7 @@ public class User extends BaseTimeEntity {
     private UserGrade grade; // 회원 등급
 
     @Column(nullable = false, columnDefinition = "BIT(1) DEFAULT 1")
-    private boolean isActive = true; // 계정 활성화 상태
+    private boolean isActive = true; // 계정 활성화
 
     // **편의 메서드 - 값 업데이트**
     public void addOAuthConnection(String provider, String providerId) {
