@@ -105,6 +105,7 @@ public class User extends BaseTimeEntity {
     @JoinColumn(name = "grade_id")
     private UserGrade grade; // 회원 등급
 
+    @Builder.Default
     @Column(nullable = false, columnDefinition = "BIT(1) DEFAULT 1")
     private boolean isActive = true; // 계정 활성화
 
