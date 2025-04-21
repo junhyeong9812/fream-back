@@ -111,5 +111,3 @@ tasks.withType(JavaCompile) {
 	options.annotationProcessorPath = configurations.annotationProcessor
 }
 
-// (원하시면 테스트 비활성화나 다른 태스크 설정도 추가 가능)
-// e.g. tasks.withType(Test) { enabled = false }

@@ -1,0 +1,94 @@
+spring:
+  datasource:
+    # H2 데이터베이스 설정 (로컬 개발용)
+    url: jdbc:h2:mem:freamdb;MODE=MySQL
+    driver-class-name: org.h2.Driver
+    username: sa
+    password:
+  h2:
+    console:
+      enabled: true
+      path: /h2-console
+  jpa:
+    hibernate:
+      ddl-auto: create-drop  # 로컬 환경에서는 애플리케이션 재시작시 스키마 재생성
+    properties:
+      hibernate:
+        format_sql: true
+        show_sql: true
+  # 로컬 개발용 Redis (Docker로 시작)
+  redis:
+    host: localhost
+    port: 6379
+  # 로컬 개발용 이메일 설정 (필요시 설정)
+  mail:
+    host: smtp.gmail.com
+    port: 587
+    username: ${MAIL_USERNAME:your_test_email@gmail.com}
+    password: ${MAIL_PASSWORD:your_app_password}
+    protocol: smtp
+    properties:
+      mail:
+        smtp:
+          auth: true
+          starttls:
+            enable: true
+  # 로컬 개발용 Kafka 설정 (Docker로 시작)
+  kafka:
+    bootstrap-servers: localhost:9092
+    consumer:
+      group-id: "local-group"
+      auto-offset-reset: "earliest"
+  # 로컬 개발용 Elasticsearch 설정 (Docker로 시작)
+  elasticsearch:
+     uris: http://localhost:9200
+
+  batch:
+    jdbc:
+      initialize-schema: always  # 로컬 개발용으로는 자동 스키마 생성
+
+  # OAuth2 소셜 로그인 개발용 설정 (필요시 실제 값으로 대체)
+  security:
+    oauth2:
+      client:
+        registration:
+          google:
+            client-id: ${GOOGLE_CLIENT_ID:google_client_id_here}
+            client-secret: ${GOOGLE_CLIENT_SECRET:google_client_secret_here}
+            redirect-uri: http://localhost:8080/api/login/oauth2/code/google
+            scope:
+              - email
+              - profile
+
+# 로깅 설정
+logging:
+  level:
+    org.hibernate.SQL: debug  # SQL 쿼리 로깅
+    org.hibernate.type.descriptor.sql: trace  # SQL 쿼리 파라미터 로깅
+    org.springframework.security: DEBUG  # 보안 관련 로깅
+    com.fream: DEBUG  # 애플리케이션 로깅
+
+# JWT 설정
+jwt:
+  secret: ${JWT_SECRET:local_development_jwt_secret_key_replace_in_production}
+  token-validity-in-seconds: 86400  # 24시간
+
+# 결제 설정 (테스트용 값)
+imp:
+  key: ${IMP_KEY:test_imp_key}
+  secret: ${IMP_SECRET:test_imp_secret}
+  pg: ${IMP_PG:test_pg}
+  storeId: ${IMP_STOREID:test_store_id}
+
+# OpenAI API 설정 (상품 추천용)
+openai:
+  api:
+    key: ${OPENAPI_KEY:test_openai_key}
+    url: https://api.openai.com/v1/chat/completions
+  model: gpt-3.5-turbo  # 사용할 모델
+
+# 서버 설정
+server:
+  port: 8080  # 로컬 서버 포트
+  servlet:
+    context-path: /  # 컨텍스트 경로
