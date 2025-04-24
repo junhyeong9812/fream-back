@@ -37,6 +37,7 @@ dependencies {
 	implementation 'org.springframework.boot:spring-boot-starter-data-elasticsearch'
 	implementation 'org.springframework.boot:spring-boot-starter-mail'
 	implementation 'org.springframework.kafka:spring-kafka'
+	implementation 'org.apache.httpcomponents.client5:httpclient5'
 
 	// ---------------------------
 	// Spring Boot Test

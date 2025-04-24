@@ -1,20 +1,27 @@
 package com.fream.back.domain.weather.entity;
 
 import jakarta.persistence.*;
-import lombok.*;
-
+import lombok.AccessLevel;
+import lombok.Builder;
+import lombok.Getter;
+import lombok.NoArgsConstructor;
 
 import java.time.LocalDateTime;
 
 @Entity
 @Getter
-@Builder
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
+@Table(
+        indexes = {
+                @Index(name = "idx_weather_data_timestamp", columnList = "timestamp", unique = true)
+        }
+)
 public class WeatherData {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
+    @Column(nullable = false, unique = true)
     private LocalDateTime timestamp; // 데이터의 시간대
 
     private double temperature; // 온도
@@ -25,8 +32,9 @@ public class WeatherData {
 
     @Column(name = "retrieved_at")
     private LocalDateTime retrievedAt; // 데이터가 저장된 시간
+
     /**
-     * 엔티티 생성용 private 생성자 ( 또는 Builder 사용 가능 )
+     * 엔티티 생성용 Builder
      */
     @Builder
     private WeatherData(
