@@ -146,3 +146,21 @@ openai:
 
 server:
   use-forward-headers: true
+
+# application.yml에 추가할 내용
+weather:
+  api:
+    url: https://api.open-meteo.com/v1/forecast
+    params:
+      latitude: 36.5
+      longitude: 127.75
+      hourly: temperature_2m,precipitation_probability,precipitation,rain,snowfall
+      timezone: auto
+  scheduler:
+    # 24시간(86400000 밀리초) 간격으로 갱신
+    interval: 86400000
+    # 초기 지연 시간 (서버 시작 후 10초 대기)
+    initial-delay: 10000
+  data:
+    # 한 번에 처리할 시간 개수 (48시간)
+    hours-count: 48
