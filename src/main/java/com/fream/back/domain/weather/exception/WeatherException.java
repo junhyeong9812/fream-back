@@ -5,7 +5,7 @@ import com.fream.back.global.exception.GlobalException;
 
 /**
  * 날씨 도메인에서 발생하는 모든 예외의 기본 클래스
- * GlobalException을 상속받아 전역 예외 처리 시스템과 통합됨
+ * 팩토리 메서드 패턴을 사용하여 다양한 예외 상황을 단일 클래스로 처리
  */
 public class WeatherException extends GlobalException {
 
@@ -49,4 +49,123 @@ public class WeatherException extends GlobalException {
         super(errorCode, message, cause);
     }
 
+    // ======= API 관련 예외를 위한 팩토리 메서드 =======
+
+    /**
+     * API 호출 오류 예외 생성
+     *
+     * @param message 에러 메시지
+     * @return WeatherException 인스턴스
+     */
+    public static WeatherException apiError(String message) {
+        return new WeatherException(WeatherErrorCode.WEATHER_API_ERROR, message);
+    }
+
+    /**
+     * API 호출 오류 예외 생성
+     *
+     * @param message 에러 메시지
+     * @param cause 원인 예외
+     * @return WeatherException 인스턴스
+     */
+    public static WeatherException apiError(String message, Throwable cause) {
+        return new WeatherException(WeatherErrorCode.WEATHER_API_ERROR, message, cause);
+    }
+
+    /**
+     * API 파싱 오류 예외 생성
+     *
+     * @param message 에러 메시지
+     * @return WeatherException 인스턴스
+     */
+    public static WeatherException apiParsingError(String message) {
+        return new WeatherException(WeatherErrorCode.WEATHER_API_PARSING_ERROR, message);
+    }
+
+    /**
+     * API 파싱 오류 예외 생성
+     *
+     * @param message 에러 메시지
+     * @param cause 원인 예외
+     * @return WeatherException 인스턴스
+     */
+    public static WeatherException apiParsingError(String message, Throwable cause) {
+        return new WeatherException(WeatherErrorCode.WEATHER_API_PARSING_ERROR, message, cause);
+    }
+
+    // ======= 데이터 관련 예외를 위한 팩토리 메서드 =======
+
+    /**
+     * 데이터 없음 예외 생성
+     *
+     * @param message 에러 메시지
+     * @return WeatherException 인스턴스
+     */
+    public static WeatherException dataNotFound(String message) {
+        return new WeatherException(WeatherErrorCode.WEATHER_DATA_NOT_FOUND, message);
+    }
+
+    /**
+     * 데이터 저장 오류 예외 생성
+     *
+     * @param message 에러 메시지
+     * @return WeatherException 인스턴스
+     */
+    public static WeatherException dataSaveError(String message) {
+        return new WeatherException(WeatherErrorCode.WEATHER_DATA_SAVE_ERROR, message);
+    }
+
+    /**
+     * 데이터 저장 오류 예외 생성
+     *
+     * @param message 에러 메시지
+     * @param cause 원인 예외
+     * @return WeatherException 인스턴스
+     */
+    public static WeatherException dataSaveError(String message, Throwable cause) {
+        return new WeatherException(WeatherErrorCode.WEATHER_DATA_SAVE_ERROR, message, cause);
+    }
+
+    /**
+     * 데이터 조회 오류 예외 생성
+     *
+     * @param message 에러 메시지
+     * @return WeatherException 인스턴스
+     */
+    public static WeatherException dataQueryError(String message) {
+        return new WeatherException(WeatherErrorCode.WEATHER_DATA_QUERY_ERROR, message);
+    }
+
+    /**
+     * 데이터 조회 오류 예외 생성
+     *
+     * @param message 에러 메시지
+     * @param cause 원인 예외
+     * @return WeatherException 인스턴스
+     */
+    public static WeatherException dataQueryError(String message, Throwable cause) {
+        return new WeatherException(WeatherErrorCode.WEATHER_DATA_QUERY_ERROR, message, cause);
+    }
+
+    // ======= 파라미터 관련 예외를 위한 팩토리 메서드 =======
+
+    /**
+     * 유효하지 않은 날짜/시간 형식 예외 생성
+     *
+     * @param message 에러 메시지
+     * @return WeatherException 인스턴스
+     */
+    public static WeatherException invalidDateTimeFormat(String message) {
+        return new WeatherException(WeatherErrorCode.INVALID_DATETIME_FORMAT, message);
+    }
+
+    /**
+     * 유효하지 않은 시간 범위 예외 생성
+     *
+     * @param message 에러 메시지
+     * @return WeatherException 인스턴스
+     */
+    public static WeatherException invalidTimeRange(String message) {
+        return new WeatherException(WeatherErrorCode.INVALID_TIME_RANGE, message);
+    }
 }
