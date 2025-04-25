@@ -7,9 +7,10 @@ import com.fream.back.domain.accessLog.service.command.UserAccessLogCommandServi
 import jakarta.servlet.http.HttpServletRequest;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
+
+import java.util.regex.Pattern;
 
 /**
  * 접근 로그 생성, 수정, 삭제 등을 담당하는
@@ -22,6 +23,9 @@ import org.springframework.web.bind.annotation.*;
 public class UserAccessLogCommandController {
 
     private final UserAccessLogCommandService userAccessLogCommandService;
+    // 정규식 패턴: IPv4 주소 검증용
+    private static final Pattern ipPattern = Pattern.compile(
+            "^((25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\\.){3}(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)$");
 
     /**
      * 접근 로그 생성 엔드포인트
@@ -37,6 +41,15 @@ public class UserAccessLogCommandController {
                     "접근 로그 데이터가 누락되었습니다.");
         }
 
+        enrichAccessLogWithRequestData(logDto, request);
+        userAccessLogCommandService.createAccessLog(logDto);
+        return ResponseEntity.noContent().build();
+    }
+
+    /**
+     * 요청 정보를 이용해 DTO 데이터 보강
+     */
+    private void enrichAccessLogWithRequestData(UserAccessLogDto logDto, HttpServletRequest request) {
         // IP 주소 처리
         String clientIp = extractClientIp(request);
         logDto.setIpAddress(clientIp);
@@ -54,17 +67,10 @@ public class UserAccessLogCommandController {
             logDto.setEmail("Anonymous");
             logDto.setAnonymous(true);
         }
-
-        // Command Service 호출
-        userAccessLogCommandService.createAccessLog(logDto);
-
-        // 처리 성공을 알리는 204 No Content 응답
-        return ResponseEntity.noContent().build();
     }
 
     /**
-     * 클라이언트 IP를 추출합니다.
-     * 프록시 서버가 있는 경우 X-Forwarded-For 헤더를 우선 확인합니다.
+     * 클라이언트 IP를 추출 및 검증
      */
     private String extractClientIp(HttpServletRequest request) {
         String clientIp = request.getHeader("X-Forwarded-For");
@@ -89,9 +95,14 @@ public class UserAccessLogCommandController {
             clientIp = clientIp.split(",")[0].trim();
         }
 
-        // 유효하지 않은 IP인 경우 기본값 설정
-        if (clientIp == null || clientIp.isEmpty() || "unknown".equalsIgnoreCase(clientIp)) {
-            log.warn("클라이언트 IP 주소를 확인할 수 없습니다.");
+        // IP 보안 강화: 특수 문자 제거 (XSS 방지)
+        if (clientIp != null) {
+            clientIp = clientIp.replaceAll("[^0-9.]", "");
+        }
+
+        // 유효한 IPv4 형식인지 검증
+        if (clientIp == null || clientIp.isEmpty() || !ipPattern.matcher(clientIp).matches()) {
+            log.warn("유효하지 않은 IP 형식: {}", clientIp);
             clientIp = "0.0.0.0";
         }
 

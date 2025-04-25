@@ -40,29 +40,6 @@ public class UserAccessLogQueryService {
     }
 
     /**
-     * 최근 7일 일자별 접속자 수
-     *
-     * @return 최근 7일 일자별 접속자 수 목록
-     * @throws AccessLogQueryException 조회 실패 시
-     */
-    public List<DailyAccessCountDto> getRecent7DaysAccessCount() {
-        try {
-            List<DailyAccessCountDto> result = userAccessLogRepository.findRecent7DaysAccessCount();
-
-            // 결과가 없는 경우 빈 리스트 반환 (null 방지)
-            if (result == null) {
-                return Collections.emptyList();
-            }
-
-            return result;
-        } catch (DataAccessException e) {
-            log.error("최근 7일 접속자 수 조회 중 오류 발생", e);
-            throw new AccessLogQueryException(AccessLogErrorCode.STATISTICS_QUERY_ERROR,
-                    "최근 7일 접속 통계를 조회하는 중 오류가 발생했습니다.", e);
-        }
-    }
-
-    /**
      * 오늘 고유 방문자 수 (IP 기준)
      *
      * @return 오늘 고유 방문자 수
@@ -75,6 +52,23 @@ public class UserAccessLogQueryService {
             log.error("오늘 고유 방문자 수 조회 중 오류 발생", e);
             throw new AccessLogQueryException(AccessLogErrorCode.ACCESS_LOG_QUERY_ERROR,
                     "오늘 고유 방문자 수를 조회하는 중 오류가 발생했습니다.", e);
+        }
+    }
+
+    /**
+     * 최근 7일 일자별 접속자 수
+     *
+     * @return 최근 7일 일자별 접속자 수 목록
+     * @throws AccessLogQueryException 조회 실패 시
+     */
+    public List<DailyAccessCountDto> getRecent7DaysAccessCount() {
+        try {
+            List<DailyAccessCountDto> result = userAccessLogRepository.findRecent7DaysAccessCount();
+            return result != null ? result : Collections.emptyList();
+        } catch (DataAccessException e) {
+            log.error("최근 7일 접속자 수 조회 중 오류 발생", e);
+            throw new AccessLogQueryException(AccessLogErrorCode.STATISTICS_QUERY_ERROR,
+                    "최근 7일 접속 통계를 조회하는 중 오류가 발생했습니다.", e);
         }
     }
 }

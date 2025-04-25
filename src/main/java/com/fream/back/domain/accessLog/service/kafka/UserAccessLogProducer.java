@@ -10,7 +10,6 @@ import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.kafka.support.SendResult;
 import org.springframework.stereotype.Service;
 
-import java.time.LocalDateTime;
 import java.util.concurrent.CompletableFuture;
 
 /**
@@ -25,14 +24,15 @@ public class UserAccessLogProducer {
     private final KafkaTemplate<String, UserAccessLogEvent> kafkaTemplate;
 
     /**
-     * 접근 로그를 Kafka로 전송합니다.
+     * 접근 로그를 Kafka로 전송
      *
      * @param dto 접근 로그 DTO
      * @throws AccessLogKafkaException Kafka 전송 실패 시
      */
     public void sendAccessLog(UserAccessLogDto dto) {
         try {
-            UserAccessLogEvent event = mapToEvent(dto);
+            // DTO를 이벤트로 변환 (추가된 메서드 활용)
+            UserAccessLogEvent event = dto.toEvent();
 
             // 비동기 전송 및 콜백 처리
             CompletableFuture<SendResult<String, UserAccessLogEvent>> future =
@@ -54,38 +54,5 @@ public class UserAccessLogProducer {
             throw new AccessLogKafkaException(AccessLogErrorCode.KAFKA_SEND_ERROR,
                     "접근 로그를 전송하는 중 오류가 발생했습니다.", e);
         }
-    }
-
-    /**
-     * DTO를 Kafka 이벤트로 변환합니다.
-     */
-    private UserAccessLogEvent mapToEvent(UserAccessLogDto dto) {
-        if (dto == null) {
-            throw new AccessLogKafkaException(AccessLogErrorCode.INVALID_ACCESS_LOG_DATA,
-                    "접근 로그 데이터가 null입니다.");
-        }
-
-        UserAccessLogEvent event = new UserAccessLogEvent();
-        event.setRefererUrl(dto.getRefererUrl());
-        event.setUserAgent(dto.getUserAgent());
-        event.setOs(dto.getOs());
-        event.setBrowser(dto.getBrowser());
-        event.setDeviceType(dto.getDeviceType());
-        event.setIpAddress(dto.getIpAddress());
-        // 위치 정보는 Consumer에서 채움
-        event.setCountry(null);
-        event.setRegion(null);
-        event.setCity(null);
-        event.setPageUrl(dto.getPageUrl());
-        event.setEmail(dto.getEmail());
-        event.setAnonymous(dto.isAnonymous());
-        event.setNetworkType(dto.getNetworkType());
-        event.setBrowserLanguage(dto.getBrowserLanguage());
-        event.setScreenWidth(dto.getScreenWidth());
-        event.setScreenHeight(dto.getScreenHeight());
-        event.setDevicePixelRatio(dto.getDevicePixelRatio());
-        event.setAccessTime(LocalDateTime.now());
-
-        return event;
     }
 }

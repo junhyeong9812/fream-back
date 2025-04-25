@@ -147,7 +147,7 @@ openai:
 server:
   use-forward-headers: true
 
-# application.yml에 추가할 내용
+# weather 도메인 설정
 weather:
   api:
     url: https://api.open-meteo.com/v1/forecast
@@ -164,3 +164,12 @@ weather:
   data:
     # 한 번에 처리할 시간 개수 (48시간)
     hours-count: 48
+
+# AccessLog 도메인 설정
+access-log:
+  use-kafka: false  # false로 설정하여 직접 DB에 저장
+  geoip:
+    database-path: classpath:GeoLite2-City.mmdb
+  kafka:
+    topic: user-access-log-topic
+    group-id: user-access-log-group
