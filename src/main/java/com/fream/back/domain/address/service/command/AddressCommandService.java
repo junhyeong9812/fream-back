@@ -41,8 +41,7 @@ public class AddressCommandService {
                         null, null, null, null, null, false));
             }
 
-            // 입력값 검증
-            validateCreateDto(createDto);
+            // 입력값 검증은 @Validated로 대체되어 컨트롤러에서 수행됨
 
             Address newAddress = Address.builder()
                     .user(user)
@@ -80,8 +79,7 @@ public class AddressCommandService {
                             "주소 ID '" + updateDto.getAddressId() + "'에 해당하는 주소를 찾을 수 없습니다."
                     ));
 
-            // 입력값 검증
-            validateUpdateDto(updateDto);
+            // 입력값 검증은 @Validated로 대체되어 컨트롤러에서 수행됨
 
             if (updateDto.getIsDefault() != null && updateDto.getIsDefault()) {
                 log.debug("기존 기본 주소 해제: 사용자={}", email);
@@ -132,81 +130,6 @@ public class AddressCommandService {
             log.error("주소 삭제 중 오류 발생: 사용자={}, 주소ID={}, 오류={}",
                     email, addressId, e.getMessage(), e);
             throw new AddressException(AddressErrorCode.ADDRESS_DELETE_ERROR, e);
-        }
-    }
-
-    // 주소 생성 데이터 유효성 검증
-    private void validateCreateDto(AddressCreateDto createDto) {
-        if (createDto.getRecipientName() == null || createDto.getRecipientName().isBlank()) {
-            throw new AddressException(
-                    AddressErrorCode.ADDRESS_INVALID_DATA,
-                    "수령인 이름은 필수 입력사항입니다."
-            );
-        }
-
-        if (createDto.getPhoneNumber() == null || createDto.getPhoneNumber().isBlank()) {
-            throw new AddressException(
-                    AddressErrorCode.ADDRESS_INVALID_DATA,
-                    "연락처는 필수 입력사항입니다."
-            );
-        }
-
-        // 전화번호 형식 검증 (간단한 예시, 필요에 따라 정교한 정규식으로 대체 가능)
-        if (!createDto.getPhoneNumber().matches("\\d{10,11}")) {
-            throw new AddressException(
-                    AddressErrorCode.ADDRESS_INVALID_PHONE_NUMBER,
-                    "전화번호 형식이 올바르지 않습니다. 숫자 10-11자리로 입력해주세요."
-            );
-        }
-
-        if (createDto.getZipCode() == null || createDto.getZipCode().isBlank()) {
-            throw new AddressException(
-                    AddressErrorCode.ADDRESS_INVALID_DATA,
-                    "우편번호는 필수 입력사항입니다."
-            );
-        }
-
-        // 우편번호 형식 검증
-        if (!createDto.getZipCode().matches("\\d{5}")) {
-            throw new AddressException(
-                    AddressErrorCode.ADDRESS_INVALID_ZIP_CODE,
-                    "우편번호 형식이 올바르지 않습니다. 5자리 숫자로 입력해주세요."
-            );
-        }
-
-        if (createDto.getAddress() == null || createDto.getAddress().isBlank()) {
-            throw new AddressException(
-                    AddressErrorCode.ADDRESS_INVALID_DATA,
-                    "주소는 필수 입력사항입니다."
-            );
-        }
-    }
-
-    // 주소 수정 데이터 유효성 검증
-    private void validateUpdateDto(AddressUpdateDto updateDto) {
-        if (updateDto.getAddressId() == null) {
-            throw new AddressException(
-                    AddressErrorCode.ADDRESS_INVALID_DATA,
-                    "주소 ID는 필수 입력사항입니다."
-            );
-        }
-
-        // 전화번호가 제공되었다면 형식 검증
-        if (updateDto.getPhoneNumber() != null && !updateDto.getPhoneNumber().isBlank() &&
-                !updateDto.getPhoneNumber().matches("\\d{10,11}")) {
-            throw new AddressException(
-                    AddressErrorCode.ADDRESS_INVALID_PHONE_NUMBER,
-                    "전화번호 형식이 올바르지 않습니다. 숫자 10-11자리로 입력해주세요."
-            );
-        }
-
-        // 우편번호가 제공되었다면 형식 검증
-        if (updateDto.getZipCode() != null && !updateDto.getZipCode().isBlank() &&
-                !updateDto.getZipCode().matches("\\d{5}")) {
-            throw new AddressException(
-                    AddressErrorCode.ADDRESS_INVALID_ZIP_CODE,
-                    "우편번호 형식이 올바르지 않습니다. 5자리 숫자로 입력해주세요."
-            );
         }
     }
 }

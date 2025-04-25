@@ -12,6 +12,10 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.*;
 
+/**
+ * 주소 생성, 수정, 삭제 등을 담당하는
+ * Command 전용 컨트롤러
+ */
 @RestController
 @RequestMapping("/addresses")
 @RequiredArgsConstructor

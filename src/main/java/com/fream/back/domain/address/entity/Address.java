@@ -9,6 +9,12 @@ import lombok.Getter;
 import lombok.NoArgsConstructor;
 
 @Entity
+@Table(
+        indexes = {
+                @Index(name = "idx_user_id", columnList = "user_id"),
+                @Index(name = "idx_is_default", columnList = "is_default")
+        }
+)
 @Getter
 @NoArgsConstructor
 @AllArgsConstructor
@@ -23,11 +29,21 @@ public class Address extends BaseTimeEntity {
     @JoinColumn(name = "user_id")
     private User user; // 주소록 소유 사용자
 
+    @Column(nullable = false)
     private String recipientName; // 수령인 이름
+
+    @Column(nullable = false)
     private String phoneNumber; // 전화번호
+
+    @Column(nullable = false, length = 5)
     private String zipCode; // 우편번호
+
+    @Column(nullable = false)
     private String address; // 주소
+
     private String detailedAddress; // 상세 주소
+
+    @Column(name = "is_default")
     private boolean isDefault; // 기본 배송지 여부
 
     // **편의 메서드 - 값 업데이트**
@@ -52,6 +68,7 @@ public class Address extends BaseTimeEntity {
             this.isDefault = isDefault;
         }
     }
+
     // 편의 메서드
     public void assignUser(User user) {
         this.user = user;

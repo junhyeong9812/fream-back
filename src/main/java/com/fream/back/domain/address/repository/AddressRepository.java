@@ -1,6 +1,5 @@
 package com.fream.back.domain.address.repository;
 
-
 import com.fream.back.domain.address.entity.Address;
 import com.fream.back.domain.user.entity.User;
 import org.springframework.data.jpa.repository.JpaRepository;

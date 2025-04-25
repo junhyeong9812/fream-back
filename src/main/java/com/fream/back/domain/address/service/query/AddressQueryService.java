@@ -15,6 +15,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
+import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
@@ -44,7 +45,7 @@ public class AddressQueryService {
                             address.getAddress(),
                             address.getDetailedAddress(),
                             address.isDefault()))
-                    .toList();
+                    .collect(Collectors.toList());
 
             log.info("주소 목록 조회 완료: 사용자={}, 조회된 주소 수={}", email, addresses.size());
             return addresses;
