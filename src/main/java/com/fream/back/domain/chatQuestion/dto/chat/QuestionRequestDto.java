@@ -5,6 +5,9 @@ import lombok.Builder;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 
+/**
+ * 사용자 질문 요청 정보를 담는 DTO
+ */
 @Getter
 @Builder
 @NoArgsConstructor

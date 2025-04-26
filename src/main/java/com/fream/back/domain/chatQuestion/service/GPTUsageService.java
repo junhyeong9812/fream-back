@@ -1,10 +1,15 @@
 package com.fream.back.domain.chatQuestion.service;
 
 import com.fream.back.domain.chatQuestion.dto.gpt.GPTResponseDto;
+import com.fream.back.domain.chatQuestion.dto.log.GPTDailyUsageDto;
+import com.fream.back.domain.chatQuestion.dto.log.GPTModelUsageDto;
+import com.fream.back.domain.chatQuestion.dto.log.GPTRequestTypeUsageDto;
 import com.fream.back.domain.chatQuestion.dto.log.GPTUsageLogDto;
 import com.fream.back.domain.chatQuestion.dto.log.GPTUsageStatsDto;
 import com.fream.back.domain.chatQuestion.entity.ChatQuestion;
 import com.fream.back.domain.chatQuestion.entity.GPTUsageLog;
+import com.fream.back.domain.chatQuestion.exception.ChatPermissionException;
+import com.fream.back.domain.chatQuestion.exception.ChatQueryException;
 import com.fream.back.domain.chatQuestion.exception.ChatQuestionErrorCode;
 import com.fream.back.domain.chatQuestion.exception.GPTUsageException;
 import com.fream.back.domain.chatQuestion.repository.GPTUsageLogRepository;
@@ -20,32 +25,44 @@ import org.springframework.transaction.annotation.Transactional;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
-import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
 
+/**
+ * GPT 사용량 관리 서비스
+ * GPT API 사용량 로깅 및 통계 조회를 담당합니다.
+ */
 @Slf4j
 @Service
 @RequiredArgsConstructor
 public class GPTUsageService {
 
     private final GPTUsageLogRepository gptUsageLogRepository;
+    private static final DateTimeFormatter FORMATTER = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss");
 
-    // GPT API 사용 후 사용량 로그 기록
-    @Transactional
+    /**
+     * GPT API 사용 후 사용량 로그 기록
+     * 서비스 실패 시에도 로그 기록 실패로 인한 예외 전파를 방지하기 위해 독립적인 트랜잭션으로 처리
+     *
+     * @param response GPT 응답 DTO
+     * @param user 사용자 엔티티
+     * @param requestType 요청 유형
+     * @param chatQuestion 채팅 질문 엔티티
+     */
+    @Transactional(rollbackFor = Exception.class)
     public void logGPTUsage(GPTResponseDto response, User user, String requestType, ChatQuestion chatQuestion) {
-        try {
-            if (response == null) {
-                log.warn("GPT 사용량 기록 실패: 응답 객체가 null입니다.");
-                return;
-            }
+        if (response == null || response.getUsage() == null) {
+            log.warn("GPT 사용량 기록 실패: 응답 객체가 null이거나 사용량 정보가 없습니다.");
+            return;
+        }
 
+        try {
             // GPT 응답에서 사용량 정보 추출
-            int promptTokens = (response.getUsage() != null) ? response.getUsage().getPrompt_tokens() : 0;
-            int completionTokens = (response.getUsage() != null) ? response.getUsage().getCompletion_tokens() : 0;
-            int totalTokens = (response.getUsage() != null) ? response.getUsage().getTotal_tokens() : 0;
+            int promptTokens = response.getUsage().getPrompt_tokens();
+            int completionTokens = response.getUsage().getCompletion_tokens();
+            int totalTokens = response.getUsage().getTotal_tokens();
 
             // 사용량 로그 저장
             GPTUsageLog usageLog = GPTUsageLog.builder()
@@ -61,34 +78,30 @@ public class GPTUsageService {
 
             gptUsageLogRepository.save(usageLog);
 
-            log.info("GPT 사용량 기록 완료: 모델={}, 총 토큰={}, 사용자={}",
-                    response.getModel(), totalTokens, (user != null ? user.getEmail() : "시스템"));
+            log.info("GPT 사용량 기록 완료: 모델={}, 총 토큰={}, 사용자={}, 요청 ID={}",
+                    response.getModel(),
+                    totalTokens,
+                    (user != null ? user.getEmail() : "시스템"),
+                    response.getId());
 
-        } catch (DataAccessException e) {
-            // DB 관련 예외 처리
-            log.error("GPT 사용량 기록 중 데이터베이스 오류 발생: ", e);
-            throw new GPTUsageException(ChatQuestionErrorCode.GPT_USAGE_LOG_ERROR,
-                    "GPT 사용량을 데이터베이스에 저장하는 중 오류가 발생했습니다.", e);
         } catch (Exception e) {
-            // 기타 예외 처리 - 로그 기록 실패 시 서비스 전체가 실패하지 않도록 예외 처리
-            log.error("GPT 사용량 기록 중 오류 발생: ", e);
-            // 이 예외는 상위로 전파하지 않음 (비즈니스 로직에 영향을 주지 않도록)
+            // 로그 기록 실패 시 서비스 전체가 실패하지 않도록 예외 처리
+            log.error("GPT 사용량 기록 중 오류 발생: {}", e.getMessage(), e);
+            // 이 메서드의 예외는 상위로 전파하지 않음 (비즈니스 로직에 영향을 주지 않도록)
         }
     }
 
-    // 특정 기간의 사용량 통계 조회 (관리자용)
+    /**
+     * 특정 기간의 사용량 통계 조회 (관리자용)
+     *
+     * @param startDate 시작 날짜
+     * @param endDate 종료 날짜
+     * @return GPT 사용량 통계 DTO
+     * @throws GPTUsageException 유효하지 않은 날짜 범위 또는 통계 조회 실패 시
+     */
     @Transactional(readOnly = true)
     public GPTUsageStatsDto getUsageStatistics(LocalDate startDate, LocalDate endDate) {
-        // 날짜 유효성 검사
-        if (startDate == null || endDate == null) {
-            throw new GPTUsageException(ChatQuestionErrorCode.INVALID_DATE_RANGE,
-                    "시작 날짜와 종료 날짜는 필수입니다.");
-        }
-
-        if (startDate.isAfter(endDate)) {
-            throw new GPTUsageException(ChatQuestionErrorCode.INVALID_DATE_RANGE,
-                    "시작 날짜는 종료 날짜보다 이전이어야 합니다.");
-        }
+        validateDateRange(startDate, endDate);
 
         try {
             // 날짜 범위 설정 (시작일 00:00:00부터 종료일 23:59:59까지)
@@ -99,50 +112,34 @@ public class GPTUsageService {
             Integer totalTokens = gptUsageLogRepository.getTotalTokensUsedBetweenDates(startDateTime, endDateTime);
             if (totalTokens == null) totalTokens = 0;
 
-            // 일별 사용량 조회
-            List<Object[]> dailyStats = gptUsageLogRepository.getDailyTokenUsage(startDateTime, endDateTime);
+            // 일별 사용량 조회 - QueryDSL로 개선
+            List<GPTDailyUsageDto> dailyStats = gptUsageLogRepository.getDailyTokenUsage(startDateTime, endDateTime);
             List<GPTUsageStatsDto.DailyUsage> dailyUsageList = dailyStats.stream()
-                    .map(row -> {
-                        LocalDate date = LocalDate.parse(row[0].toString());
-                        int tokens = ((Number) row[1]).intValue();
-                        return new GPTUsageStatsDto.DailyUsage(date, tokens);
-                    })
+                    .map(dto -> new GPTUsageStatsDto.DailyUsage(dto.getDateAsLocalDate(), dto.getTokenCount()))
                     .collect(Collectors.toList());
 
-            // 모델별 사용량 조회
-            List<Object[]> modelStats = gptUsageLogRepository.getTokenUsageByModelBetweenDates(startDateTime, endDateTime);
-            Map<String, Integer> usageByModel = new HashMap<>();
-            for (Object[] row : modelStats) {
-                String model = (String) row[0];
-                Integer tokens = ((Number) row[1]).intValue();
-                usageByModel.put(model, tokens);
-            }
+            // 모델별 사용량 조회 - QueryDSL로 개선
+            List<GPTModelUsageDto> modelStats = gptUsageLogRepository.getTokenUsageByModelBetweenDates(startDateTime, endDateTime);
+            Map<String, Integer> usageByModel = modelStats.stream()
+                    .collect(Collectors.toMap(
+                            GPTModelUsageDto::getModelName,
+                            GPTModelUsageDto::getTokenCount,
+                            (a, b) -> a + b, // 중복 키 처리
+                            HashMap::new
+                    ));
 
-            // 요청 유형별 사용량 조회
-            List<Object[]> typeStats = gptUsageLogRepository.getTokenUsageByRequestTypeBetweenDates(startDateTime, endDateTime);
-            Map<String, Integer> usageByType = new HashMap<>();
-            for (Object[] row : typeStats) {
-                String type = (String) row[0];
-                Integer tokens = ((Number) row[1]).intValue();
-                usageByType.put(type, tokens);
-            }
+            // 요청 유형별 사용량 조회 - QueryDSL로 개선
+            List<GPTRequestTypeUsageDto> typeStats = gptUsageLogRepository.getTokenUsageByRequestTypeBetweenDates(startDateTime, endDateTime);
+            Map<String, Integer> usageByType = typeStats.stream()
+                    .collect(Collectors.toMap(
+                            GPTRequestTypeUsageDto::getRequestType,
+                            GPTRequestTypeUsageDto::getTokenCount,
+                            (a, b) -> a + b, // 중복 키 처리
+                            HashMap::new
+                    ));
 
-            // 비용 계산 (모델에 따라 다름, 여기서는 GPT-3.5를 기준으로 계산)
-            // 가격 정보: https://openai.com/pricing
-            // GPT-3.5 Turbo: 입력 $0.0015, 출력 $0.002 / 1K 토큰
-            int estimatedCost = 0;
-            for (Map.Entry<String, Integer> entry : usageByModel.entrySet()) {
-                String model = entry.getKey();
-                int tokens = entry.getValue();
-
-                if (model.contains("gpt-3.5")) {
-                    // 간단한 계산이므로 정확한 입력/출력 비율을 알 수 없어 평균 가격 적용
-                    estimatedCost += (int) (tokens * 0.0018); // 약 $0.0018 / 1K 토큰 (평균)
-                } else if (model.contains("gpt-4")) {
-                    // GPT-4는 더 비쌈, 약 $0.03 / 1K 토큰으로 가정
-                    estimatedCost += (int) (tokens * 0.03);
-                }
-            }
+            // 비용 계산
+            int estimatedCost = calculateEstimatedCost(usageByModel);
 
             // 결과 반환
             return GPTUsageStatsDto.builder()
@@ -154,56 +151,137 @@ public class GPTUsageService {
                     .build();
 
         } catch (DataAccessException e) {
-            log.error("GPT 사용량 통계 조회 중 데이터베이스 오류 발생: ", e);
-            throw new GPTUsageException(ChatQuestionErrorCode.USAGE_STATS_QUERY_ERROR,
+            log.error("GPT 사용량 통계 조회 중 데이터베이스 오류 발생: {}", e.getMessage(), e);
+            throw new ChatQueryException(ChatQuestionErrorCode.USAGE_STATS_QUERY_ERROR,
                     "GPT 사용량 통계를 조회하는 중 데이터베이스 오류가 발생했습니다.", e);
+        } catch (GPTUsageException e) {
+            // 이미 처리된 예외는 그대로 전파
+            throw e;
         } catch (Exception e) {
-            log.error("GPT 사용량 통계 조회 중 오류 발생: ", e);
+            log.error("GPT 사용량 통계 조회 중 오류 발생: {}", e.getMessage(), e);
             throw new GPTUsageException(ChatQuestionErrorCode.USAGE_STATS_QUERY_ERROR,
                     "GPT 사용량 통계를 조회하는 중 오류가 발생했습니다.", e);
         }
     }
 
-    // 사용량 로그 페이징 조회 (관리자용)
+    /**
+     * 날짜 범위 유효성 검사
+     *
+     * @param startDate 시작 날짜
+     * @param endDate 종료 날짜
+     * @throws GPTUsageException 유효하지 않은 날짜 범위인 경우
+     */
+    private void validateDateRange(LocalDate startDate, LocalDate endDate) {
+        if (startDate == null || endDate == null) {
+            throw new GPTUsageException(ChatQuestionErrorCode.INVALID_DATE_RANGE,
+                    "시작 날짜와 종료 날짜는 필수입니다.");
+        }
+
+        if (startDate.isAfter(endDate)) {
+            throw new GPTUsageException(ChatQuestionErrorCode.INVALID_DATE_RANGE,
+                    "시작 날짜는 종료 날짜보다 이전이어야 합니다.");
+        }
+
+        // 너무 긴 기간의 조회 제한 (선택 사항)
+        if (startDate.plusMonths(6).isBefore(endDate)) {
+            throw new GPTUsageException(ChatQuestionErrorCode.INVALID_DATE_RANGE,
+                    "통계 조회 기간은 최대 6개월까지 가능합니다.");
+        }
+    }
+
+    /**
+     * 모델별 예상 비용 계산
+     *
+     * @param usageByModel 모델별 사용량 맵
+     * @return 예상 비용 (센트 단위)
+     */
+    private int calculateEstimatedCost(Map<String, Integer> usageByModel) {
+        int estimatedCost = 0;
+        for (Map.Entry<String, Integer> entry : usageByModel.entrySet()) {
+            String model = entry.getKey();
+            int tokens = entry.getValue();
+
+            if (model.contains("gpt-3.5")) {
+                // GPT-3.5 기준 비용 (대략적인 평균값)
+                estimatedCost += (int) (tokens * 0.0018); // 약 $0.0018 / 1K 토큰
+            } else if (model.contains("gpt-4")) {
+                // GPT-4 기준 비용
+                estimatedCost += (int) (tokens * 0.03); // 약 $0.03 / 1K 토큰
+            } else {
+                // 기타 모델은 GPT-3.5와 동일하게 계산
+                estimatedCost += (int) (tokens * 0.0018);
+            }
+        }
+        return estimatedCost;
+    }
+
+    /**
+     * 사용량 로그 페이징 조회 (관리자용)
+     *
+     * @param pageable 페이징 정보
+     * @return GPT 사용량 로그 DTO 페이지
+     * @throws ChatQueryException 로그 조회 실패 시
+     */
     @Transactional(readOnly = true)
     public Page<GPTUsageLogDto> getUsageLogs(Pageable pageable) {
         try {
             Page<GPTUsageLog> logs = gptUsageLogRepository.findAllByOrderByCreatedDateDesc(pageable);
-
-            DateTimeFormatter formatter = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss");
-
-            return logs.map(log -> {
-                String userName = log.getUser() != null ? log.getUser().getEmail() : "System";
-                String questionContent = log.getChatQuestion() != null ?
-                        (log.getChatQuestion().getQuestion().length() > 30 ?
-                                log.getChatQuestion().getQuestion().substring(0, 30) + "..." :
-                                log.getChatQuestion().getQuestion()) :
-                        "-";
-
-                return GPTUsageLogDto.builder()
-                        .id(log.getId())
-                        .userName(userName)
-                        .requestType(log.getRequestType())
-                        .promptTokens(log.getPromptTokens())
-                        .completionTokens(log.getCompletionTokens())
-                        .totalTokens(log.getTotalTokens())
-                        .modelName(log.getModelName())
-                        .requestDate(log.getCreatedDate().format(formatter))
-                        .questionContent(questionContent)
-                        .build();
-            });
+            return logs.map(this::convertToDto);
         } catch (DataAccessException e) {
-            log.error("GPT 사용량 로그 조회 중 데이터베이스 오류 발생: ", e);
-            throw new GPTUsageException(ChatQuestionErrorCode.USAGE_STATS_QUERY_ERROR,
+            log.error("GPT 사용량 로그 조회 중 데이터베이스 오류 발생: {}", e.getMessage(), e);
+            throw new ChatQueryException(ChatQuestionErrorCode.USAGE_STATS_QUERY_ERROR,
                     "GPT 사용량 로그를 조회하는 중 데이터베이스 오류가 발생했습니다.", e);
         } catch (Exception e) {
-            log.error("GPT 사용량 로그 조회 중 오류 발생: ", e);
-            throw new GPTUsageException(ChatQuestionErrorCode.USAGE_STATS_QUERY_ERROR,
+            log.error("GPT 사용량 로그 조회 중 오류 발생: {}", e.getMessage(), e);
+            throw new ChatQueryException(ChatQuestionErrorCode.USAGE_STATS_QUERY_ERROR,
                     "GPT 사용량 로그를 조회하는 중 오류가 발생했습니다.", e);
         }
     }
 
-    // 총 누적 토큰 사용량 조회
+    /**
+     * GPTUsageLog 엔티티를 DTO로 변환
+     *
+     * @param log GPT 사용량 로그 엔티티
+     * @return GPT 사용량 로그 DTO
+     */
+    private GPTUsageLogDto convertToDto(GPTUsageLog log) {
+        String userName = log.getUser() != null ? log.getUser().getEmail() : "System";
+        String questionContent = extractQuestionContent(log.getChatQuestion());
+
+        return GPTUsageLogDto.builder()
+                .id(log.getId())
+                .userName(userName)
+                .requestType(log.getRequestType())
+                .promptTokens(log.getPromptTokens())
+                .completionTokens(log.getCompletionTokens())
+                .totalTokens(log.getTotalTokens())
+                .modelName(log.getModelName())
+                .requestDate(log.getCreatedDate().format(FORMATTER))
+                .questionContent(questionContent)
+                .build();
+    }
+
+    /**
+     * 질문 내용 추출 및 요약
+     *
+     * @param chatQuestion 채팅 질문 엔티티
+     * @return 질문 내용 요약 (최대 30자, 초과 시 생략)
+     */
+    private String extractQuestionContent(ChatQuestion chatQuestion) {
+        if (chatQuestion == null || chatQuestion.getQuestion() == null) {
+            return "-";
+        }
+
+        String question = chatQuestion.getQuestion();
+        return question.length() > 30 ? question.substring(0, 30) + "..." : question;
+    }
+
+    /**
+     * 총 누적 토큰 사용량 조회
+     *
+     * @return 총 토큰 사용량
+     * @throws ChatQueryException 조회 실패 시
+     */
     @Transactional(readOnly = true)
     public int getTotalTokensUsed() {
         try {
@@ -213,12 +291,12 @@ public class GPTUsageService {
             );
             return totalTokens != null ? totalTokens : 0;
         } catch (DataAccessException e) {
-            log.error("총 토큰 사용량 조회 중 데이터베이스 오류 발생: ", e);
-            throw new GPTUsageException(ChatQuestionErrorCode.USAGE_STATS_QUERY_ERROR,
+            log.error("총 토큰 사용량 조회 중 데이터베이스 오류 발생: {}", e.getMessage(), e);
+            throw new ChatQueryException(ChatQuestionErrorCode.USAGE_STATS_QUERY_ERROR,
                     "총 토큰 사용량을 조회하는 중 데이터베이스 오류가 발생했습니다.", e);
         } catch (Exception e) {
-            log.error("총 토큰 사용량 조회 중 오류 발생: ", e);
-            throw new GPTUsageException(ChatQuestionErrorCode.USAGE_STATS_QUERY_ERROR,
+            log.error("총 토큰 사용량 조회 중 오류 발생: {}", e.getMessage(), e);
+            throw new ChatQueryException(ChatQuestionErrorCode.USAGE_STATS_QUERY_ERROR,
                     "총 토큰 사용량을 조회하는 중 오류가 발생했습니다.", e);
         }
     }

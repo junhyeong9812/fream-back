@@ -7,6 +7,9 @@ import lombok.NoArgsConstructor;
 
 import java.time.LocalDateTime;
 
+/**
+ * 질문에 대한 응답 정보를 담는 DTO
+ */
 @Getter
 @Builder
 @NoArgsConstructor

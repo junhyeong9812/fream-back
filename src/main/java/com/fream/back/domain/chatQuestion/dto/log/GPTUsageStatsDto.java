@@ -9,6 +9,9 @@ import java.time.LocalDate;
 import java.util.List;
 import java.util.Map;
 
+/**
+ * GPT 사용량 통계 정보를 담는 DTO
+ */
 @Data
 @Builder
 @NoArgsConstructor

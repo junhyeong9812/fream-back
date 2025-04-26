@@ -7,6 +7,9 @@ import lombok.NoArgsConstructor;
 
 import java.time.LocalDateTime;
 
+/**
+ * 채팅 기록 정보를 담는 DTO
+ */
 @Getter
 @Builder
 @NoArgsConstructor

@@ -5,6 +5,9 @@ import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
+/**
+ * GPT 사용량 로그 정보를 담는 DTO
+ */
 @Data
 @Builder
 @NoArgsConstructor
