@@ -23,7 +23,9 @@ Fream은 확장 가능한 웹 서비스를 위한 견고한 인프라를 제공�
 ## 🏛 시스템 아키텍처
 
 ### 시스템 구성도
-![시스템 아키텍처](https://github.com/user-attachments/assets/5e7640a8-99c6-48cb-ba7b-cec4689d02d8)
+![image](https://github.com/user-attachments/assets/3b64669d-0452-456c-8f34-8382c17c63fe)
+
+
 
 ### 주요 컴포넌트 설명
 
