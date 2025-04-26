@@ -1,18 +1,29 @@
 package com.fream.back.domain.event.dto;
 
+import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.NotNull;
+import jakarta.validation.constraints.Size;
 import lombok.Getter;
 import lombok.Setter;
 
 import java.time.LocalDateTime;
+import java.util.List;
 
 @Getter
 @Setter
 public class UpdateEventRequest {
+    @NotBlank(message = "이벤트 제목은 필수입니다.")
+    @Size(min = 1, max = 100, message = "이벤트 제목은 1~100자 이내여야 합니다.")
     private String title;
+
+    @NotBlank(message = "이벤트 설명은 필수입니다.")
     private String description;
+
+    @NotNull(message = "시작일은 필수입니다.")
     private LocalDateTime startDate;
+
+    @NotNull(message = "종료일은 필수입니다.")
     private LocalDateTime endDate;
 
-    // 썸네일 수정 시 brandId 등 다른 필드가 필요한 경우 여기에 추가
-    // 혹은 brand 변경을 허용하지 않는다면 제외
+    private List<String> keepImageFileNames;
 }

@@ -3,6 +3,7 @@ package com.fream.back.global.exception;
 import com.fream.back.domain.accessLog.exception.AccessLogException;
 import com.fream.back.domain.address.exception.AddressException;
 import com.fream.back.domain.chatQuestion.exception.ChatQuestionException;
+import com.fream.back.domain.event.exception.EventException;
 import com.fream.back.domain.faq.exception.FAQException;
 import com.fream.back.domain.inspection.exception.InspectionException;
 import com.fream.back.domain.notice.exception.NoticeException;
@@ -366,6 +367,25 @@ public class GlobalExceptionHandler {
             HttpServletRequest request, WarehouseStorageException e) {
         ErrorCode errorCode = e.getErrorCode();
         log.error("WarehouseStorageException: {} - {}", errorCode.getCode(), e.getMessage(), e);
+
+        return ResponseEntity
+                .status(errorCode.getStatus())
+                .body(ErrorResponse.of(
+                        errorCode.getCode(),
+                        errorCode.getMessage(),
+                        errorCode.getStatus(),
+                        request.getRequestURI()
+                ));
+    }
+
+    /**
+     * EventException 및 하위 예외 처리
+     */
+    @ExceptionHandler(EventException.class)
+    public ResponseEntity<ErrorResponse> handleEventException(
+            HttpServletRequest request, EventException e) {
+        ErrorCode errorCode = e.getErrorCode();
+        log.error("EventException: {} - {}", errorCode.getCode(), e.getMessage(), e);
 
         return ResponseEntity
                 .status(errorCode.getStatus())

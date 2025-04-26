@@ -46,6 +46,13 @@ public class Event extends BaseTimeEntity {
     @JoinColumn(name = "brand_id")
     private Brand brand; // 연관된 브랜드
 
+    /**
+     * 이벤트 상태 필드 추가
+     * DB에는 이벤트 상태가 직접 저장되지 않고 시작일/종료일로 계산됨
+     */
+    @Transient // DB에 저장되지 않는 필드로 지정
+    private EventStatus status;
+
     // 편의 메서드
     public void addSimpleImage(SimpleImage simpleImage) {
         this.simpleImages.add(simpleImage);
@@ -55,10 +62,57 @@ public class Event extends BaseTimeEntity {
     public void updateThumbnailFileName(String newFileName) {
         this.thumbnailFileName = newFileName;
     }
+
     public void updateEvent(String title, String description, LocalDateTime startDate, LocalDateTime endDate) {
         if (title != null) this.title = title;
         if (description != null) this.description = description;
         if (startDate != null) this.startDate = startDate;
         if (endDate != null) this.endDate = endDate;
+    }
+
+    /**
+     * 이벤트가 현재 활성 상태인지 확인
+     */
+    public boolean isActive() {
+        LocalDateTime now = LocalDateTime.now();
+        return startDate.isBefore(now) && endDate.isAfter(now);
+    }
+
+    /**
+     * 이벤트가 아직 시작되지 않았는지 확인
+     */
+    public boolean isUpcoming() {
+        LocalDateTime now = LocalDateTime.now();
+        return startDate.isAfter(now);
+    }
+
+    /**
+     * 이벤트가 종료되었는지 확인
+     */
+    public boolean isEnded() {
+        LocalDateTime now = LocalDateTime.now();
+        return endDate.isBefore(now) || endDate.isEqual(now);
+    }
+
+    /**
+     * 이벤트 상태 계산 및 반환
+     * @return EventStatus 열거형 (UPCOMING, ACTIVE, ENDED)
+     */
+    public EventStatus getStatus() {
+        if (isUpcoming()) {
+            return EventStatus.UPCOMING;
+        } else if (isActive()) {
+            return EventStatus.ACTIVE;
+        } else {
+            return EventStatus.ENDED;
+        }
+    }
+
+    /**
+     * 이벤트 상태 문자열 반환 (표시용)
+     * @return 상태 문자열 ("예정", "진행 중", "종료" 중 하나)
+     */
+    public String getStatusDisplayName() {
+        return getStatus().getDisplayName();
     }
 }

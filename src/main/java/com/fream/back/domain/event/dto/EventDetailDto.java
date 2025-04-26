@@ -1,5 +1,6 @@
 package com.fream.back.domain.event.dto;
 
+import com.fream.back.domain.event.entity.EventStatus;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Getter;
@@ -23,6 +24,8 @@ public class EventDetailDto {
     private Long brandId;               // 브랜드 ID
     private String brandName;           // 브랜드 이름
     private boolean isActive;           // 활성 상태 여부
+    private EventStatus status;         // 이벤트 상태 (UPCOMING, ACTIVE, ENDED)
+    private String statusDisplayName;   // 이벤트 상태 표시명 ("예정", "진행 중", "종료")
     private LocalDateTime createdDate;  // 생성일시
     private LocalDateTime modifiedDate; // 수정일시
 }
