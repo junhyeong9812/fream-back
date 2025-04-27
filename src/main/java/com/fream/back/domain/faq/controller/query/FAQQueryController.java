@@ -8,12 +8,14 @@ import com.fream.back.domain.faq.exception.FAQFileException;
 import com.fream.back.domain.faq.exception.FAQNotFoundException;
 import com.fream.back.domain.faq.service.query.FAQQueryService;
 import com.fream.back.global.dto.ResponseDto;
+import com.fream.back.global.utils.FileUtils;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.core.io.Resource;
 import org.springframework.core.io.UrlResource;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
+import org.springframework.data.web.PageableDefault;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
@@ -25,21 +27,25 @@ import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
+import java.util.List;
 
 @RestController
-@RequestMapping("/faq")
+@RequestMapping("/api/faq")
 @RequiredArgsConstructor
 @Slf4j
 public class FAQQueryController {
 
     private final FAQQueryService faqQueryService;
-    private static final String FAQ_BASE_DIR = "/home/ubuntu/fream/faq";
+    private final FileUtils fileUtils;
+    private static final String BASE_DIR = "/home/ubuntu/fream";
 
-    // === FAQ 목록 조회 ===
+    /**
+     * FAQ 목록 조회 (페이징, 카테고리별 필터링 지원)
+     */
     @GetMapping
     public ResponseEntity<ResponseDto<Page<FAQResponseDto>>> getFAQs(
             @RequestParam(name = "category", required = false) FAQCategory category,
-            Pageable pageable
+            @PageableDefault(size = 10) Pageable pageable
     ) {
         try {
             Page<FAQResponseDto> response;
@@ -59,17 +65,16 @@ public class FAQQueryController {
             // 이미 정의된 FAQ 예외는 그대로 던짐
             log.error("FAQ 목록 조회 중 오류: {}", e.getMessage());
             throw e;
-        } catch (Exception e) {
-            // 예상치 못한 예외는 일반 FAQ 예외로 변환
-            log.error("FAQ 목록 조회 중 예상치 못한 오류:", e);
-            throw new FAQException(FAQErrorCode.FAQ_QUERY_ERROR,
-                    "FAQ 목록을 불러오는 중 오류가 발생했습니다.", e);
         }
     }
 
-    // === FAQ 단일 조회 ===
+    /**
+     * FAQ 단일 조회
+     */
     @GetMapping("/{id}")
-    public ResponseEntity<ResponseDto<FAQResponseDto>> getFAQ(@PathVariable("id") Long id) {
+    public ResponseEntity<ResponseDto<FAQResponseDto>> getFAQ(
+            @PathVariable("id") Long id
+    ) {
         try {
             if (id == null) {
                 throw new FAQNotFoundException("조회할 FAQ ID가 필요합니다.");
@@ -78,27 +83,19 @@ public class FAQQueryController {
             log.info("단일 FAQ 조회: ID={}", id);
             FAQResponseDto response = faqQueryService.getFAQ(id);
             return ResponseEntity.ok(ResponseDto.success(response));
-        } catch (FAQNotFoundException e) {
-            // FAQ 찾을 수 없음 예외는 그대로 던짐
-            log.warn("FAQ를 찾을 수 없음: ID={}", id);
-            throw e;
         } catch (FAQException e) {
-            // 다른 FAQ 관련 예외도 그대로 던짐
             log.error("FAQ 조회 중 오류: ID={}, 메시지={}", id, e.getMessage());
             throw e;
-        } catch (Exception e) {
-            // 예상치 못한 예외는 일반 FAQ 예외로 변환
-            log.error("FAQ 조회 중 예상치 못한 오류: ID={}", id, e);
-            throw new FAQException(FAQErrorCode.FAQ_QUERY_ERROR,
-                    "FAQ를 불러오는 중 오류가 발생했습니다.", e);
         }
     }
 
-    // === FAQ 검색 ===
+    /**
+     * FAQ 검색
+     */
     @GetMapping("/search")
     public ResponseEntity<ResponseDto<Page<FAQResponseDto>>> searchFAQs(
             @RequestParam(name = "keyword", required = false) String keyword,
-            Pageable pageable
+            @PageableDefault(size = 10) Pageable pageable
     ) {
         try {
             log.info("FAQ 검색: keyword={}. page={}, size={}",
@@ -109,18 +106,29 @@ public class FAQQueryController {
             Page<FAQResponseDto> results = faqQueryService.searchFAQs(keyword, pageable);
             return ResponseEntity.ok(ResponseDto.success(results));
         } catch (FAQException e) {
-            // 이미 정의된 FAQ 예외는 그대로 던짐
             log.error("FAQ 검색 중 오류: keyword={}, 메시지={}", keyword, e.getMessage());
             throw e;
-        } catch (Exception e) {
-            // 예상치 못한 예외는 일반 FAQ 예외로 변환
-            log.error("FAQ 검색 중 예상치 못한 오류: keyword={}", keyword, e);
-            throw new FAQException(FAQErrorCode.FAQ_QUERY_ERROR,
-                    "FAQ 검색 중 오류가 발생했습니다.", e);
         }
     }
 
-    // 파일 다운로드 -> {faqId}/{fileName} 형태
+    /**
+     * 전체 FAQ 목록 조회 (페이징 없음)
+     */
+    @GetMapping("/all")
+    public ResponseEntity<ResponseDto<List<FAQResponseDto>>> getAllFAQs() {
+        try {
+            log.info("전체 FAQ 목록 조회 (페이징 없음)");
+            List<FAQResponseDto> results = faqQueryService.getAllFAQs();
+            return ResponseEntity.ok(ResponseDto.success(results));
+        } catch (FAQException e) {
+            log.error("전체 FAQ 목록 조회 중 오류: {}", e.getMessage());
+            throw e;
+        }
+    }
+
+    /**
+     * FAQ 첨부 파일 다운로드
+     */
     @GetMapping("/files/{faqId}/{fileName}")
     public ResponseEntity<Resource> downloadFAQFile(
             @PathVariable Long faqId,
@@ -137,10 +145,9 @@ public class FAQQueryController {
 
             log.info("FAQ 파일 다운로드 요청: faqId={}, fileName={}", faqId, fileName);
 
-            // baseDir: /home/ubuntu/fream/faq
-            // subDir: faq_{faqId}
-            // 최종: /home/ubuntu/fream/faq/faq_123/파일.png
-            Path dirPath = Paths.get(FAQ_BASE_DIR, "faq_" + faqId);
+            // FAQ 디렉토리 경로
+            String fileDirectory = "faq/" + faqId;
+            Path dirPath = Paths.get(BASE_DIR, fileDirectory);
             Path filePath = dirPath.resolve(fileName).normalize();
 
             // 경로 검증 (디렉토리 탐색 방지)
@@ -182,17 +189,14 @@ public class FAQQueryController {
                     .body(resource);
 
         } catch (FAQFileException e) {
-            // 이미 정의된 FAQ 파일 예외는 그대로 던짐
             log.error("FAQ 파일 다운로드 중 파일 관련 오류: faqId={}, fileName={}, 메시지={}",
                     faqId, fileName, e.getMessage());
             throw e;
         } catch (IOException e) {
-            // IOException은 FAQ 파일 예외로 변환
             log.error("FAQ 파일 다운로드 중 IO 오류: faqId={}, fileName={}", faqId, fileName, e);
             throw new FAQFileException(FAQErrorCode.FAQ_FILE_NOT_FOUND,
                     "파일 접근 중 오류가 발생했습니다.", e);
         } catch (Exception e) {
-            // 예상치 못한 예외는 일반 FAQ 파일 예외로 변환
             log.error("FAQ 파일 다운로드 중 예상치 못한 오류: faqId={}, fileName={}", faqId, fileName, e);
             throw new FAQFileException(FAQErrorCode.FAQ_FILE_NOT_FOUND,
                     "파일 다운로드 중 오류가 발생했습니다.", e);

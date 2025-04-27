@@ -22,7 +22,7 @@ public class FAQ extends BaseTimeEntity {
     @Column(nullable = false)
     private FAQCategory category; // FAQ 카테고리 (ENUM)
 
-    @Column(nullable = false)
+    @Column(nullable = false, length = 100)
     private String question; // 질문 (Q)
 
     @Lob
@@ -33,5 +33,22 @@ public class FAQ extends BaseTimeEntity {
         this.category = category;
         this.question = question;
         this.answer = answer;
+    }
+
+    /**
+     * FAQ 이미지 파일이 저장되는 디렉토리 경로 반환
+     * @return 디렉토리 경로 (예: "faq/10")
+     */
+    public String getFileDirectory() {
+        return "faq/" + this.id;
+    }
+
+    /**
+     * 이미지 URL의 상대 경로를 절대 URL로 변환
+     * @param fileName 파일명 (예: "thumbnail_abc123.jpg")
+     * @return 절대 URL (예: "/api/faq/files/10/thumbnail_abc123.jpg")
+     */
+    public String getImageUrlPath(String fileName) {
+        return "/api/faq/files/" + this.id + "/" + fileName;
     }
 }

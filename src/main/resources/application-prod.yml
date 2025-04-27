@@ -36,6 +36,7 @@ spring:
   elasticsearch:
      uris: http://elasticsearch:9200
 
+
   batch:
     jdbc:
       initialize-schema: never # 운영에선 직접 관리
@@ -173,3 +174,4 @@ access-log:
   kafka:
     topic: user-access-log-topic
     group-id: user-access-log-group
+

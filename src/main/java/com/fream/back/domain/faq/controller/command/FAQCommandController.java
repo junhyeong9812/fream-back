@@ -11,6 +11,7 @@ import com.fream.back.domain.faq.exception.FAQPermissionException;
 import com.fream.back.domain.faq.service.command.FAQCommandService;
 import com.fream.back.domain.user.service.query.UserQueryService;
 import com.fream.back.global.dto.ResponseDto;
+import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.ResponseEntity;
@@ -19,10 +20,8 @@ import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.web.bind.annotation.*;
 
-import java.io.IOException;
-
 @RestController
-@RequestMapping("/faq")
+@RequestMapping("/api/faq")
 @RequiredArgsConstructor
 @Slf4j
 public class FAQCommandController {
@@ -30,7 +29,81 @@ public class FAQCommandController {
     private final FAQCommandService faqCommandService;
     private final UserQueryService userQueryService; // 관리자 권한 확인
 
-    // === 이메일 추출 (SecurityContext) ===
+    /**
+     * FAQ 생성
+     */
+    @PostMapping
+    public ResponseEntity<ResponseDto<FAQResponseDto>> createFAQ(
+            @Valid @ModelAttribute FAQCreateRequestDto requestDto
+    ) {
+        // 인증 정보 추출
+        String email = extractEmailFromSecurityContext();
+        log.info("FAQ 생성 시도: 사용자={}", email);
+
+        // 관리자 권한 확인
+        checkAdminPermission(email);
+
+        // FAQ 생성 서비스 호출
+        FAQResponseDto response = faqCommandService.createFAQ(requestDto);
+        log.info("FAQ 생성 완료: ID={}, 사용자={}", response.getId(), email);
+
+        return ResponseEntity.ok(ResponseDto.success(response));
+    }
+
+    /**
+     * FAQ 수정
+     */
+    @PutMapping("/{id}")
+    public ResponseEntity<ResponseDto<FAQResponseDto>> updateFAQ(
+            @PathVariable("id") Long id,
+            @Valid @ModelAttribute FAQUpdateRequestDto requestDto
+    ) {
+        if (id == null) {
+            throw new FAQNotFoundException("수정할 FAQ ID가 필요합니다.");
+        }
+
+        // 인증 정보 추출
+        String email = extractEmailFromSecurityContext();
+        log.info("FAQ 수정 시도: ID={}, 사용자={}", id, email);
+
+        // 관리자 권한 확인
+        checkAdminPermission(email);
+
+        // FAQ 수정 서비스 호출
+        FAQResponseDto response = faqCommandService.updateFAQ(id, requestDto);
+        log.info("FAQ 수정 완료: ID={}, 사용자={}", id, email);
+
+        return ResponseEntity.ok(ResponseDto.success(response));
+    }
+
+    /**
+     * FAQ 삭제
+     */
+    @DeleteMapping("/{id}")
+    public ResponseEntity<ResponseDto<Void>> deleteFAQ(
+            @PathVariable("id") Long id
+    ) {
+        if (id == null) {
+            throw new FAQNotFoundException("삭제할 FAQ ID가 필요합니다.");
+        }
+
+        // 인증 정보 추출
+        String email = extractEmailFromSecurityContext();
+        log.info("FAQ 삭제 시도: ID={}, 사용자={}", id, email);
+
+        // 관리자 권한 확인
+        checkAdminPermission(email);
+
+        // FAQ 삭제 서비스 호출
+        faqCommandService.deleteFAQ(id);
+        log.info("FAQ 삭제 완료: ID={}, 사용자={}", id, email);
+
+        return ResponseEntity.ok(ResponseDto.success(null));
+    }
+
+    /**
+     * 이메일 추출 (SecurityContext)
+     */
     private String extractEmailFromSecurityContext() {
         Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
         if (authentication == null) {
@@ -52,172 +125,15 @@ public class FAQCommandController {
         return email;
     }
 
-    // === FAQ 생성 ===
-    @PostMapping
-    public ResponseEntity<ResponseDto<FAQResponseDto>> createFAQ(@ModelAttribute FAQCreateRequestDto requestDto) {
-        String email = null;
-
+    /**
+     * 관리자 권한 확인
+     */
+    private void checkAdminPermission(String email) {
         try {
-            // 요청 기본 검증
-            if (requestDto == null) {
-                throw new FAQException(FAQErrorCode.FAQ_INVALID_REQUEST_DATA, "FAQ 데이터가 필요합니다.");
-            }
-
-            // 인증 정보 추출
-            email = extractEmailFromSecurityContext();
-            log.info("FAQ 생성 시도: 사용자={}", email);
-
-            // 관리자 권한 확인
-            try {
-                userQueryService.checkAdminRole(email);
-            } catch (AccessDeniedException e) {
-                log.warn("관리자 권한 없는 사용자의 FAQ 생성 시도: {}", email);
-                throw new FAQPermissionException("FAQ 생성은 관리자만 가능합니다.", e);
-            }
-
-            // FAQ 생성 서비스 호출
-            FAQResponseDto response = faqCommandService.createFAQ(requestDto);
-            log.info("FAQ 생성 완료: ID={}, 사용자={}", response.getId(), email);
-
-            return ResponseEntity.ok(ResponseDto.success(response));
-        } catch (FAQPermissionException e) {
-            // 권한 관련 예외는 그대로 전파
-            throw e;
-        } catch (FAQFileException e) {
-            // 파일 처리 예외는 그대로 전파하되 로깅
-            log.error("FAQ 생성 중 파일 오류: 사용자={}, 메시지={}", email, e.getMessage());
-            throw e;
-        } catch (FAQException e) {
-            // 기타 FAQ 관련 예외는 그대로 전파하되 로깅
-            log.error("FAQ 생성 중 오류: 사용자={}, 메시지={}", email, e.getMessage());
-            throw e;
-        } catch (IOException e) {
-            // IOException을 FAQFileException으로 변환
-            log.error("FAQ 생성 중 IO 오류: 사용자={}", email, e);
-            throw new FAQFileException(FAQErrorCode.FAQ_FILE_SAVE_ERROR,
-                    "파일 처리 중 오류가 발생했습니다. 파일 크기와 형식을 확인해주세요.", e);
-        } catch (Exception e) {
-            // 예상치 못한 예외는 일반 FAQ 예외로 변환
-            log.error("FAQ 생성 중 예상치 못한 오류: 사용자={}", email, e);
-            throw new FAQException(FAQErrorCode.FAQ_SAVE_ERROR,
-                    "FAQ 생성 중 오류가 발생했습니다. 관리자에게 문의해주세요.", e);
-        }
-    }
-
-    // === FAQ 수정 ===
-    @PutMapping("/{id}")
-    public ResponseEntity<ResponseDto<FAQResponseDto>> updateFAQ(
-            @PathVariable("id") Long id,
-            @ModelAttribute FAQUpdateRequestDto requestDto
-    ) {
-        String email = null;
-
-        try {
-            // 요청 기본 검증
-            if (id == null) {
-                throw new FAQNotFoundException("수정할 FAQ ID가 필요합니다.");
-            }
-
-            if (requestDto == null) {
-                throw new FAQException(FAQErrorCode.FAQ_INVALID_REQUEST_DATA, "수정할 FAQ 데이터가 필요합니다.");
-            }
-
-            // 인증 정보 추출
-            email = extractEmailFromSecurityContext();
-            log.info("FAQ 수정 시도: ID={}, 사용자={}", id, email);
-
-            // 관리자 권한 확인
-            try {
-                userQueryService.checkAdminRole(email);
-            } catch (AccessDeniedException e) {
-                log.warn("관리자 권한 없는 사용자의 FAQ 수정 시도: {}", email);
-                throw new FAQPermissionException("FAQ 수정은 관리자만 가능합니다.", e);
-            }
-
-            // FAQ 수정 서비스 호출
-            FAQResponseDto response = faqCommandService.updateFAQ(id, requestDto);
-            log.info("FAQ 수정 완료: ID={}, 사용자={}", id, email);
-
-            return ResponseEntity.ok(ResponseDto.success(response));
-        } catch (FAQNotFoundException e) {
-            log.warn("존재하지 않는 FAQ 수정 시도: ID={}, 사용자={}", id, email);
-            throw e;
-        } catch (FAQPermissionException e) {
-            // 권한 관련 예외는 그대로 전파
-            throw e;
-        } catch (FAQFileException e) {
-            // 파일 처리 예외는 그대로 전파하되 로깅
-            log.error("FAQ 수정 중 파일 오류: ID={}, 사용자={}, 메시지={}", id, email, e.getMessage());
-            throw e;
-        } catch (FAQException e) {
-            // 기타 FAQ 관련 예외는 그대로 전파하되 로깅
-            log.error("FAQ 수정 중 오류: ID={}, 사용자={}, 메시지={}", id, email, e.getMessage());
-            throw e;
-        } catch (IOException e) {
-            // IOException을 FAQFileException으로 변환
-            log.error("FAQ 수정 중 IO 오류: ID={}, 사용자={}", id, email, e);
-            throw new FAQFileException(FAQErrorCode.FAQ_FILE_SAVE_ERROR,
-                    "파일 처리 중 오류가 발생했습니다. 파일 크기와 형식을 확인해주세요.", e);
-        } catch (Exception e) {
-            // 예상치 못한 예외는 일반 FAQ 예외로 변환
-            log.error("FAQ 수정 중 예상치 못한 오류: ID={}, 사용자={}", id, email, e);
-            throw new FAQException(FAQErrorCode.FAQ_UPDATE_ERROR,
-                    "FAQ 수정 중 오류가 발생했습니다. 관리자에게 문의해주세요.", e);
-        }
-    }
-
-    // === FAQ 삭제 ===
-    @DeleteMapping("/{id}")
-    public ResponseEntity<ResponseDto<Void>> deleteFAQ(@PathVariable("id") Long id) {
-        String email = null;
-
-        try {
-            // 요청 기본 검증
-            if (id == null) {
-                throw new FAQNotFoundException("삭제할 FAQ ID가 필요합니다.");
-            }
-
-            // 인증 정보 추출
-            email = extractEmailFromSecurityContext();
-            log.info("FAQ 삭제 시도: ID={}, 사용자={}", id, email);
-
-            // 관리자 권한 확인
-            try {
-                userQueryService.checkAdminRole(email);
-            } catch (AccessDeniedException e) {
-                log.warn("관리자 권한 없는 사용자의 FAQ 삭제 시도: {}", email);
-                throw new FAQPermissionException("FAQ 삭제는 관리자만 가능합니다.", e);
-            }
-
-            // FAQ 삭제 서비스 호출
-            faqCommandService.deleteFAQ(id);
-            log.info("FAQ 삭제 완료: ID={}, 사용자={}", id, email);
-
-            return ResponseEntity.ok(ResponseDto.success(null));
-        } catch (FAQNotFoundException e) {
-            log.warn("존재하지 않는 FAQ 삭제 시도: ID={}, 사용자={}", id, email);
-            throw e;
-        } catch (FAQPermissionException e) {
-            // 권한 관련 예외는 그대로 전파
-            throw e;
-        } catch (FAQFileException e) {
-            // 파일 처리 예외는 그대로 전파하되 로깅
-            log.error("FAQ 삭제 중 파일 오류: ID={}, 사용자={}, 메시지={}", id, email, e.getMessage());
-            throw e;
-        } catch (FAQException e) {
-            // 기타 FAQ 관련 예외는 그대로 전파하되 로깅
-            log.error("FAQ 삭제 중 오류: ID={}, 사용자={}, 메시지={}", id, email, e.getMessage());
-            throw e;
-        } catch (IOException e) {
-            // IOException을 FAQFileException으로 변환
-            log.error("FAQ 삭제 중 IO 오류: ID={}, 사용자={}", id, email, e);
-            throw new FAQFileException(FAQErrorCode.FAQ_FILE_DELETE_ERROR,
-                    "파일 삭제 중 오류가 발생했습니다.", e);
-        } catch (Exception e) {
-            // 예상치 못한 예외는 일반 FAQ 예외로 변환
-            log.error("FAQ 삭제 중 예상치 못한 오류: ID={}, 사용자={}", id, email, e);
-            throw new FAQException(FAQErrorCode.FAQ_DELETE_ERROR,
-                    "FAQ 삭제 중 오류가 발생했습니다. 관리자에게 문의해주세요.", e);
+            userQueryService.checkAdminRole(email);
+        } catch (AccessDeniedException e) {
+            log.warn("관리자 권한 없는 사용자의 FAQ 접근 시도: {}", email);
+            throw new FAQPermissionException("FAQ 관리는 관리자만 가능합니다.", e);
         }
     }
 }
