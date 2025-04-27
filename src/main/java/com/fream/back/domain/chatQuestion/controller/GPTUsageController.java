@@ -44,7 +44,6 @@ public class GPTUsageController {
      * @return GPT 사용량 통계 DTO
      */
     @GetMapping("/stats")
-    @PreAuthorize("hasRole('ROLE_ADMIN')")
     public ResponseEntity<ResponseDto<GPTUsageStatsDto>> getUsageStatistics(
             @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate startDate,
             @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate endDate
@@ -75,7 +74,6 @@ public class GPTUsageController {
      * @return GPT 사용량 로그 DTO 페이지
      */
     @GetMapping("/logs")
-    @PreAuthorize("hasRole('ROLE_ADMIN')")
     public ResponseEntity<ResponseDto<Page<GPTUsageLogDto>>> getUsageLogs(
             @PageableDefault(size = 20, sort = "createdDate") Pageable pageable
     ) {
@@ -103,7 +101,6 @@ public class GPTUsageController {
      * @return 총 토큰 사용량
      */
     @GetMapping("/total-tokens")
-    @PreAuthorize("hasRole('ROLE_ADMIN')")
     public ResponseEntity<ResponseDto<Integer>> getTotalTokensUsed() {
         try {
             // 이메일 추출 후 Admin 권한 체크 (추가 보안)
