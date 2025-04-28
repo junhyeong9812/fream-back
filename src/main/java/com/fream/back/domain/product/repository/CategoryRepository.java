@@ -24,12 +24,13 @@ public interface CategoryRepository extends JpaRepository<Category, Long> {
     @Query("SELECT c FROM Category c LEFT JOIN FETCH c.parentCategory WHERE c.id = :id")
     Optional<Category> findWithParentById(@Param("id") Long id);
 
-
     Optional<Category> findByNameAndParentCategoryIsNotNull(String name);
 
     boolean existsByNameAndParentCategoryIsNull(String name);
 
     boolean existsByNameAndParentCategory(String name, Category parentCategory);
+
+    boolean existsByParentCategory(Category parentCategory);
 
     // 특정 카테고리의 모든 하위 카테고리 찾기
     List<Category> findByParentCategoryId(Long parentId);

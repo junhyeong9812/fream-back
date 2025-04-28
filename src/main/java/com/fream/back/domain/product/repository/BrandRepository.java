@@ -11,8 +11,9 @@ import java.util.Optional;
 public interface BrandRepository extends JpaRepository<Brand, Long> {
     Optional<Brand> findByName(String name);
 
+    boolean existsByName(String name);
+
     List<Brand> findAllByOrderByNameDesc();
 
     Page<Brand> findByNameContainingIgnoreCase(String keyword, Pageable pageable);
-
 }
