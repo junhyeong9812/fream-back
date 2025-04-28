@@ -10,6 +10,7 @@ import com.fream.back.domain.notice.exception.NoticeException;
 import com.fream.back.domain.notification.exception.NotificationException;
 import com.fream.back.domain.order.exception.OrderException;
 import com.fream.back.domain.payment.exception.PaymentException;
+import com.fream.back.domain.product.exception.ProductException;
 import com.fream.back.domain.warehouseStorage.exception.WarehouseStorageException;
 import com.fream.back.domain.weather.exception.WeatherException;
 import com.fream.back.global.exception.file.FileException;
@@ -386,6 +387,29 @@ public class GlobalExceptionHandler {
             HttpServletRequest request, EventException e) {
         ErrorCode errorCode = e.getErrorCode();
         log.error("EventException: {} - {}", errorCode.getCode(), e.getMessage(), e);
+
+        return ResponseEntity
+                .status(errorCode.getStatus())
+                .body(ErrorResponse.of(
+                        errorCode.getCode(),
+                        errorCode.getMessage(),
+                        errorCode.getStatus(),
+                        request.getRequestURI()
+                ));
+    }
+
+    /**
+     * ProductException 및 하위 예외 처리
+     *
+     * @param request 현재 HTTP 요청
+     * @param e 발생한 예외
+     * @return 에러 응답
+     */
+    @ExceptionHandler(ProductException.class)
+    public ResponseEntity<ErrorResponse> handleProductException(
+            HttpServletRequest request, ProductException e) {
+        ErrorCode errorCode = e.getErrorCode();
+        log.error("상품 예외 발생: {} - {}", errorCode.getCode(), e.getMessage(), e);
 
         return ResponseEntity
                 .status(errorCode.getStatus())
