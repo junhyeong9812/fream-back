@@ -8,20 +8,29 @@ import com.fream.back.domain.inspection.entity.InspectionStandard;
 import com.fream.back.domain.inspection.entity.InspectionStandardImage;
 import com.fream.back.domain.inspection.exception.InspectionErrorCode;
 import com.fream.back.domain.inspection.exception.InspectionException;
-import com.fream.back.domain.inspection.exception.InspectionFileException;
 import com.fream.back.domain.inspection.exception.InspectionNotFoundException;
 import com.fream.back.domain.inspection.repository.InspectionStandardImageRepository;
 import com.fream.back.domain.inspection.repository.InspectionStandardRepository;
+import com.fream.back.global.utils.FileUtils;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.dao.DataAccessException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.web.multipart.MultipartFile;
 
-import java.io.IOException;
+import java.util.ArrayList;
 import java.util.List;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 
+/**
+ * 검수 기준 관리 서비스
+ * - FileUtils 활용
+ * - BaseTimeEntity 필드명 일치 (createdDate, modifiedDate)
+ * - 예외 처리 일관성 강화
+ */
 @Service
 @RequiredArgsConstructor
 @Transactional
@@ -29,10 +38,19 @@ import java.util.stream.Collectors;
 public class InspectionStandardCommandService {
     private final InspectionStandardRepository inspectionStandardRepository;
     private final InspectionStandardImageRepository inspectionStandardImageRepository;
-    private final InspectionFileStorageUtil fileStorageUtil;
+    private final FileUtils fileUtils;
 
-    // 검수 기준 생성
-    public InspectionStandardResponseDto createStandard(InspectionStandardCreateRequestDto requestDto) throws IOException {
+    // 검수 기준 도메인 URL 상수 정의
+    private static final String INSPECTION_DOMAIN_URL = "https://www.pinjun.xyz";
+    private static final String INSPECTION_FILES_ENDPOINT = "/api/inspections/files";
+
+    /**
+     * 검수 기준 생성
+     * - 트랜잭션 처리 강화
+     * - FileUtils 활용
+     * - 예외 처리 일관성 유지
+     */
+    public InspectionStandardResponseDto createStandard(InspectionStandardCreateRequestDto requestDto) {
         if (requestDto == null) {
             throw new InspectionException(InspectionErrorCode.INSPECTION_INVALID_REQUEST_DATA,
                     "검수 기준 데이터가 필요합니다.");
@@ -58,55 +76,62 @@ public class InspectionStandardCommandService {
                         "검수 기준을 저장하는 중 데이터베이스 오류가 발생했습니다.", e);
             }
 
-            // 3) 파일
-            if (fileStorageUtil.hasFiles(requestDto.getFiles())) {
+            // 3) 파일 처리
+            if (hasFiles(requestDto.getFiles())) {
                 Long inspectionId = standard.getId();
-                List<String> relativePaths;
+                String directory = "inspection_" + inspectionId;
+                List<String> relativePaths = new ArrayList<>();
 
-                try {
-                    // "inspection_10/xxx.png"
-                    relativePaths = fileStorageUtil.saveFiles(requestDto.getFiles(), inspectionId);
-                    log.debug("검수 기준 이미지 파일 {} 개 저장 완료", relativePaths.size());
-                } catch (InspectionFileException e) {
-                    log.error("검수 기준 생성 중 파일 저장 실패: ", e);
-                    throw e;
+                // 파일 저장
+                for (MultipartFile file : requestDto.getFiles()) {
+                    if (file != null && !file.isEmpty()) {
+                        try {
+                            String fileName = fileUtils.saveFile(directory, "img_", file);
+                            relativePaths.add(directory + "/" + fileName);
+                            log.debug("검수 기준 이미지 파일 저장 완료: {}", fileName);
+                        } catch (Exception e) {
+                            log.error("검수 기준 이미지 파일 저장 실패: ", e);
+                            throw new InspectionException(InspectionErrorCode.INSPECTION_FILE_SAVE_ERROR,
+                                    "파일 저장 중 오류가 발생했습니다.", e);
+                        }
+                    }
                 }
 
-                try {
-                    // HTML 치환 -> 절대 URL
-                    String updatedContent = fileStorageUtil.updateImagePaths(requestDto.getContent(), relativePaths, inspectionId);
-                    standard.update(requestDto.getCategory(), updatedContent);
-                } catch (InspectionFileException e) {
-                    log.error("검수 기준 내용의 이미지 경로 수정 중 오류 발생: ", e);
-                    throw e;
+                // HTML 내용 업데이트
+                if (!relativePaths.isEmpty()) {
+                    try {
+                        String updatedContent = updateImagePaths(requestDto.getContent(), relativePaths, inspectionId);
+                        standard.update(requestDto.getCategory(), updatedContent);
+                    } catch (Exception e) {
+                        log.error("검수 기준 내용의 이미지 경로 수정 중 오류 발생: ", e);
+                        throw new InspectionException(InspectionErrorCode.INSPECTION_SAVE_ERROR,
+                                "이미지 경로 처리 중 오류가 발생했습니다.", e);
+                    }
                 }
 
-                // 이미지 엔티티
+                // 이미지 엔티티 저장
                 saveStandardImages(relativePaths, standard);
             }
 
             return toResponseDto(standard);
-        } catch (InspectionFileException e) {
-            // 파일 관련 예외는 로깅 후 그대로 전파
-            log.error("검수 기준 생성 중 파일 처리 예외 발생: {}", e.getMessage());
-            throw e;
-        } catch (InspectionException e) {
-            // 기타 검수 관련 예외는 로깅 후 그대로 전파
-            log.error("검수 기준 생성 중 예외 발생: {}", e.getMessage());
-            throw e;
-        } catch (IOException e) {
-            log.error("검수 기준 생성 중 IO 오류 발생: ", e);
-            throw new InspectionFileException(InspectionErrorCode.INSPECTION_FILE_SAVE_ERROR,
-                    "파일 처리 중 오류가 발생했습니다.", e);
         } catch (Exception e) {
-            log.error("검수 기준 생성 중 예상치 못한 오류 발생: ", e);
+            // 예외 발생 시 전체 롤백 (트랜잭션)
+            log.error("검수 기준 생성 중 오류 발생: ", e);
+            if (e instanceof InspectionException) {
+                throw e;
+            }
             throw new InspectionException(InspectionErrorCode.INSPECTION_SAVE_ERROR,
                     "검수 기준 생성 중 오류가 발생했습니다.", e);
         }
     }
 
-    // 검수 기준 수정
-    public InspectionStandardResponseDto updateStandard(Long id, InspectionStandardUpdateRequestDto dto) throws IOException {
+    /**
+     * 검수 기준 수정
+     * - 트랜잭션 처리 강화
+     * - FileUtils 활용
+     * - 예외 처리 일관성 유지
+     */
+    public InspectionStandardResponseDto updateStandard(Long id, InspectionStandardUpdateRequestDto dto) {
         if (id == null) {
             throw new InspectionNotFoundException("검수 기준 ID가 필요합니다.");
         }
@@ -124,88 +149,95 @@ public class InspectionStandardCommandService {
             InspectionStandard standard = inspectionStandardRepository.findById(id)
                     .orElseThrow(() -> new InspectionNotFoundException("ID가 " + id + "인 검수 기준을 찾을 수 없습니다."));
 
-            // 기존 이미지 조회
+            // 기존 이미지 처리
+            String directory = "inspection_" + id;
             List<InspectionStandardImage> existingImages = inspectionStandardImageRepository.findAllByInspectionStandardId(id);
 
-            // content 내 이미지 경로 추출
-            List<String> contentImagePaths = fileStorageUtil.extractImagePaths(dto.getContent());
+            // 수정 후 삭제할 이미지 파일들 찾기
+            List<InspectionStandardImage> imagesToDelete = existingImages.stream()
+                    .filter(img -> {
+                        String imagePath = img.getImageUrl();
+                        return !dto.getExistingImageUrls().contains(imagePath) &&
+                                !dto.getContent().contains(imagePath);
+                    })
+                    .collect(Collectors.toList());
 
-            try {
-                // 삭제할 이미지 (content에 없는 이미지들)
-                List<InspectionStandardImage> imagesToDelete = existingImages.stream()
-                        .filter(img -> !contentImagePaths.contains(img.getImageUrl()))
-                        .collect(Collectors.toList());
-
-                if (!imagesToDelete.isEmpty()) {
-                    fileStorageUtil.deleteFiles(imagesToDelete.stream()
-                            .map(InspectionStandardImage::getImageUrl)
-                            .collect(Collectors.toList()));
-                    inspectionStandardImageRepository.deleteAll(imagesToDelete);
-                    log.debug("검수 기준 수정 중 불필요한 이미지 {} 개 삭제 완료", imagesToDelete.size());
+            // 삭제 대상 파일 처리
+            for (InspectionStandardImage image : imagesToDelete) {
+                String imageUrl = image.getImageUrl();
+                if (imageUrl != null && imageUrl.contains("/")) {
+                    String fileName = imageUrl.substring(imageUrl.lastIndexOf("/") + 1);
+                    try {
+                        fileUtils.deleteFile(directory, fileName);
+                        inspectionStandardImageRepository.delete(image);
+                        log.debug("불필요한 이미지 삭제 완료: {}", imageUrl);
+                    } catch (Exception e) {
+                        log.warn("이미지 파일 삭제 실패 (계속 진행): {}", imageUrl, e);
+                        // 파일 삭제 실패해도 데이터베이스 작업은 계속 진행
+                        inspectionStandardImageRepository.delete(image);
+                    }
                 }
-            } catch (InspectionFileException e) {
-                // 이미지 삭제 실패는 경고로 로그하고 계속 진행
-                log.warn("검수 기준 수정 중 불필요한 이미지 삭제 실패 - 계속 진행합니다: {}", e.getMessage());
             }
 
             // 새 이미지 처리
-            if (fileStorageUtil.hasFiles(dto.getNewFiles())) {
-                List<String> newPaths;
-                try {
-                    newPaths = fileStorageUtil.saveFiles(dto.getNewFiles(), id);
-                    log.debug("검수 기준 수정 중 새 이미지 {} 개 저장 완료", newPaths.size());
-                } catch (InspectionFileException e) {
-                    log.error("검수 기준 수정 중 새 파일 저장 실패: ", e);
-                    throw e;
+            if (hasFiles(dto.getNewFiles())) {
+                List<String> newPaths = new ArrayList<>();
+
+                // 파일 저장
+                for (MultipartFile file : dto.getNewFiles()) {
+                    if (file != null && !file.isEmpty()) {
+                        try {
+                            String fileName = fileUtils.saveFile(directory, "img_", file);
+                            String relativePath = directory + "/" + fileName;
+                            newPaths.add(relativePath);
+                            log.debug("새 이미지 파일 저장 완료: {}", fileName);
+                        } catch (Exception e) {
+                            log.error("새 이미지 파일 저장 실패: ", e);
+                            throw new InspectionException(InspectionErrorCode.INSPECTION_FILE_SAVE_ERROR,
+                                    "파일 저장 중 오류가 발생했습니다.", e);
+                        }
+                    }
                 }
 
-                try {
-                    // HTML content 내 이미지 경로 업데이트
-                    String updatedContent = fileStorageUtil.updateImagePaths(dto.getContent(), newPaths, standard.getId());
-                    standard.update(dto.getCategory(), updatedContent);
-                } catch (InspectionFileException e) {
-                    log.error("검수 기준 내용의 이미지 경로 수정 중 오류 발생: ", e);
-                    throw e;
-                }
+                // HTML 내용 업데이트
+                if (!newPaths.isEmpty()) {
+                    try {
+                        String updatedContent = updateImagePaths(dto.getContent(), newPaths, id);
+                        standard.update(dto.getCategory(), updatedContent);
+                    } catch (Exception e) {
+                        log.error("검수 기준 내용의 이미지 경로 수정 중 오류 발생: ", e);
+                        throw new InspectionException(InspectionErrorCode.INSPECTION_UPDATE_ERROR,
+                                "이미지 경로 처리 중 오류가 발생했습니다.", e);
+                    }
 
-                // 이미지 엔티티 저장
-                saveStandardImages(newPaths, standard);
+                    // 새 이미지 엔티티 저장
+                    saveStandardImages(newPaths, standard);
+                }
             } else {
-                // 새 이미지 없으면, 기존 content만 업데이트
+                // 이미지 업데이트 없을 경우, 내용만 업데이트
                 standard.update(dto.getCategory(), dto.getContent());
             }
 
             log.info("검수 기준 수정 완료: ID={}", id);
             return toResponseDto(standard);
-        } catch (InspectionNotFoundException e) {
-            // 조회 실패 시 NOT_FOUND 예외 그대로 전파
-            log.warn("검수 기준 수정 중 기준을 찾을 수 없음: {}", e.getMessage());
-            throw e;
-        } catch (InspectionFileException e) {
-            // 파일 관련 예외 그대로 전파
-            log.error("검수 기준 수정 중 파일 관련 오류: {}", e.getMessage());
-            throw e;
-        } catch (InspectionException e) {
-            // 기타 검수 관련 예외 그대로 전파
-            log.error("검수 기준 수정 중 예외 발생: {}", e.getMessage());
-            throw e;
-        } catch (DataAccessException e) {
-            log.error("검수 기준 수정 중 데이터베이스 오류 발생: ", e);
-            throw new InspectionException(InspectionErrorCode.INSPECTION_UPDATE_ERROR,
-                    "검수 기준을 수정하는 중 데이터베이스 오류가 발생했습니다.", e);
-        } catch (IOException e) {
-            log.error("검수 기준 수정 중 파일 처리 IO 오류 발생: ", e);
-            throw new InspectionFileException(InspectionErrorCode.INSPECTION_FILE_SAVE_ERROR,
-                    "파일 처리 중 오류가 발생했습니다.", e);
         } catch (Exception e) {
-            log.error("검수 기준 수정 중 예상치 못한 오류 발생: ", e);
+            // 예외 발생 시 전체 롤백 (트랜잭션)
+            log.error("검수 기준 수정 중 오류 발생: ", e);
+            if (e instanceof InspectionException) {
+                throw e;
+            }
             throw new InspectionException(InspectionErrorCode.INSPECTION_UPDATE_ERROR,
                     "검수 기준 수정 중 오류가 발생했습니다.", e);
         }
     }
 
-    // 검수 기준 삭제
-    public void deleteStandard(Long id) throws IOException {
+    /**
+     * 검수 기준 삭제
+     * - 트랜잭션 처리 강화
+     * - FileUtils 활용
+     * - 예외 처리 일관성 유지
+     */
+    public void deleteStandard(Long id) {
         if (id == null) {
             throw new InspectionNotFoundException("삭제할 검수 기준 ID가 필요합니다.");
         }
@@ -218,17 +250,14 @@ public class InspectionStandardCommandService {
             // 이미지 조회
             List<InspectionStandardImage> images = inspectionStandardImageRepository.findAllByInspectionStandardId(id);
 
+            // 디렉토리 삭제 (이미지 포함)
             try {
-                // 이미지 파일 삭제
-                if (!images.isEmpty()) {
-                    fileStorageUtil.deleteFiles(images.stream()
-                            .map(InspectionStandardImage::getImageUrl)
-                            .collect(Collectors.toList()));
-                    log.debug("검수 기준 삭제 중 이미지 {} 개 삭제 완료", images.size());
-                }
-            } catch (InspectionFileException e) {
-                // 이미지 삭제 실패는 경고로 로깅하고 DB 삭제는 계속 진행
-                log.warn("검수 기준 삭제 중 이미지 파일 삭제 실패 - DB 삭제는 계속 진행합니다: {}", e.getMessage());
+                String directory = "inspection_" + id;
+                fileUtils.deleteDirectory(directory);
+                log.debug("검수 기준 디렉토리 삭제 완료: {}", directory);
+            } catch (Exception e) {
+                // 파일 시스템 오류가 있어도 DB 작업은 계속 진행
+                log.warn("검수 기준 디렉토리 삭제 실패 (계속 진행): {}", e.getMessage());
             }
 
             // DB에서 이미지 엔티티 및 검수 기준 삭제
@@ -236,26 +265,20 @@ public class InspectionStandardCommandService {
             inspectionStandardRepository.delete(standard);
 
             log.info("검수 기준 삭제 완료: ID={}", id);
-        } catch (InspectionNotFoundException e) {
-            // 조회 실패 시 NOT_FOUND 예외 그대로 전파
-            log.warn("검수 기준 삭제 중 기준을 찾을 수 없음: {}", e.getMessage());
-            throw e;
-        } catch (InspectionFileException e) {
-            // 파일 관련 예외는 로깅 후 그대로 전파
-            log.error("검수 기준 삭제 중 파일 관련 오류: {}", e.getMessage());
-            throw e;
-        } catch (DataAccessException e) {
-            log.error("검수 기준 삭제 중 데이터베이스 오류 발생: ", e);
-            throw new InspectionException(InspectionErrorCode.INSPECTION_DELETE_ERROR,
-                    "검수 기준을 삭제하는 중 데이터베이스 오류가 발생했습니다.", e);
         } catch (Exception e) {
-            log.error("검수 기준 삭제 중 예상치 못한 오류 발생: ", e);
+            // 예외 발생 시 전체 롤백 (트랜잭션)
+            log.error("검수 기준 삭제 중 오류 발생: ", e);
+            if (e instanceof InspectionNotFoundException) {
+                throw e;
+            }
             throw new InspectionException(InspectionErrorCode.INSPECTION_DELETE_ERROR,
                     "검수 기준 삭제 중 오류가 발생했습니다.", e);
         }
     }
 
-    // 데이터 검증
+    /**
+     * 데이터 검증
+     */
     private void validateStandardData(InspectionCategory category, String content) {
         if (category == null) {
             throw new InspectionException(InspectionErrorCode.INSPECTION_INVALID_CATEGORY,
@@ -268,7 +291,9 @@ public class InspectionStandardCommandService {
         }
     }
 
-    // 이미지 엔티티 저장
+    /**
+     * 이미지 엔티티 저장
+     */
     private void saveStandardImages(List<String> relativePaths, InspectionStandard standard) {
         try {
             for (String path : relativePaths) {
@@ -287,7 +312,112 @@ public class InspectionStandardCommandService {
         }
     }
 
-    // 응답 DTO 변환
+    /**
+     * HTML content 내 <img src>를
+     * "https://www.pinjun.xyz/api/inspections/files/{inspectionId}/{fileName}" 로 치환
+     */
+    private String updateImagePaths(String content, List<String> relativePaths, Long inspectionId) {
+        if (content == null) {
+            return "";
+        }
+
+        if (relativePaths == null || relativePaths.isEmpty()) {
+            return content;
+        }
+
+        if (inspectionId == null) {
+            throw new InspectionException(InspectionErrorCode.INSPECTION_INVALID_REQUEST_DATA,
+                    "검수 기준 ID가 필요합니다.");
+        }
+
+        try {
+            // 정규식
+            String regex = "<img\\s+[^>]*src=\"([^\"]*)\"";
+            Matcher matcher = Pattern.compile(regex).matcher(content);
+            StringBuffer updatedContent = new StringBuffer();
+
+            // 이미지 경로 리스트의 복사본 생성 (원본 리스트를 변경하지 않기 위해)
+            List<String> pathsCopy = new ArrayList<>(relativePaths);
+
+            while (matcher.find() && !pathsCopy.isEmpty()) {
+                // 기존 src="..."
+                String originalSrc = matcher.group(1);
+                // 예: "inspection_10/abc.png"
+                String relPath = pathsCopy.remove(0);
+
+                // 폴더명, 파일명 분리
+                String[] parts = relPath.split("/");
+                if (parts.length < 2) {
+                    log.warn("잘못된 상대 경로 형식: {}", relPath);
+                    continue;
+                }
+
+                // parts[0] = "inspection_10", parts[1] = "abc.png"
+                String fileName = parts[1];
+
+                // 절대 URL
+                String newSrc = INSPECTION_DOMAIN_URL + INSPECTION_FILES_ENDPOINT
+                        + "/" + inspectionId + "/" + fileName;
+                // 예: "https://www.pinjun.xyz/api/inspections/files/10/abc.png"
+
+                matcher.appendReplacement(
+                        updatedContent,
+                        matcher.group(0).replace(originalSrc, newSrc)
+                );
+            }
+            matcher.appendTail(updatedContent);
+            return updatedContent.toString();
+        } catch (Exception e) {
+            log.error("이미지 경로 업데이트 중 오류 발생: ", e);
+            throw new InspectionException(InspectionErrorCode.INSPECTION_FILE_SAVE_ERROR,
+                    "이미지 경로 업데이트 중 오류가 발생했습니다.", e);
+        }
+    }
+
+    /**
+     * HTML content 내 이미지 경로 추출
+     */
+    private List<String> extractImagePaths(String content) {
+        if (content == null) {
+            return new ArrayList<>();
+        }
+
+        try {
+            String regex = "<img\\s+[^>]*src=\"([^\"]*)\"";
+            Pattern pattern = Pattern.compile(regex);
+            Matcher matcher = pattern.matcher(content);
+            List<String> paths = new ArrayList<>();
+
+            while (matcher.find()) {
+                String src = matcher.group(1);
+                if (src != null && !src.trim().isEmpty()) {
+                    paths.add(src);
+                }
+            }
+            return paths;
+        } catch (Exception e) {
+            log.error("이미지 경로 추출 중 오류 발생: ", e);
+            throw new InspectionException(InspectionErrorCode.INSPECTION_FILE_SAVE_ERROR,
+                    "이미지 경로 추출 중 오류가 발생했습니다.", e);
+        }
+    }
+
+    /**
+     * MultipartFile 리스트에 실제 파일이 있는지 확인
+     */
+    private boolean hasFiles(List<MultipartFile> files) {
+        if (files == null || files.isEmpty()) {
+            return false;
+        }
+
+        // 실제로 내용이 있는 파일이 있는지 확인
+        return files.stream().anyMatch(file -> file != null && !file.isEmpty());
+    }
+
+    /**
+     * 응답 DTO 변환
+     * - BaseTimeEntity 필드명에 맞게 수정 (createdDate, modifiedDate)
+     */
     private InspectionStandardResponseDto toResponseDto(InspectionStandard standard) {
         try {
             List<String> imageUrls = inspectionStandardImageRepository
@@ -301,6 +431,8 @@ public class InspectionStandardCommandService {
                     .category(standard.getCategory().name())
                     .content(standard.getContent())
                     .imageUrls(imageUrls)
+                    .createdDate(standard.getCreatedDate())
+                    .modifiedDate(standard.getModifiedDate())
                     .build();
         } catch (DataAccessException e) {
             log.error("응답 DTO 변환 중 이미지 URL 조회 오류: ", e);
