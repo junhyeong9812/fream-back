@@ -126,12 +126,7 @@ public class NoticeCommandController {
             validateCreateRequest(requestDto);
 
             // 공지사항 생성 처리
-            NoticeResponseDto response = noticeCommandService.createNotice(
-                    requestDto.getTitle(),
-                    requestDto.getContent(),
-                    requestDto.getCategory(),
-                    requestDto.getFiles()
-            );
+            NoticeResponseDto response = noticeCommandService.createNotice(requestDto);
 
             log.info("공지사항 생성 API 완료: id={}, title={}", response.getId(), response.getTitle());
             return ResponseEntity.ok(response);
@@ -177,14 +172,7 @@ public class NoticeCommandController {
             validateUpdateRequest(noticeId, requestDto);
 
             // 공지사항 수정 처리
-            NoticeResponseDto response = noticeCommandService.updateNotice(
-                    noticeId,
-                    requestDto.getTitle(),
-                    requestDto.getContent(),
-                    requestDto.getCategory(),
-                    requestDto.getExistingImageUrls(),
-                    requestDto.getNewFiles()
-            );
+            NoticeResponseDto response = noticeCommandService.updateNotice(noticeId, requestDto);
 
             log.info("공지사항 수정 API 완료: id={}, title={}", response.getId(), response.getTitle());
             return ResponseEntity.ok(response);
