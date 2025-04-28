@@ -1,7 +1,5 @@
 package com.fream.back.domain.notice.exception;
 
-import com.fream.back.global.exception.ErrorCode;
-
 /**
  * 공지사항 관리 권한 관련 예외
  */

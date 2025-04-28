@@ -1,7 +1,5 @@
 package com.fream.back.domain.notice.exception;
 
-import com.fream.back.global.exception.ErrorCode;
-
 /**
  * 공지사항을 찾을 수 없을 때 발생하는 예외
  */

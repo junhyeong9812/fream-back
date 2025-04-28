@@ -5,7 +5,6 @@ import com.fream.back.global.exception.GlobalException;
 
 /**
  * 공지사항 도메인에서 발생하는 모든 예외의 기본 클래스
- * GlobalException을 상속받아 전역 예외 처리 시스템과 통합됨
  */
 public class NoticeException extends GlobalException {
 
