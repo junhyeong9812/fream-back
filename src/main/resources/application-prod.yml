@@ -148,6 +148,38 @@ openai:
 server:
   use-forward-headers: true
 
+# 결제 도메인 관련 설정 추가
+#payment:
+#  encryption:
+#    secret-key: ${PAYMENT_ENCRYPTION_KEY}
+#    salt: ${PAYMENT_ENCRYPTION_SALT}
+#    iv: ${PAYMENT_ENCRYPTION_IV}
+#  card-info:
+#    max-count: 5 # 사용자당 최대 등록 가능한 카드 정보 수
+#  retry:
+#    max-attempts: 3 # 결제 실패 시 최대 재시도 횟수
+#    delay-ms: 1000 # 재시도 간격 (밀리초)
+#  logging:
+#    mask-sensitive-data: true # 민감 정보 마스킹 활성화 여부
+#  api:
+#    timeout: 10000 # 외부 API 호출 타임아웃 (밀리초)
+# 결제 도메인 관련 설정 추가
+payment:
+  encryption:
+    # 개발/테스트 환경용 하드코딩 암호화 키 (실제 운영 환경에서는 환경변수로 교체 필요)
+    secret-key: "dev_payment_encryption_secret_key_12345"
+    salt: "dev_payment_salt_value_for_testing_only"
+    iv: "dev0123456789abc" # 초기화 벡터는 16바이트
+  card-info:
+    max-count: 5 # 사용자당 최대 등록 가능한 카드 정보 수
+  retry:
+    max-attempts: 3 # 결제 실패 시 최대 재시도 횟수
+    delay-ms: 1000 # 재시도 간격 (밀리초)
+  logging:
+    mask-sensitive-data: true # 민감 정보 마스킹 활성화 여부
+  api:
+    timeout: 10000 # 외부 API 호출 타임아웃 (밀리초)
+
 # weather 도메인 설정
 weather:
   api:

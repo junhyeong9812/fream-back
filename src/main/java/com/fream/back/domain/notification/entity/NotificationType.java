@@ -9,6 +9,7 @@ public enum NotificationType {
     FAVORITE(NotificationCategory.SHOPPING, "관심 상품 관련 알림"),
     BENEFIT(NotificationCategory.SHOPPING, "혜택 관련 알림"),
     ANNOUNCEMENT(NotificationCategory.SHOPPING, "공지사항 알림"),
+    REFUND(NotificationCategory.SHOPPING, "환불 관련 알림"), // 추가: 환불 알림 유형
 
     // STYLE 카테고리 알림 유형
     LIKE(NotificationCategory.STYLE, "좋아요 관련 알림"),

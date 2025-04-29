@@ -15,10 +15,16 @@ import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.*;
 
+import java.time.Duration;
+import java.time.Instant;
 import java.util.List;
 
+/**
+ * 결제 정보 컨트롤러
+ * 결제 수단 관리(등록, 삭제, 조회) API 제공
+ */
 @RestController
-@RequestMapping("/payment-info")
+@RequestMapping("/api/v1/payment-info")
 @RequiredArgsConstructor
 @Slf4j
 public class PaymentInfoController {
@@ -27,7 +33,11 @@ public class PaymentInfoController {
     private final PaymentInfoQueryService paymentInfoQueryService;
     private final PortOneApiClient portOneApiClient;
 
-    // SecurityContextHolder에서 이메일 추출
+    /**
+     * SecurityContext에서 사용자 이메일 추출
+     * @return 인증된 사용자 이메일
+     * @throws PaymentException 인증 정보가 없는 경우
+     */
     private String extractEmailFromSecurityContext() {
         Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
         if (authentication != null && authentication.getPrincipal() instanceof String) {
@@ -36,29 +46,47 @@ public class PaymentInfoController {
         throw new PaymentException(PaymentErrorCode.PAYMENT_INFO_ACCESS_DENIED, "인증된 사용자 정보를 찾을 수 없습니다.");
     }
 
-    // 결제 정보 생성
+    /**
+     * 결제 정보 생성 API
+     * @param dto 결제 정보 생성 DTO
+     * @return 생성 결과 메시지
+     */
     @PostMapping
     public ResponseEntity<String> createPaymentInfo(@RequestBody @Validated PaymentInfoCreateDto dto) {
+        Instant start = Instant.now();
         try {
             log.info("결제 정보 생성 API 요청 시작");
-
-            // 입력값 검증
-            validatePaymentInfoCreateDto(dto);
 
             String email = extractEmailFromSecurityContext();
             paymentInfoCommandService.createPaymentInfo(email, dto);
 
             log.info("결제 정보 생성 API 요청 완료: 사용자={}", email);
+
+            // 처리 시간 로깅
+            Instant end = Instant.now();
+            Duration duration = Duration.between(start, end);
+            log.debug("결제 정보 생성 API 처리 시간: {}ms", duration.toMillis());
+
             return ResponseEntity.ok("결제 정보가 성공적으로 생성되었습니다.");
         } catch (PaymentException e) {
-            log.error("결제 정보 생성 API 오류: {}", e.getMessage());
+            log.error("결제 정보 생성 API 오류: 에러코드={}, 메시지={}",
+                    e.getErrorCode().getCode(), e.getMessage());
             throw e; // 전역 예외 처리기에서 처리하도록 전파
+        } catch (Exception e) {
+            log.error("결제 정보 생성 API 예상치 못한 오류: {}", e.getMessage(), e);
+            throw new PaymentException(PaymentErrorCode.PAYMENT_INFO_CREATION_FAILED,
+                    "결제 정보 생성 중 오류가 발생했습니다: " + e.getMessage());
         }
     }
 
-    // 결제 정보 삭제
+    /**
+     * 결제 정보 삭제 API
+     * @param id 삭제할 결제 정보 ID
+     * @return 삭제 결과 메시지
+     */
     @DeleteMapping("/{id}")
     public ResponseEntity<String> deletePaymentInfo(@PathVariable("id") Long id) {
+        Instant start = Instant.now();
         try {
             log.info("결제 정보 삭제 API 요청 시작: 결제정보ID={}", id);
 
@@ -71,16 +99,32 @@ public class PaymentInfoController {
             paymentInfoCommandService.deletePaymentInfo(email, id);
 
             log.info("결제 정보 삭제 API 요청 완료: 사용자={}, 결제정보ID={}", email, id);
+
+            // 처리 시간 로깅
+            Instant end = Instant.now();
+            Duration duration = Duration.between(start, end);
+            log.debug("결제 정보 삭제 API 처리 시간: {}ms", duration.toMillis());
+
             return ResponseEntity.ok("결제 정보가 성공적으로 삭제되었습니다.");
         } catch (PaymentException e) {
-            log.error("결제 정보 삭제 API 오류: 결제정보ID={}, {}", id, e.getMessage());
+            log.error("결제 정보 삭제 API 오류: 결제정보ID={}, 에러코드={}, 메시지={}",
+                    id, e.getErrorCode().getCode(), e.getMessage());
             throw e; // 전역 예외 처리기에서 처리하도록 전파
+        } catch (Exception e) {
+            log.error("결제 정보 삭제 API 예상치 못한 오류: 결제정보ID={}, 오류={}",
+                    id, e.getMessage(), e);
+            throw new PaymentException(PaymentErrorCode.PAYMENT_INFO_DELETION_FAILED,
+                    "결제 정보 삭제 중 오류가 발생했습니다: " + e.getMessage());
         }
     }
 
-    // 결제 정보 목록 조회
+    /**
+     * 결제 정보 목록 조회 API
+     * @return 사용자의 저장된 결제 정보 목록
+     */
     @GetMapping
     public ResponseEntity<List<PaymentInfoDto>> getPaymentInfos() {
+        Instant start = Instant.now();
         try {
             log.info("결제 정보 목록 조회 API 요청 시작");
 
@@ -89,16 +133,32 @@ public class PaymentInfoController {
 
             log.info("결제 정보 목록 조회 API 요청 완료: 사용자={}, 조회된 결제정보 수={}",
                     email, paymentInfos.size());
+
+            // 처리 시간 로깅
+            Instant end = Instant.now();
+            Duration duration = Duration.between(start, end);
+            log.debug("결제 정보 목록 조회 API 처리 시간: {}ms", duration.toMillis());
+
             return ResponseEntity.ok(paymentInfos);
         } catch (PaymentException e) {
-            log.error("결제 정보 목록 조회 API 오류: {}", e.getMessage());
+            log.error("결제 정보 목록 조회 API 오류: 에러코드={}, 메시지={}",
+                    e.getErrorCode().getCode(), e.getMessage());
             throw e; // 전역 예외 처리기에서 처리하도록 전파
+        } catch (Exception e) {
+            log.error("결제 정보 목록 조회 API 예상치 못한 오류: {}", e.getMessage(), e);
+            throw new PaymentException(PaymentErrorCode.PAYMENT_RETRIEVAL_FAILED,
+                    "결제 정보 목록 조회 중 오류가 발생했습니다: " + e.getMessage());
         }
     }
 
-    // 결제 정보 단일 조회
+    /**
+     * 결제 정보 단일 조회 API
+     * @param id 조회할 결제 정보 ID
+     * @return 결제 정보 DTO
+     */
     @GetMapping("/{id}")
     public ResponseEntity<PaymentInfoDto> getPaymentInfo(@PathVariable("id") Long id) {
+        Instant start = Instant.now();
         try {
             log.info("단일 결제 정보 조회 API 요청 시작: 결제정보ID={}", id);
 
@@ -111,21 +171,36 @@ public class PaymentInfoController {
             PaymentInfoDto paymentInfo = paymentInfoQueryService.getPaymentInfo(email, id);
 
             log.info("단일 결제 정보 조회 API 요청 완료: 사용자={}, 결제정보ID={}", email, id);
+
+            // 처리 시간 로깅
+            Instant end = Instant.now();
+            Duration duration = Duration.between(start, end);
+            log.debug("단일 결제 정보 조회 API 처리 시간: {}ms", duration.toMillis());
+
             return ResponseEntity.ok(paymentInfo);
         } catch (PaymentException e) {
-            log.error("단일 결제 정보 조회 API 오류: 결제정보ID={}, {}", id, e.getMessage());
+            log.error("단일 결제 정보 조회 API 오류: 결제정보ID={}, 에러코드={}, 메시지={}",
+                    id, e.getErrorCode().getCode(), e.getMessage());
             throw e; // 전역 예외 처리기에서 처리하도록 전파
+        } catch (Exception e) {
+            log.error("단일 결제 정보 조회 API 예상치 못한 오류: 결제정보ID={}, 오류={}",
+                    id, e.getMessage(), e);
+            throw new PaymentException(PaymentErrorCode.PAYMENT_RETRIEVAL_FAILED,
+                    "결제 정보 조회 중 오류가 발생했습니다: " + e.getMessage());
         }
     }
 
-    // 테스트 결제 요청 및 환불 로직 테스트
+    /**
+     * 테스트 결제 및 환불 API
+     * 카드 정보 유효성 검증 용도
+     * @param dto 결제 정보 생성 DTO
+     * @return 테스트 결제 결과 메시지
+     */
     @PostMapping("/test-payment")
-    public ResponseEntity<String> testPayment(@RequestBody PaymentInfoCreateDto dto) {
+    public ResponseEntity<String> testPayment(@RequestBody @Validated PaymentInfoCreateDto dto) {
+        Instant start = Instant.now();
         try {
             log.info("테스트 결제 API 요청 시작");
-
-            // 입력값 검증
-            validatePaymentInfoCreateDto(dto);
 
             // 1. 테스트 결제 요청
             String impUid = portOneApiClient.requestTestPayment(dto);
@@ -135,45 +210,24 @@ public class PaymentInfoController {
             boolean refundSuccess = portOneApiClient.cancelTestPayment(impUid);
             log.info("테스트 결제 환불 결과: 성공={}, impUid={}", refundSuccess, impUid);
 
+            // 처리 시간 로깅
+            Instant end = Instant.now();
+            Duration duration = Duration.between(start, end);
+            log.debug("테스트 결제 API 처리 시간: {}ms", duration.toMillis());
+
             if (refundSuccess) {
                 return ResponseEntity.ok("테스트 결제와 환불이 성공적으로 수행되었습니다. 거래 고유번호: " + impUid);
             } else {
                 return ResponseEntity.ok("테스트 결제는 성공했으나 환불에 실패했습니다. 거래 고유번호: " + impUid);
             }
         } catch (PaymentException e) {
-            log.error("테스트 결제 API 오류: {}", e.getMessage());
+            log.error("테스트 결제 API 오류: 에러코드={}, 메시지={}",
+                    e.getErrorCode().getCode(), e.getMessage());
             throw e; // 전역 예외 처리기에서 처리하도록 전파
         } catch (Exception e) {
             log.error("테스트 결제 API 예상치 못한 오류: {}", e.getMessage(), e);
             throw new PaymentException(PaymentErrorCode.PAYMENT_API_ERROR,
                     "테스트 결제 또는 환불 중 오류가 발생했습니다: " + e.getMessage());
-        }
-    }
-
-    // 결제 정보 유효성 검증
-    private void validatePaymentInfoCreateDto(PaymentInfoCreateDto dto) {
-        if (dto == null) {
-            throw new PaymentException(PaymentErrorCode.INVALID_CARD_INFO, "결제 정보가 없습니다.");
-        }
-
-        if (dto.getCardNumber() == null || dto.getCardNumber().isBlank()) {
-            throw new PaymentException(PaymentErrorCode.INVALID_CARD_INFO,
-                    "카드 번호는 필수 입력 값입니다.");
-        }
-
-        if (dto.getExpirationDate() == null || dto.getExpirationDate().isBlank()) {
-            throw new PaymentException(PaymentErrorCode.INVALID_CARD_INFO,
-                    "카드 유효기간은 필수 입력 값입니다.");
-        }
-
-        if (dto.getBirthDate() == null || dto.getBirthDate().isBlank()) {
-            throw new PaymentException(PaymentErrorCode.INVALID_CARD_INFO,
-                    "생년월일은 필수 입력 값입니다.");
-        }
-
-        if (dto.getCardPassword() == null || dto.getCardPassword().isBlank()) {
-            throw new PaymentException(PaymentErrorCode.INVALID_CARD_INFO,
-                    "카드 비밀번호 앞 2자리는 필수 입력 값입니다.");
         }
     }
 }

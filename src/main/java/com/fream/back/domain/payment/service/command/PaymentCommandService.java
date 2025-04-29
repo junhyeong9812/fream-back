@@ -24,8 +24,14 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.Duration;
+import java.time.Instant;
 import java.util.Map;
 
+/**
+ * 결제 명령 서비스
+ * 결제 요청 처리, 환불 등 결제 관련 명령을 처리
+ */
 @Service
 @RequiredArgsConstructor
 @Transactional
@@ -38,26 +44,27 @@ public class PaymentCommandService {
     private final NotificationCommandService notificationCommandService;
     private final SaleBidQueryService saleBidQueryService;
 
+    /**
+     * 결제 처리
+     * 결제 유형에 따라 적절한 결제 처리 로직 수행
+     *
+     * @param order      결제 대상 주문
+     * @param user       결제 요청 사용자
+     * @param requestDto 결제 요청 정보
+     * @return 생성된 결제 정보
+     * @throws PaymentException 결제 처리 실패 시
+     */
     public Payment processPayment(Order order, User user, PaymentRequestDto requestDto) {
+        Instant start = Instant.now();
         try {
-            if (order == null) {
-                throw new PaymentException(PaymentErrorCode.PAYMENT_PROCESSING_FAILED, "주문 정보가 없습니다.");
-            }
-
-            if (user == null) {
-                throw new PaymentException(PaymentErrorCode.PAYMENT_PROCESSING_FAILED, "사용자 정보가 없습니다.");
-            }
-
-            if (requestDto == null) {
-                throw new PaymentException(PaymentErrorCode.PAYMENT_VALIDATION_FAILED, "결제 요청 정보가 없습니다.");
-            }
+            validatePaymentRequest(order, user, requestDto);
 
             log.info("결제 처리 시작: 주문ID={}, 사용자={}, 결제유형={}",
-                    order.getId(), user.getEmail(), requestDto.getResolvedType());
+                    order.getId(), user.getEmail(), requestDto.getResolvedPaymentType());
 
             Payment payment;
 
-            switch (requestDto.getResolvedType()) {
+            switch (requestDto.getResolvedPaymentType()) {
                 case "CARD":
                     payment = createCardPayment(order, user, (CardPaymentRequestDto) requestDto);
                     break;
@@ -80,17 +87,75 @@ public class PaymentCommandService {
 
             return payment;
         } catch (PaymentException e) {
+            log.error("결제 처리 실패: 주문ID={}, 사용자={}, 에러코드={}, 메시지={}",
+                    order != null ? order.getId() : "null",
+                    user != null ? user.getEmail() : "null",
+                    e.getErrorCode().getCode(), e.getMessage());
             throw e; // 이미 PaymentException이면 그대로 전파
         } catch (Exception e) {
-            log.error("결제 처리 중 오류 발생: 주문ID={}, 사용자={}, 오류={}",
+            log.error("결제 처리 중 예상치 못한 오류 발생: 주문ID={}, 사용자={}, 오류={}",
                     order != null ? order.getId() : "null",
                     user != null ? user.getEmail() : "null",
                     e.getMessage(), e);
             throw new PaymentProcessingException("결제 처리 중 오류가 발생했습니다: " + e.getMessage());
+        } finally {
+            // 처리 시간 로깅
+            Instant end = Instant.now();
+            Duration duration = Duration.between(start, end);
+            log.debug("결제 처리 총 소요 시간: {}ms", duration.toMillis());
         }
     }
 
+    /**
+     * 결제 요청 검증
+     *
+     * @param order      주문 정보
+     * @param user       사용자 정보
+     * @param requestDto 결제 요청 DTO
+     * @throws PaymentException 검증 실패 시
+     */
+    private void validatePaymentRequest(Order order, User user, PaymentRequestDto requestDto) {
+        if (order == null) {
+            throw new PaymentException(PaymentErrorCode.PAYMENT_PROCESSING_FAILED, "주문 정보가 없습니다.");
+        }
+
+        if (user == null) {
+            throw new PaymentException(PaymentErrorCode.PAYMENT_PROCESSING_FAILED, "사용자 정보가 없습니다.");
+        }
+
+        if (requestDto == null) {
+            throw new PaymentException(PaymentErrorCode.PAYMENT_VALIDATION_FAILED, "결제 요청 정보가 없습니다.");
+        }
+
+        // 주문 ID와 사용자 이메일이 일치하는지 확인
+        if (!order.getId().equals(requestDto.getOrderId())) {
+            throw new PaymentException(PaymentErrorCode.PAYMENT_VALIDATION_FAILED,
+                    "주문 ID가 일치하지 않습니다. 요청ID: " + requestDto.getOrderId() + ", 실제ID: " + order.getId());
+        }
+
+        if (!user.getEmail().equals(requestDto.getUserEmail())) {
+            throw new PaymentException(PaymentErrorCode.PAYMENT_VALIDATION_FAILED,
+                    "사용자 이메일이 일치하지 않습니다. 요청이메일: " + requestDto.getUserEmail() + ", 실제이메일: " + user.getEmail());
+        }
+
+        // 결제 금액 검증
+        if (requestDto.getPaidAmount() <= 0) {
+            throw new PaymentException(PaymentErrorCode.INVALID_PAYMENT_AMOUNT,
+                    "결제 금액은 0보다 커야 합니다. 금액: " + requestDto.getPaidAmount());
+        }
+    }
+
+    /**
+     * 카드 결제 생성
+     *
+     * @param order      주문 정보
+     * @param user       사용자 정보
+     * @param requestDto 카드 결제 요청 DTO
+     * @return 생성된 카드 결제 정보
+     * @throws PaymentException 결제 처리 실패 시
+     */
     private Payment createCardPayment(Order order, User user, CardPaymentRequestDto requestDto) {
+        Instant start = Instant.now();
         try {
             log.info("카드 결제 처리 시작: 주문ID={}, 결제정보ID={}",
                     order.getId(), requestDto.getPaymentInfoId());
@@ -144,20 +209,32 @@ public class PaymentCommandService {
             log.info("카드 결제 처리 완료: 주문ID={}, 결제ID={}, 상태={}",
                     order.getId(), savedPayment.getId(), savedPayment.getStatus());
 
-            // 4. 즉시 환불 요청 - 필요한 경우
-            handleRefundIfNecessary(cardPayment);
+            // 처리 시간 로깅
+            Instant end = Instant.now();
+            Duration duration = Duration.between(start, end);
+            log.debug("카드 결제 처리 시간: {}ms", duration.toMillis());
 
             return savedPayment;
         } catch (PaymentException e) {
             throw e; // 이미 PaymentException이면 그대로 전파
         } catch (Exception e) {
-            log.error("카드 결제 처리 중 오류 발생: 주문ID={}, 오류={}",
+            log.error("카드 결제 처리 중 예상치 못한 오류 발생: 주문ID={}, 오류={}",
                     order.getId(), e.getMessage(), e);
             throw new PaymentProcessingException("카드 결제 처리 중 오류가 발생했습니다: " + e.getMessage());
         }
     }
 
+    /**
+     * 계좌이체 결제 생성
+     *
+     * @param order      주문 정보
+     * @param user       사용자 정보
+     * @param requestDto 계좌이체 결제 요청 DTO
+     * @return 생성된 계좌이체 결제 정보
+     * @throws PaymentException 결제 처리 실패 시
+     */
     private Payment createAccountPayment(Order order, User user, AccountPaymentRequestDto requestDto) {
+        Instant start = Instant.now();
         try {
             log.info("계좌이체 결제 처리 시작: 주문ID={}, 은행={}",
                     order.getId(), requestDto.getBankName());
@@ -186,20 +263,32 @@ public class PaymentCommandService {
             log.info("계좌이체 결제 처리 완료: 주문ID={}, 결제ID={}, 상태={}",
                     order.getId(), savedPayment.getId(), savedPayment.getStatus());
 
-            // 즉시 환불 요청 - 필요한 경우
-            handleRefundIfNecessary(accountPayment);
+            // 처리 시간 로깅
+            Instant end = Instant.now();
+            Duration duration = Duration.between(start, end);
+            log.debug("계좌이체 결제 처리 시간: {}ms", duration.toMillis());
 
             return savedPayment;
         } catch (PaymentException e) {
             throw e; // 이미 PaymentException이면 그대로 전파
         } catch (Exception e) {
-            log.error("계좌이체 결제 처리 중 오류 발생: 주문ID={}, 오류={}",
+            log.error("계좌이체 결제 처리 중 예상치 못한 오류 발생: 주문ID={}, 오류={}",
                     order.getId(), e.getMessage(), e);
             throw new PaymentProcessingException("계좌이체 결제 처리 중 오류가 발생했습니다: " + e.getMessage());
         }
     }
 
+    /**
+     * 일반 결제 생성
+     *
+     * @param order      주문 정보
+     * @param user       사용자 정보
+     * @param requestDto 일반 결제 요청 DTO
+     * @return 생성된 일반 결제 정보
+     * @throws PaymentException 결제 처리 실패 시
+     */
     private Payment createGeneralPayment(Order order, User user, GeneralPaymentRequestDto requestDto) {
+        Instant start = Instant.now();
         try {
             log.info("일반 결제 처리 시작: 주문ID={}, impUid={}",
                     order.getId(), requestDto.getImpUid());
@@ -228,20 +317,29 @@ public class PaymentCommandService {
             log.info("일반 결제 처리 완료: 주문ID={}, 결제ID={}, 상태={}",
                     order.getId(), savedPayment.getId(), savedPayment.getStatus());
 
-            // 즉시 환불 요청 - 필요한 경우
-            // handleRefundIfNecessary(generalPayment);
+            // 처리 시간 로깅
+            Instant end = Instant.now();
+            Duration duration = Duration.between(start, end);
+            log.debug("일반 결제 처리 시간: {}ms", duration.toMillis());
 
             return savedPayment;
         } catch (PaymentException e) {
             throw e; // 이미 PaymentException이면 그대로 전파
         } catch (Exception e) {
-            log.error("일반 결제 처리 중 오류 발생: 주문ID={}, 오류={}",
+            log.error("일반 결제 처리 중 예상치 못한 오류 발생: 주문ID={}, 오류={}",
                     order.getId(), e.getMessage(), e);
             throw new PaymentProcessingException("일반 결제 처리 중 오류가 발생했습니다: " + e.getMessage());
         }
     }
 
+    /**
+     * 결제 환불 처리 (필요한 경우)
+     *
+     * @param payment 환불할 결제 정보
+     * @throws PaymentException 환불 처리 실패 시
+     */
     private void handleRefundIfNecessary(Payment payment) {
+        Instant start = Instant.now();
         try {
             if (payment.getImpUid() == null || payment.getImpUid().isBlank()) {
                 log.warn("환불 처리 불가: 결제ID={}, 결제식별자(impUid)가 없습니다.", payment.getId());
@@ -261,16 +359,27 @@ public class PaymentCommandService {
                 throw new PaymentException(PaymentErrorCode.PAYMENT_CANCELLATION_FAILED,
                         "환불 요청이 실패했습니다. 관리자에게 문의하세요.");
             }
+
+            // 처리 시간 로깅
+            Instant end = Instant.now();
+            Duration duration = Duration.between(start, end);
+            log.debug("결제 환불 처리 시간: {}ms", duration.toMillis());
         } catch (PaymentException e) {
             throw e; // 이미 PaymentException이면 그대로 전파
         } catch (Exception e) {
-            log.error("결제 환불 처리 중 오류 발생: 결제ID={}, 오류={}",
+            log.error("결제 환불 처리 중 예상치 못한 오류 발생: 결제ID={}, 오류={}",
                     payment.getId(), e.getMessage(), e);
             throw new PaymentException(PaymentErrorCode.PAYMENT_CANCELLATION_FAILED,
                     "환불 처리 중 오류가 발생했습니다: " + e.getMessage());
         }
     }
 
+    /**
+     * 결제 완료 알림 및 판매 상태 업데이트
+     *
+     * @param order   주문 정보
+     * @param payment 결제 정보
+     */
     private void notifyUsersAndUpdateSaleStatus(Order order, Payment payment) {
         try {
             log.info("결제 관련 알림 및 판매 상태 업데이트 시작: 주문ID={}", order.getId());
@@ -316,6 +425,12 @@ public class PaymentCommandService {
         }
     }
 
+    /**
+     * 알림 전송
+     *
+     * @param order 주문 정보
+     * @param sale  판매 정보
+     */
     private void sendNotifications(Order order, Sale sale) {
         try {
             User buyer = order.getUser();
@@ -346,7 +461,12 @@ public class PaymentCommandService {
         }
     }
 
-    //은행 유효성 검사
+    /**
+     * 은행 유효성 검사
+     *
+     * @param bankName 은행명
+     * @throws PaymentException 유효하지 않은 은행명인 경우
+     */
     private void validateBank(String bankName) {
         try {
             if (bankName == null || bankName.isBlank()) {
@@ -367,8 +487,16 @@ public class PaymentCommandService {
         }
     }
 
-    //결제 상태 변경
+    /**
+     * 결제 상태 변경
+     *
+     * @param payment   상태 변경할 결제 정보
+     * @param newStatus 새로운 상태
+     * @throws PaymentException 상태 변경 실패 시
+     */
+    @Transactional
     public void updatePaymentStatus(Payment payment, PaymentStatus newStatus) {
+        Instant start = Instant.now();
         try {
             if (payment == null) {
                 throw new PaymentNotFoundException("결제 정보가 없습니다.");
@@ -386,17 +514,34 @@ public class PaymentCommandService {
             paymentRepository.save(payment);
 
             log.info("결제 상태 변경 완료: 결제ID={}, 상태={}", payment.getId(), newStatus);
+
+            // 처리 시간 로깅
+            Instant end = Instant.now();
+            Duration duration = Duration.between(start, end);
+            log.debug("결제 상태 변경 처리 시간: {}ms", duration.toMillis());
         } catch (PaymentException e) {
+            log.error("결제 상태 변경 실패: 결제ID={}, 에러코드={}, 메시지={}",
+                    payment != null ? payment.getId() : "null",
+                    e.getErrorCode().getCode(), e.getMessage());
             throw e; // 이미 PaymentException이면 그대로 전파
         } catch (Exception e) {
-            log.error("결제 상태 변경 중 오류 발생: 결제ID={}, 오류={}",
+            log.error("결제 상태 변경 중 예상치 못한 오류 발생: 결제ID={}, 오류={}",
                     payment != null ? payment.getId() : "null", e.getMessage(), e);
             throw new PaymentException(PaymentErrorCode.PAYMENT_UPDATE_FAILED,
                     "결제 상태 변경 중 오류가 발생했습니다.", e);
         }
     }
 
+    /**
+     * 결제 환불 요청
+     *
+     * @param paymentId 환불할 결제 ID
+     * @return 환불 처리 결과 메시지
+     * @throws PaymentException 환불 처리 실패 시
+     */
+    @Transactional
     public String refundPayment(Long paymentId) {
+        Instant start = Instant.now();
         try {
             log.info("결제 환불 요청 시작: 결제ID={}", paymentId);
 
@@ -422,6 +567,15 @@ public class PaymentCommandService {
                 payment.updateStatus(PaymentStatus.REFUNDED); // 상태를 REFUNDED로 변경
                 paymentRepository.save(payment);
                 log.info("결제 환불 요청 성공: 결제ID={}, 상태=REFUNDED", paymentId);
+
+                // 환불 성공 시 알림 발송
+                sendRefundNotification(payment);
+
+                // 처리 시간 로깅
+                Instant end = Instant.now();
+                Duration duration = Duration.between(start, end);
+                log.debug("결제 환불 처리 시간: {}ms", duration.toMillis());
+
                 return "환불이 성공적으로 완료되었습니다.";
             } else {
                 payment.updateStatus(PaymentStatus.REFUND_REQUESTED); // 환불 요청 상태로 업데이트
@@ -430,11 +584,77 @@ public class PaymentCommandService {
                 return "환불 요청이 실패하였습니다. 관리자에게 문의하세요.";
             }
         } catch (PaymentException e) {
+            log.error("결제 환불 요청 실패: 결제ID={}, 에러코드={}, 메시지={}",
+                    paymentId, e.getErrorCode().getCode(), e.getMessage());
             throw e; // 이미 PaymentException이면 그대로 전파
         } catch (Exception e) {
-            log.error("결제 환불 요청 중 오류 발생: 결제ID={}, 오류={}", paymentId, e.getMessage(), e);
+            log.error("결제 환불 요청 중 예상치 못한 오류 발생: 결제ID={}, 오류={}",
+                    paymentId, e.getMessage(), e);
             throw new PaymentException(PaymentErrorCode.PAYMENT_CANCELLATION_FAILED,
                     "환불 요청 중 오류가 발생했습니다: " + e.getMessage());
+        }
+    }
+
+    /**
+     * 환불 알림 발송
+     *
+     * @param payment 환불된 결제 정보
+     */
+    private void sendRefundNotification(Payment payment) {
+        try {
+            User user = payment.getUser();
+            if (user == null) {
+                log.warn("환불 알림 발송 실패: 결제ID={}, 사용자 정보가 없습니다.", payment.getId());
+                return;
+            }
+
+            Order order = payment.getOrder();
+            String orderInfo = order != null ? "주문 ID: " + order.getId() : "환불금액: " + payment.getPaidAmount() + "원";
+
+            notificationCommandService.createNotification(
+                    user.getId(),
+                    NotificationCategory.SHOPPING,
+                    NotificationType.REFUND,
+                    "결제가 환불되었습니다. " + orderInfo
+            );
+            log.debug("환불 알림 전송 완료: 사용자ID={}, 결제ID={}", user.getId(), payment.getId());
+
+            // 판매자 알림 - 주문과 연결된 판매 정보가 있는 경우
+            if (order != null) {
+                Sale sale = null;
+
+                // OrderBid를 통한 Sale 조회
+                OrderBid orderBid = order.getOrderBid();
+                if (orderBid != null) {
+                    sale = orderBid.getSale();
+                }
+                // SaleBid를 통한 Sale 조회
+                else {
+                    SaleBid saleBid = saleBidQueryService.findByOrderId(order.getId());
+                    if (saleBid != null) {
+                        sale = saleBid.getSale();
+                    }
+                }
+
+                if (sale != null && sale.getSeller() != null) {
+                    User seller = sale.getSeller();
+                    notificationCommandService.createNotification(
+                            seller.getId(),
+                            NotificationCategory.SHOPPING,
+                            NotificationType.REFUND,
+                            "구매자의 결제가 환불되었습니다. 판매 ID: " + sale.getId()
+                    );
+                    log.debug("판매자 환불 알림 전송 완료: 판매자ID={}, 판매ID={}",
+                            seller.getId(), sale.getId());
+
+                    // 중고거래 특성상 판매 완료 후에는 상태를 변경하지 않음
+                    // 판매자가 직접 새로운 판매 게시글을 등록해야 함
+                }
+            }
+        } catch (Exception e) {
+            // 알림 전송 실패 로깅만 하고 예외는 발생시키지 않음
+            log.warn("환불 알림 전송 중 오류 발생: 결제ID={}, 오류={}",
+                    payment.getId(), e.getMessage());
         }
     }
 }
