@@ -7,13 +7,16 @@ import lombok.NoArgsConstructor;
 
 import java.time.LocalDateTime;
 
+/**
+ * 주문 입찰 응답 DTO
+ */
 @Data
 @Builder
 @AllArgsConstructor
 @NoArgsConstructor
 public class OrderBidResponseDto {
     private Long orderBidId;        // OrderBid ID
-    private Long productId; // 추가된 필드
+    private Long productId;         // 상품 ID
     private String productName;     // 상품명
     private String productEnglishName; // 상품 영어명
     private String size;            // 상품 사이즈

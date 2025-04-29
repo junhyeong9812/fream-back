@@ -1,5 +1,7 @@
 package com.fream.back.global.utils;
 
+import com.fream.back.domain.order.exception.OrderAccessDeniedException;
+import com.fream.back.domain.order.exception.OrderBidAccessDeniedException;
 import com.fream.back.global.config.security.JwtAuthenticationFilter;
 import com.fream.back.global.exception.security.SecurityUserNotFoundException;
 import lombok.extern.slf4j.Slf4j;
@@ -46,10 +48,6 @@ public class SecurityUtils {
             return extractEmailFromSecurityContext();
         } catch (SecurityUserNotFoundException e) {
             log.debug("인증되지 않은 사용자, 'anonymous' 반환");
-            // Spring Security의 익명(Anonymous) 인증은
-            // 내부적으로 AnonymousAuthenticationToken을 사용하며,
-            // 이때 기본 principal 값이 "anonymousUser"로 설정
-            // 이 리턴이 필요 없음
             return "anonymous";
         }
     }
@@ -63,7 +61,6 @@ public class SecurityUtils {
         Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
 
         log.debug("SecurityContext에서 사용자 세부 정보 추출 시도");
-        System.out.println("authentication.getDetails() = " + authentication.getDetails() );
 
         if (authentication != null && authentication.getDetails() instanceof JwtAuthenticationFilter.UserInfo) {
             JwtAuthenticationFilter.UserInfo userInfo =
@@ -75,5 +72,49 @@ public class SecurityUtils {
 
         log.debug("사용자 세부 정보 없음");
         return null;
+    }
+
+    /**
+     * 보안 컨텍스트에서 이메일을 추출하고 유효성을 검증합니다.
+     * 주문 입찰 도메인에서 사용하는 유틸리티 메서드입니다.
+     *
+     * @param operation 수행중인 작업명 (로그 메시지용)
+     * @return 유효한 사용자 이메일
+     * @throws OrderBidAccessDeniedException 유효한 이메일이 없는 경우
+     */
+    public static String extractAndValidateEmailForOrderBid(String operation) {
+        try {
+            String email = extractEmailFromSecurityContext();
+            if (email == null || email.trim().isEmpty()) {
+                log.warn("{} 시 사용자 이메일이 유효하지 않습니다.", operation);
+                throw new OrderBidAccessDeniedException("사용자 정보를 가져올 수 없습니다. 로그인 상태를 확인해주세요.");
+            }
+            return email;
+        } catch (SecurityUserNotFoundException e) {
+            log.warn("{} 시 사용자 인증 정보를 가져올 수 없습니다.", operation);
+            throw new OrderBidAccessDeniedException("사용자 정보를 가져올 수 없습니다. 로그인 상태를 확인해주세요.", e);
+        }
+    }
+
+    /**
+     * 보안 컨텍스트에서 이메일을 추출하고 유효성을 검증합니다.
+     * 주문 도메인에서 사용하는 유틸리티 메서드입니다.
+     *
+     * @param operation 수행중인 작업명 (로그 메시지용)
+     * @return 유효한 사용자 이메일
+     * @throws OrderAccessDeniedException 유효한 이메일이 없는 경우
+     */
+    public static String extractAndValidateEmailForOrder(String operation) {
+        try {
+            String email = extractEmailFromSecurityContext();
+            if (email == null || email.trim().isEmpty()) {
+                log.warn("{} 시 사용자 이메일이 유효하지 않습니다.", operation);
+                throw new OrderAccessDeniedException("사용자 정보를 가져올 수 없습니다. 로그인 상태를 확인해주세요.");
+            }
+            return email;
+        } catch (SecurityUserNotFoundException e) {
+            log.warn("{} 시 사용자 인증 정보를 가져올 수 없습니다.", operation);
+            throw new OrderAccessDeniedException("사용자 정보를 가져올 수 없습니다. 로그인 상태를 확인해주세요.", e);
+        }
     }
 }

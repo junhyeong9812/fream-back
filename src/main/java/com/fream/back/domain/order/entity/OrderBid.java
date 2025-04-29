@@ -10,6 +10,9 @@ import lombok.Builder;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 
+/**
+ * 주문 입찰 엔티티
+ */
 @Entity
 @Getter
 @NoArgsConstructor
@@ -48,26 +51,59 @@ public class OrderBid extends BaseTimeEntity {
     @Column(nullable = false)
     private boolean isInstantPurchase = false;
 
+    /**
+     * Order와의 양방향 관계를 설정합니다.
+     * 기존 관계가 있다면 해제하고 새 관계를 설정합니다.
+     *
+     * @param order 연결할 Order 객체
+     */
     public void assignOrder(Order order) {
-        this.order = order;
-        this.status = BidStatus.MATCHED;
+        // 기존 관계가 있으면 해제
+        if (this.order != null && this.order != order) {
+            Order oldOrder = this.order;
+            this.order = null;
+            if (oldOrder.getOrderBid() == this) {
+                oldOrder.assignOrderBid(null);
+            }
+        }
 
-        // Order 엔티티에도 OrderBid 설정
-        if (order != null && order.getOrderBid() != this) {
-            order.assignOrderBid(this);
+        // 새 관계 설정
+        this.order = order;
+
+        // 매칭 상태로 변경
+        if (order != null) {
+            this.status = BidStatus.MATCHED;
+
+            // Order 쪽에도 관계 설정
+            if (order.getOrderBid() != this) {
+                order.assignOrderBid(this);
+            }
         }
     }
 
+    /**
+     * Sale과의 양방향 관계를 설정합니다.
+     *
+     * @param sale 연결할 Sale 객체
+     */
     public void assignSale(Sale sale) {
         this.sale = sale;
         this.status = BidStatus.MATCHED;
     }
+
+    /**
+     * 즉시 구매로 표시합니다.
+     */
     public void markAsInstantPurchase() {
         this.isInstantPurchase = true;
     }
 
+    /**
+     * 입찰 상태를 업데이트합니다.
+     *
+     * @param newStatus 새 입찰 상태
+     */
     public void updateStatus(BidStatus newStatus) {
         this.status = newStatus;
     }
 }
-

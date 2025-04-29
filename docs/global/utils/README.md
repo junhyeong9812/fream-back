@@ -12,7 +12,7 @@
 public class FileUtils {
     // 서버에서 파일을 저장할 루트 디렉토리
     private static final String BASE_DIR = "/home/ubuntu/fream";
-    
+
     public String saveFile(String directory, String prefix, MultipartFile file);
     public boolean deleteFile(String directory, String fileName);
     public String getFileUrl(String directory, String fileName);
@@ -50,7 +50,7 @@ Nginx 캐시를 제거하기 위한 유틸리티 클래스입니다.
 public class NginxCachePurgeUtil {
     private final RestTemplate restTemplate = new RestTemplate();
     private final String nginxUrl = "http://nginx:80";
-    
+
     public void purgeProductCache();
     public void purgeEsCache();
     public void purgeStyleCache();
@@ -101,7 +101,7 @@ PageDto<ProductDto> pageDto = PageUtils.toPageDto(productPage);
 public class PlaywrightBrowserManager {
     private Playwright playwright;
     private Browser browser;
-    
+
     public void openBrowser();
     public Page newPage();
     public void closeBrowser();
@@ -138,14 +138,19 @@ String status = cjTrackingPlaywright.getCurrentTrackingStatus("123456789012");
 
 ## SecurityUtils
 
-보안 관련 유틸리티 클래스입니다.
+보안 관련 유틸리티 클래스로, 인증된 사용자 정보를 안전하게 추출하는 기능을 제공합니다.
 
 ```java
 @Slf4j
 public class SecurityUtils {
+    // 기본 메서드
     public static String extractEmailFromSecurityContext();
     public static String extractEmailOrAnonymous();
     public static JwtAuthenticationFilter.UserInfo extractUserInfo();
+    
+    // 도메인별 검증 강화 메서드
+    public static String extractAndValidateEmailForOrderBid(String operation);
+    public static String extractAndValidateEmailForOrder(String operation);
 }
 ```
 
@@ -154,13 +159,37 @@ public class SecurityUtils {
 - **인증 정보 추출**: SecurityContext에서 인증된 사용자 정보를 추출합니다.
 - **사용자 이메일 조회**: 인증된 사용자의 이메일을 조회합니다.
 - **사용자 정보 조회**: 나이, 성별 등 추가 정보를 조회합니다.
+- **도메인별 검증**: 특정 도메인(주문, 입찰 등)에 적합한 예외 처리가 포함된 이메일 검증 메서드를 제공합니다.
+
+### 주요 개선사항
+
+- **도메인별 검증 메서드 추가**: 각 도메인에 맞는 예외 처리를 포함한 이메일 검증 메서드를 추가하여 코드 중복을 방지하고 일관성을 향상시켰습니다.
+- **예외 처리 강화**: 사용자 인증 정보가 유효하지 않을 때 의미있는 예외와 로그를 제공합니다.
+- **로깅 개선**: 디버깅을 위한 로그 메시지가 더 상세하게 제공됩니다.
 
 ### 사용 예시
 
 ```java
-// 현재 로그인한 사용자의 이메일 가져오기
+// 기본 사용법 - 현재 로그인한 사용자의 이메일 가져오기
 String email = SecurityUtils.extractEmailFromSecurityContext();
 
 // 익명 사용자 처리도 포함한 이메일 가져오기
 String email = SecurityUtils.extractEmailOrAnonymous();
+
+// 도메인별 검증 메서드 사용 예시
+@PostMapping
+public ResponseEntity<ResponseDto<Long>> createOrderBid(@RequestBody @Valid OrderBidRequestDto requestDto) {
+    // 주문 입찰 도메인에 맞는 이메일 검증 및 추출
+    String email = SecurityUtils.extractAndValidateEmailForOrderBid("주문 입찰 생성");
+    // 비즈니스 로직 수행...
+}
+
+@PostMapping("/{orderId}/process-payment-shipment")
+public ResponseEntity<ResponseDto<Void>> processPaymentAndShipment(
+        @PathVariable("orderId") Long orderId,
+        @RequestBody @Valid PayAndShipmentRequestDto requestDto) {
+    // 주문 도메인에 맞는 이메일 검증 및 추출
+    String email = SecurityUtils.extractAndValidateEmailForOrder("결제 및 배송 처리");
+    // 비즈니스 로직 수행...
+}
 ```

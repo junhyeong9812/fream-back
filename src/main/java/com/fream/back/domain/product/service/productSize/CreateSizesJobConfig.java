@@ -4,10 +4,14 @@ import com.fream.back.domain.product.entity.Category;
 import com.fream.back.domain.product.entity.ProductColor;
 import com.fream.back.domain.product.entity.ProductSize;
 import com.fream.back.domain.product.entity.enumType.SizeType;
+import com.fream.back.domain.product.exception.CategoryNotFoundException;
+import com.fream.back.domain.product.exception.InvalidSizeTypeException;
+import com.fream.back.domain.product.exception.ProductColorNotFoundException;
 import com.fream.back.domain.product.repository.ProductColorRepository;
 import com.fream.back.domain.product.repository.ProductSizeRepository;
 import com.fream.back.domain.product.service.category.CategoryQueryService;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.batch.core.Job;
 import org.springframework.batch.core.SkipListener;
 import org.springframework.batch.core.Step;
@@ -45,6 +49,7 @@ import java.util.stream.Collectors;
  */
 @Configuration
 @RequiredArgsConstructor
+@Slf4j
 public class CreateSizesJobConfig {
 
     private final JobRepository jobRepository;
@@ -59,6 +64,7 @@ public class CreateSizesJobConfig {
      */
     @Bean
     public Job createSizesJob() {
+        log.info("[상품 사이즈 배치] 상품 사이즈 생성 Job 구성");
         return new JobBuilder("createSizesJob", jobRepository)
                 .start(createSizesStep())
                 .build();
@@ -69,16 +75,20 @@ public class CreateSizesJobConfig {
      * - Reader: SizeCreationItem
      * - Processor: ProductSize
      * - Writer: 저장
-     * - IllegalArgumentException 시 Skip
+     * - 각종 예외 발생 시 Skip
      */
     @Bean
     public Step createSizesStep() {
+        log.info("[상품 사이즈 배치] 상품 사이즈 생성 Step 구성");
         return new StepBuilder("createSizesStep", jobRepository)
                 .<SizeCreationItem, ProductSize>chunk(10, transactionManager)
                 .reader(sizeItemReader(null, null, null, null))
                 .processor(sizeItemProcessor())
                 .writer(sizeItemWriter())
                 .faultTolerant()
+                .skip(InvalidSizeTypeException.class)
+                .skip(ProductColorNotFoundException.class)
+                .skip(CategoryNotFoundException.class)
                 .skip(IllegalArgumentException.class)
                 .skipLimit(100)
                 .listener(skipListener())
@@ -100,38 +110,55 @@ public class CreateSizesJobConfig {
             @Value("#{jobParameters['requestedSizes']}") String requestedSizesCsv,
             @Value("#{jobParameters['releasePrice']}") Integer releasePrice
     ) {
-        // 1) 카테고리 조회 -> SizeType 결정
-        Category rootCategory = categoryQueryService.findRootCategoryById(categoryId);
-        SizeType sizeType = determineSizeType(rootCategory.getName());
+        log.info("[상품 사이즈 배치] Reader 시작 - productColorId: {}, categoryId: {}, requestedSizes: {}, releasePrice: {}",
+                productColorId, categoryId, requestedSizesCsv, releasePrice);
 
-        // 2) DB에서 이미 등록된 사이즈 목록 조회
-        List<String> existingSizes = productSizeRepository.findAllByProductColorId(productColorId)
-                .stream()
-                .map(ProductSize::getSize)
-                .collect(Collectors.toList());
+        try {
+            // 1) 카테고리 조회 -> SizeType 결정
+            Category rootCategory = categoryQueryService.findRootCategoryById(categoryId);
+            if (rootCategory == null) {
+                log.error("[상품 사이즈 배치] 카테고리를 찾을 수 없습니다. ID: {}", categoryId);
+                throw new CategoryNotFoundException(categoryId);
+            }
 
-        // 3) CSV -> List<String>
-        //    예: "S,M,L,INVALID_SIZE"
-        List<String> requestedSizes = Arrays.asList(requestedSizesCsv.split(","));
+            SizeType sizeType = determineSizeType(rootCategory.getName());
+            log.debug("[상품 사이즈 배치] 사이즈 타입 결정: {}", sizeType);
 
-        // 4) 중복 제거
-        List<String> newSizes = requestedSizes.stream()
-                .filter(size -> !existingSizes.contains(size))
-                .collect(Collectors.toList());
+            // 2) DB에서 이미 등록된 사이즈 목록 조회
+            List<String> existingSizes = productSizeRepository.findAllByProductColorId(productColorId)
+                    .stream()
+                    .map(ProductSize::getSize)
+                    .collect(Collectors.toList());
+            log.debug("[상품 사이즈 배치] 이미 존재하는 사이즈: {}", existingSizes);
 
-        // 5) SizeCreationItem 변환 (null -> 0)
-        int finalReleasePrice = (releasePrice != null) ? releasePrice : 0;
-        List<SizeCreationItem> itemList = newSizes.stream()
-                .map(size -> new SizeCreationItem(
-                        productColorId,
-                        sizeType,
-                        size,
-                        finalReleasePrice
-                ))
-                .collect(Collectors.toList());
+            // 3) CSV -> List<String>
+            List<String> requestedSizes = Arrays.asList(requestedSizesCsv.split(","));
+            log.debug("[상품 사이즈 배치] 요청된 사이즈: {}", requestedSizes);
 
-        // 6) ListItemReader
-        return new ListItemReader<>(itemList);
+            // 4) 중복 제거
+            List<String> newSizes = requestedSizes.stream()
+                    .filter(size -> !existingSizes.contains(size))
+                    .collect(Collectors.toList());
+            log.debug("[상품 사이즈 배치] 신규 추가할 사이즈: {}", newSizes);
+
+            // 5) SizeCreationItem 변환 (null -> 0)
+            int finalReleasePrice = (releasePrice != null) ? releasePrice : 0;
+            List<SizeCreationItem> itemList = newSizes.stream()
+                    .map(size -> new SizeCreationItem(
+                            productColorId,
+                            sizeType,
+                            size,
+                            finalReleasePrice
+                    ))
+                    .collect(Collectors.toList());
+            log.info("[상품 사이즈 배치] 처리할 아이템 개수: {}", itemList.size());
+
+            // 6) ListItemReader
+            return new ListItemReader<>(itemList);
+        } catch (Exception e) {
+            log.error("[상품 사이즈 배치] Reader 실행 중 오류 발생", e);
+            throw e;
+        }
     }
 
     /**
@@ -144,24 +171,35 @@ public class CreateSizesJobConfig {
     @StepScope
     public ItemProcessor<SizeCreationItem, ProductSize> sizeItemProcessor() {
         return item -> {
-            // 1) 사이즈 유효성 체크
-            if (!isValidSize(item.getSize(), item.getSizeType())) {
-                throw new IllegalArgumentException("유효하지 않은 사이즈: " + item.getSize());
+            try {
+                log.debug("[상품 사이즈 배치] 프로세싱 - 사이즈: {}, 타입: {}", item.getSize(), item.getSizeType());
+
+                // 1) 사이즈 유효성 체크
+                if (!isValidSize(item.getSize(), item.getSizeType())) {
+                    log.warn("[상품 사이즈 배치] 유효하지 않은 사이즈: {}, 타입: {}", item.getSize(), item.getSizeType());
+                    throw new InvalidSizeTypeException(item.getSizeType().name(), item.getSize());
+                }
+
+                // 2) ProductColor 조회
+                ProductColor productColor = productColorRepository.findById(item.getProductColorId())
+                        .orElseThrow(() -> new ProductColorNotFoundException(item.getProductColorId()));
+
+                // 3) ProductSize 빌드
+                ProductSize productSize = ProductSize.builder()
+                        .productColor(productColor)
+                        .size(item.getSize())
+                        .sizeType(item.getSizeType())
+                        .purchasePrice(item.getReleasePrice())
+                        .salePrice(item.getReleasePrice())
+                        .quantity(0)
+                        .build();
+
+                log.debug("[상품 사이즈 배치] 사이즈 생성 완료: {}", item.getSize());
+                return productSize;
+            } catch (Exception e) {
+                log.error("[상품 사이즈 배치] 프로세서 처리 중 오류 발생 - 사이즈: {}", item.getSize(), e);
+                throw e;
             }
-
-            // 2) ProductColor 조회
-            ProductColor productColor = productColorRepository.findById(item.getProductColorId())
-                    .orElseThrow(() -> new IllegalArgumentException("존재하지 않는 ProductColor ID: " + item.getProductColorId()));
-
-            // 3) ProductSize 빌드
-            return ProductSize.builder()
-                    .productColor(productColor)
-                    .size(item.getSize())
-                    .sizeType(item.getSizeType())
-                    .purchasePrice(item.getReleasePrice())
-                    .salePrice(item.getReleasePrice())
-                    .quantity(0)
-                    .build();
         };
     }
 
@@ -172,9 +210,19 @@ public class CreateSizesJobConfig {
     @StepScope
     public ItemWriter<ProductSize> sizeItemWriter() {
         return items -> {
-            for (ProductSize productSize : items) {
-                productSizeRepository.save(productSize);
-                System.out.println("[Writer] Saved Size: " + productSize.getSize());
+            try {
+                log.info("[상품 사이즈 배치] 라이터 시작 - {} 개의 사이즈 저장", items.size());
+
+                for (ProductSize productSize : items) {
+                    ProductSize saved = productSizeRepository.save(productSize);
+                    log.debug("[상품 사이즈 배치] 사이즈 저장 완료 - ID: {}, 사이즈: {}",
+                            saved.getId(), saved.getSize());
+                }
+
+                log.info("[상품 사이즈 배치] 라이터 완료 - 모든 사이즈 저장됨");
+            } catch (Exception e) {
+                log.error("[상품 사이즈 배치] 라이터 실행 중 오류 발생", e);
+                throw e;
             }
         };
     }
@@ -187,12 +235,20 @@ public class CreateSizesJobConfig {
         return new SkipListener<>() {
             @Override
             public void onSkipInProcess(SizeCreationItem item, Throwable t) {
-                System.err.println("[Skip] " + item.getSize() + " -> " + t.getMessage());
+                log.warn("[상품 사이즈 배치] 프로세스 중 스킵 - 사이즈: {}, 원인: {}",
+                        item.getSize(), t.getMessage());
             }
+
             @Override
-            public void onSkipInRead(Throwable t) { }
+            public void onSkipInRead(Throwable t) {
+                log.warn("[상품 사이즈 배치] 리드 중 스킵 - 원인: {}", t.getMessage());
+            }
+
             @Override
-            public void onSkipInWrite(ProductSize item, Throwable t) { }
+            public void onSkipInWrite(ProductSize item, Throwable t) {
+                log.warn("[상품 사이즈 배치] 라이트 중 스킵 - 사이즈: {}, 원인: {}",
+                        item.getSize(), t.getMessage());
+            }
         };
     }
 
@@ -200,15 +256,22 @@ public class CreateSizesJobConfig {
      * 카테고리 이름 -> SizeType 결정
      */
     private SizeType determineSizeType(String rootCategoryName) {
-        switch (rootCategoryName.toUpperCase()) {
-            case "CLOTHING":
-                return SizeType.CLOTHING;
-            case "SHOES":
-                return SizeType.SHOES;
-            case "ACCESSORIES":
-                return SizeType.ACCESSORIES;
-            default:
-                throw new IllegalArgumentException("해당 카테고리에 맞는 SizeType이 존재하지 않습니다: " + rootCategoryName);
+        try {
+            log.debug("[상품 사이즈 배치] 카테고리에 따른 사이즈 타입 결정 중: {}", rootCategoryName);
+            switch (rootCategoryName.toUpperCase()) {
+                case "CLOTHING":
+                    return SizeType.CLOTHING;
+                case "SHOES":
+                    return SizeType.SHOES;
+                case "ACCESSORIES":
+                    return SizeType.ACCESSORIES;
+                default:
+                    log.error("[상품 사이즈 배치] 잘못된 카테고리 이름: {}", rootCategoryName);
+                    throw new InvalidSizeTypeException("해당 카테고리에 맞는 SizeType이 존재하지 않습니다: " + rootCategoryName);
+            }
+        } catch (Exception e) {
+            log.error("[상품 사이즈 배치] 사이즈 타입 결정 중 오류 발생", e);
+            throw e;
         }
     }
 
@@ -216,7 +279,10 @@ public class CreateSizesJobConfig {
      * 사이즈 유효성 검사
      */
     private boolean isValidSize(String size, SizeType sizeType) {
-        return Arrays.asList(sizeType.getSizes()).contains(size);
+        boolean isValid = Arrays.asList(sizeType.getSizes()).contains(size);
+        log.debug("[상품 사이즈 배치] 사이즈 유효성 검사 - 사이즈: {}, 타입: {}, 유효: {}",
+                size, sizeType, isValid);
+        return isValid;
     }
 
     /**
@@ -239,5 +305,15 @@ public class CreateSizesJobConfig {
         public SizeType getSizeType() { return sizeType; }
         public String getSize() { return size; }
         public int getReleasePrice() { return releasePrice; }
+
+        @Override
+        public String toString() {
+            return "SizeCreationItem{" +
+                    "productColorId=" + productColorId +
+                    ", sizeType=" + sizeType +
+                    ", size='" + size + '\'' +
+                    ", releasePrice=" + releasePrice +
+                    '}';
+        }
     }
 }

@@ -5,16 +5,24 @@ import com.fream.back.domain.order.dto.OrderBidRequestDto;
 import com.fream.back.domain.order.exception.*;
 import com.fream.back.domain.order.service.command.OrderBidCommandService;
 import com.fream.back.domain.payment.dto.PaymentRequestDto;
+import com.fream.back.global.dto.ResponseDto;
 import com.fream.back.global.utils.SecurityUtils;
+import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.ResponseEntity;
+import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.*;
 
+
+/**
+ * 주문 입찰 명령 컨트롤러
+ */
 @RestController
 @RequestMapping("/order-bids")
 @RequiredArgsConstructor
 @Slf4j
+@Validated
 public class OrderBidCommandController {
 
     private final OrderBidCommandService orderBidCommandService;
@@ -29,24 +37,9 @@ public class OrderBidCommandController {
      * @throws OrderBidCreationFailedException 주문 입찰 생성 실패 시
      */
     @PostMapping
-    public ResponseEntity<Long> createOrderBid(@RequestBody OrderBidRequestDto requestDto) {
+    public ResponseEntity<ResponseDto<Long>> createOrderBid(@RequestBody @Valid OrderBidRequestDto requestDto) {
         // 사용자 이메일 추출 및 검증
-        String email = SecurityUtils.extractEmailFromSecurityContext();
-        if (email == null || email.trim().isEmpty()) {
-            log.warn("주문 입찰 생성 시 사용자 이메일을 가져올 수 없습니다.");
-            throw new OrderBidAccessDeniedException("사용자 정보를 가져올 수 없습니다. 로그인 상태를 확인해주세요.");
-        }
-
-        // 요청 DTO 검증
-        if (requestDto == null) {
-            throw new InvalidOrderBidDataException("주문 입찰 정보가 없습니다.");
-        }
-        if (requestDto.getProductSizeId() == null) {
-            throw new InvalidOrderBidDataException("상품 사이즈 정보가 없습니다.");
-        }
-        if (requestDto.getBidPrice() <= 0) {
-            throw new InvalidBidPriceException("입찰 가격은 0보다 커야 합니다. 현재 가격: " + requestDto.getBidPrice());
-        }
+        String email = SecurityUtils.extractAndValidateEmailForOrderBid("주문 입찰 생성");
 
         log.info("사용자 [{}]가 상품 사이즈(ID: {})에 대한 주문 입찰을 생성합니다. 입찰 가격: {}",
                 email, requestDto.getProductSizeId(), requestDto.getBidPrice());
@@ -58,7 +51,7 @@ public class OrderBidCommandController {
                 requestDto.getBidPrice()
         ).getId();
 
-        return ResponseEntity.ok(orderBidId);
+        return ResponseEntity.ok(ResponseDto.success(orderBidId, "주문 입찰이 성공적으로 생성되었습니다."));
     }
 
     /**
@@ -71,12 +64,16 @@ public class OrderBidCommandController {
      * @throws OrderBidDeletionFailedException 주문 입찰 삭제 실패 시
      */
     @DeleteMapping("/{orderBidId}")
-    public ResponseEntity<Void> deleteOrderBid(@PathVariable("orderBidId") Long orderBidId) {
-        log.info("주문 입찰(ID: {}) 삭제 요청이 들어왔습니다.", orderBidId);
+    public ResponseEntity<ResponseDto<Void>> deleteOrderBid(@PathVariable("orderBidId") Long orderBidId) {
+        // 사용자 이메일 추출 및 검증
+        String email = SecurityUtils.extractAndValidateEmailForOrderBid("주문 입찰 삭제");
 
+        log.info("사용자 [{}]가 주문 입찰(ID: {})의 삭제를 요청합니다.", email, orderBidId);
+
+        // 서비스 호출
         orderBidCommandService.deleteOrderBid(orderBidId);
 
-        return ResponseEntity.ok().build();
+        return ResponseEntity.ok(ResponseDto.success(null, "주문 입찰이 성공적으로 삭제되었습니다."));
     }
 
     /**
@@ -90,27 +87,9 @@ public class OrderBidCommandController {
      * @throws OrderBidCreationFailedException 주문 입찰 생성 실패 시
      */
     @PostMapping("/instant")
-    public ResponseEntity<Long> createInstantOrderBid(@RequestBody InstantOrderRequestDto requestDto) {
+    public ResponseEntity<ResponseDto<Long>> createInstantOrderBid(@RequestBody @Valid InstantOrderRequestDto requestDto) {
         // 사용자 이메일 추출 및 검증
-        String email = SecurityUtils.extractEmailFromSecurityContext();
-        if (email == null || email.trim().isEmpty()) {
-            log.warn("즉시 구매 입찰 생성 시 사용자 이메일을 가져올 수 없습니다.");
-            throw new OrderBidAccessDeniedException("사용자 정보를 가져올 수 없습니다. 로그인 상태를 확인해주세요.");
-        }
-
-        // 요청 DTO 검증
-        if (requestDto == null) {
-            throw new InvalidOrderBidDataException("즉시 구매 입찰 정보가 없습니다.");
-        }
-        if (requestDto.getSaleBidId() == null) {
-            throw new InvalidOrderBidDataException("판매 입찰 정보가 없습니다.");
-        }
-        if (requestDto.getAddressId() == null) {
-            throw new InvalidOrderBidDataException("배송지 정보가 없습니다.");
-        }
-        if (requestDto.getPaymentRequest() == null) {
-            throw new InvalidPaymentShipmentDataException("결제 정보가 없습니다.");
-        }
+        String email = SecurityUtils.extractAndValidateEmailForOrderBid("즉시 구매 입찰 생성");
 
         log.info("사용자 [{}]가 판매 입찰(ID: {})에 대한 즉시 구매를 요청합니다. 창고 보관 여부: {}",
                 email, requestDto.getSaleBidId(), requestDto.isWarehouseStorage());
@@ -127,7 +106,7 @@ public class OrderBidCommandController {
                 paymentRequest
         ).getId();
 
-        return ResponseEntity.ok(orderId);
+        return ResponseEntity.ok(ResponseDto.success(orderId, "즉시 구매가 성공적으로 처리되었습니다."));
     }
 
     /**

@@ -4,16 +4,23 @@ import com.fream.back.domain.order.dto.PayAndShipmentRequestDto;
 import com.fream.back.domain.order.exception.InvalidPaymentShipmentDataException;
 import com.fream.back.domain.order.exception.OrderAccessDeniedException;
 import com.fream.back.domain.order.service.command.OrderCommandService;
+import com.fream.back.global.dto.ResponseDto;
 import com.fream.back.global.utils.SecurityUtils;
+import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.ResponseEntity;
+import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.*;
 
+/**
+ * 주문 명령 컨트롤러
+ */
 @RestController
 @RequestMapping("/orders")
 @RequiredArgsConstructor
 @Slf4j
+@Validated
 public class OrderCommandController {
 
     private final OrderCommandService orderCommandService;
@@ -28,27 +35,18 @@ public class OrderCommandController {
      * @throws InvalidPaymentShipmentDataException 결제 및 배송 정보가 유효하지 않은 경우
      */
     @PostMapping("/{orderId}/process-payment-shipment")
-    public ResponseEntity<Void> processPaymentAndShipment(
+    public ResponseEntity<ResponseDto<Void>> processPaymentAndShipment(
             @PathVariable("orderId") Long orderId,
-            @RequestBody PayAndShipmentRequestDto requestDto
+            @RequestBody @Valid PayAndShipmentRequestDto requestDto
     ) {
         // 사용자 이메일 추출 및 검증
-        String email = SecurityUtils.extractEmailFromSecurityContext();
-        if (email == null || email.trim().isEmpty()) {
-            log.warn("결제 및 배송 처리 시 사용자 이메일을 가져올 수 없습니다.");
-            throw new OrderAccessDeniedException("사용자 정보를 가져올 수 없습니다. 로그인 상태를 확인해주세요.");
-        }
-
-        // 요청 DTO 검증
-        if (requestDto == null) {
-            throw new InvalidPaymentShipmentDataException("결제 및 배송 정보가 없습니다.");
-        }
+        String email = SecurityUtils.extractAndValidateEmailForOrder("결제 및 배송 처리");
 
         log.info("사용자 [{}]가 주문(ID: {})의 결제 및 배송 처리를 요청합니다.", email, orderId);
 
         // 서비스 호출
         orderCommandService.processPaymentAndShipment(orderId, email, requestDto);
 
-        return ResponseEntity.ok().build();
+        return ResponseEntity.ok(ResponseDto.success(null, "결제 및 배송 처리가 성공적으로 완료되었습니다."));
     }
 }

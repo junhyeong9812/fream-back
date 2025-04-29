@@ -18,6 +18,9 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+/**
+ * 주문 입찰 명령 서비스
+ */
 @Service
 @RequiredArgsConstructor
 @Slf4j
@@ -43,48 +46,60 @@ public class OrderBidCommandService {
     @Transactional
     public OrderBid createOrderBid(String email, Long productSizeId, int bidPrice) {
         try {
-            // 입력값 검증
-            if (email == null || email.trim().isEmpty()) {
-                throw new OrderBidAccessDeniedException("사용자 이메일이 없습니다.");
-            }
-            if (productSizeId == null) {
-                throw new ProductSizeNotFoundException("상품 사이즈 ID가 없습니다.");
-            }
-            if (bidPrice <= 0) {
-                throw new InvalidBidPriceException("입찰 가격은 0보다 커야 합니다. 현재 가격: " + bidPrice);
-            }
+            // 1. 입력값 검증
+            validateCreateOrderBidInput(email, productSizeId, bidPrice);
 
-            // 1. User 조회
+            // 2. User 조회
             User user = userQueryService.findByEmail(email);
 
-            // 2. ProductSize 조회
+            // 3. ProductSize 조회
             ProductSize productSize = productSizeQueryService.findById(productSizeId)
                     .orElseThrow(() -> new ProductSizeNotFoundException("해당 사이즈를 찾을 수 없습니다(ID: " + productSizeId + ")"));
 
-            // 3. Order 생성
+            // 4. Order 생성
             Order order = orderCommandService.createOrderFromBid(user, productSize, bidPrice);
 
-            // 4. OrderBid 생성
-            OrderBid orderBid = OrderBid.builder()
-                    .user(user)
-                    .productSize(productSize)
-                    .bidPrice(bidPrice)
-                    .status(BidStatus.PENDING)
-                    .order(order) // Order 매핑
-                    .build();
+            // 5. OrderBid 생성 및 저장
+            OrderBid orderBid = createAndSaveOrderBid(user, productSize, bidPrice, order);
 
-            // 양방향 관계 설정
-            orderBid.assignOrder(order);
-
-            // 5. OrderBid 저장
-            return orderBidRepository.save(orderBid);
+            return orderBid;
         } catch (Exception e) {
-            if (e instanceof OrderException) {
-                throw e;
-            }
-            log.error("주문 입찰 생성 중 오류 발생: {}", e.getMessage(), e);
-            throw new OrderBidCreationFailedException("주문 입찰 생성 중 오류가 발생했습니다: " + e.getMessage(), e);
+            handleOrderBidCreationException(e, "주문 입찰 생성");
+            return null; // 실행되지 않음 (예외가 던져짐)
         }
+    }
+
+    /**
+     * 주문 입찰 생성 입력값을 검증합니다.
+     */
+    private void validateCreateOrderBidInput(String email, Long productSizeId, int bidPrice) {
+        if (email == null || email.trim().isEmpty()) {
+            throw new OrderBidAccessDeniedException("사용자 이메일이 없습니다.");
+        }
+        if (productSizeId == null) {
+            throw new ProductSizeNotFoundException("상품 사이즈 ID가 없습니다.");
+        }
+        if (bidPrice <= 0) {
+            throw new InvalidBidPriceException("입찰 가격은 0보다 커야 합니다. 현재 가격: " + bidPrice);
+        }
+    }
+
+    /**
+     * OrderBid 생성 및 저장을 수행합니다.
+     */
+    private OrderBid createAndSaveOrderBid(User user, ProductSize productSize, int bidPrice, Order order) {
+        OrderBid orderBid = OrderBid.builder()
+                .user(user)
+                .productSize(productSize)
+                .bidPrice(bidPrice)
+                .status(BidStatus.PENDING)
+                .order(order)
+                .build();
+
+        // 양방향 관계 설정
+        orderBid.assignOrder(order);
+
+        return orderBidRepository.save(orderBid);
     }
 
     /**
@@ -104,35 +119,17 @@ public class OrderBidCommandService {
     public OrderBid createInstantOrderBid(String buyerEmail, Long saleBidId, Long addressId,
                                           boolean isWarehouseStorage, PaymentRequestDto paymentRequest) {
         try {
-            // 입력값 검증
-            if (buyerEmail == null || buyerEmail.trim().isEmpty()) {
-                throw new OrderBidAccessDeniedException("구매자 이메일이 없습니다.");
-            }
-            if (saleBidId == null) {
-                throw new SaleBidNotFoundException("판매 입찰 ID가 없습니다.");
-            }
-            if (addressId == null) {
-                throw new InvalidOrderBidDataException("배송지 ID가 없습니다.");
-            }
-            if (paymentRequest == null) {
-                throw new InvalidPaymentShipmentDataException("결제 정보가 없습니다.");
-            }
+            // 1. 입력값 검증
+            validateInstantOrderBidInput(buyerEmail, saleBidId, addressId, paymentRequest);
 
-            // 1. 유저 조회
+            // 2. 유저 조회
             User buyer = userQueryService.findByEmail(buyerEmail);
 
-            // 2. SaleBid 조회
-            SaleBid saleBid = saleBidQueryService.findById(saleBidId);
-            if (saleBid == null) {
-                throw new SaleBidNotFoundException("판매 입찰을 찾을 수 없습니다(ID: " + saleBidId + ")");
-            }
-
+            // 3. SaleBid 및 Sale 조회
+            SaleBid saleBid = getSaleBidAndValidate(saleBidId);
             Sale sale = saleBid.getSale();
-            if (sale == null) {
-                throw new InvalidOrderBidDataException("판매 입찰과 연결된 판매 정보가 없습니다.");
-            }
 
-            // 3. Order 생성
+            // 4. Order 생성
             Order order = orderCommandService.createInstantOrder(
                     buyer,
                     saleBid,
@@ -141,31 +138,83 @@ public class OrderBidCommandService {
                     paymentRequest
             );
 
-            // 4. OrderBid 생성
-            ProductSize productSize = saleBid.getProductSize();
+            // 5. OrderBid 생성 및 저장
+            OrderBid orderBid = createInstantOrderBid(order, saleBid, sale);
 
-            OrderBid orderBid = OrderBid.builder()
-                    .user(order.getUser()) // 구매자
-                    .productSize(productSize)
-                    .bidPrice(saleBid.getBidPrice())
-                    .status(BidStatus.MATCHED) // 즉시 구매는 바로 매칭 상태
-                    .order(order) // Order와 매핑
-                    .sale(sale) // 셀러 정보 추가
-                    .build();
-
-            // 양방향 관계 설정
-            orderBid.assignOrder(order);
-
-            // 플래그 설정 및 저장
-            orderBid.markAsInstantPurchase();
-            return orderBidRepository.save(orderBid);
+            return orderBid;
         } catch (Exception e) {
-            if (e instanceof OrderException) {
-                throw e;
-            }
-            log.error("즉시 구매 주문 입찰 생성 중 오류 발생: {}", e.getMessage(), e);
-            throw new OrderBidCreationFailedException("즉시 구매 주문 입찰 생성 중 오류가 발생했습니다: " + e.getMessage(), e);
+            handleOrderBidCreationException(e, "즉시 구매 주문 입찰 생성");
+            return null; // 실행되지 않음 (예외가 던져짐)
         }
+    }
+
+    /**
+     * 즉시 구매 입력값을 검증합니다.
+     */
+    private void validateInstantOrderBidInput(String buyerEmail, Long saleBidId, Long addressId, PaymentRequestDto paymentRequest) {
+        if (buyerEmail == null || buyerEmail.trim().isEmpty()) {
+            throw new OrderBidAccessDeniedException("구매자 이메일이 없습니다.");
+        }
+        if (saleBidId == null) {
+            throw new SaleBidNotFoundException("판매 입찰 ID가 없습니다.");
+        }
+        if (addressId == null) {
+            throw new InvalidOrderBidDataException("배송지 ID가 없습니다.");
+        }
+        if (paymentRequest == null) {
+            throw new InvalidPaymentShipmentDataException("결제 정보가 없습니다.");
+        }
+    }
+
+    /**
+     * SaleBid를 조회하고 유효성을 검증합니다.
+     */
+    private SaleBid getSaleBidAndValidate(Long saleBidId) {
+        SaleBid saleBid = saleBidQueryService.findById(saleBidId);
+        if (saleBid == null) {
+            throw new SaleBidNotFoundException("판매 입찰을 찾을 수 없습니다(ID: " + saleBidId + ")");
+        }
+
+        Sale sale = saleBid.getSale();
+        if (sale == null) {
+            throw new InvalidOrderBidDataException("판매 입찰과 연결된 판매 정보가 없습니다.");
+        }
+
+        return saleBid;
+    }
+
+    /**
+     * 즉시 구매 OrderBid를 생성합니다.
+     */
+    private OrderBid createInstantOrderBid(Order order, SaleBid saleBid, Sale sale) {
+        ProductSize productSize = saleBid.getProductSize();
+
+        OrderBid orderBid = OrderBid.builder()
+                .user(order.getUser()) // 구매자
+                .productSize(productSize)
+                .bidPrice(saleBid.getBidPrice())
+                .status(BidStatus.MATCHED) // 즉시 구매는 바로 매칭 상태
+                .order(order) // Order와 매핑
+                .sale(sale) // 셀러 정보 추가
+                .build();
+
+        // 양방향 관계 설정
+        orderBid.assignOrder(order);
+
+        // 플래그 설정 및 저장
+        orderBid.markAsInstantPurchase();
+        return orderBidRepository.save(orderBid);
+    }
+
+    /**
+     * 주문 입찰 생성 예외를 처리합니다.
+     */
+    private void handleOrderBidCreationException(Exception e, String operation) {
+        if (e instanceof OrderException) {
+            throw (OrderException) e;
+        }
+        log.error("{} 중 오류 발생: {}", operation, e.getMessage(), e);
+        throw new OrderBidCreationFailedException(operation + " 중 오류가 발생했습니다: " + e.getMessage(), e);
     }
 
     /**

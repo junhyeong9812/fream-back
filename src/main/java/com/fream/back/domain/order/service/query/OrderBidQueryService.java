@@ -16,6 +16,9 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.util.Optional;
 
+/**
+ * 주문 입찰 조회 서비스
+ */
 @Service
 @RequiredArgsConstructor
 @Transactional(readOnly = true)
@@ -29,6 +32,7 @@ public class OrderBidQueryService {
      *
      * @param id 주문 입찰 ID
      * @return 주문 입찰 (Optional)
+     * @throws InvalidOrderBidDataException 주문 입찰 ID가 유효하지 않은 경우
      */
     public Optional<OrderBid> findById(Long id) {
         if (id == null) {
@@ -42,8 +46,8 @@ public class OrderBidQueryService {
      *
      * @param orderId 주문 ID
      * @return 주문 입찰 (Optional)
+     * @throws InvalidOrderBidDataException 주문 ID가 유효하지 않은 경우
      */
-    @Transactional(readOnly = true)
     public Optional<OrderBid> findByOrderId(Long orderId) {
         if (orderId == null) {
             throw new InvalidOrderBidDataException("주문 ID가 없습니다.");
@@ -60,11 +64,10 @@ public class OrderBidQueryService {
      * @param pageable 페이징 정보
      * @return 주문 입찰 목록 (페이징)
      * @throws OrderBidAccessDeniedException 사용자 이메일이 유효하지 않을 경우
+     * @throws InvalidOrderBidDataException 조회 중 오류가 발생한 경우
      */
     public Page<OrderBidResponseDto> getOrderBids(String email, String bidStatus, String orderStatus, Pageable pageable) {
-        if (email == null || email.trim().isEmpty()) {
-            throw new OrderBidAccessDeniedException("사용자 이메일이 없습니다.");
-        }
+        validateEmail(email);
 
         try {
             return orderBidRepository.findOrderBidsByFilters(email, bidStatus, orderStatus, pageable);
@@ -80,11 +83,10 @@ public class OrderBidQueryService {
      * @param email 사용자 이메일
      * @return 주문 입찰 상태별 개수
      * @throws OrderBidAccessDeniedException 사용자 이메일이 유효하지 않을 경우
+     * @throws InvalidOrderBidDataException 조회 중 오류가 발생한 경우
      */
     public OrderBidStatusCountDto getOrderBidStatusCounts(String email) {
-        if (email == null || email.trim().isEmpty()) {
-            throw new OrderBidAccessDeniedException("사용자 이메일이 없습니다.");
-        }
+        validateEmail(email);
 
         try {
             return orderBidRepository.countOrderBidsByStatus(email);
@@ -103,15 +105,12 @@ public class OrderBidQueryService {
      * @throws OrderBidAccessDeniedException 사용자 이메일이 유효하지 않을 경우
      * @throws InvalidOrderBidDataException 주문 입찰 ID가 유효하지 않을 경우
      */
-    @Transactional(readOnly = true)
     public Optional<OrderBidResponseDto> getOrderBidDetail(Long orderBidId, String email) {
         if (orderBidId == null) {
             throw new InvalidOrderBidDataException("주문 입찰 ID가 없습니다.");
         }
 
-        if (email == null || email.trim().isEmpty()) {
-            throw new OrderBidAccessDeniedException("사용자 이메일이 없습니다.");
-        }
+        validateEmail(email);
 
         try {
             OrderBidResponseDto responseDto = orderBidRepository.findOrderBidById(orderBidId, email);
@@ -119,6 +118,18 @@ public class OrderBidQueryService {
         } catch (Exception e) {
             log.error("주문 입찰 상세 정보 조회 중 오류 발생: {}", e.getMessage(), e);
             throw new InvalidOrderBidDataException("주문 입찰 상세 정보 조회 중 오류가 발생했습니다: " + e.getMessage(), e);
+        }
+    }
+
+    /**
+     * 이메일 유효성을 검사합니다.
+     *
+     * @param email 사용자 이메일
+     * @throws OrderBidAccessDeniedException 이메일이 유효하지 않은 경우
+     */
+    private void validateEmail(String email) {
+        if (email == null || email.trim().isEmpty()) {
+            throw new OrderBidAccessDeniedException("사용자 이메일이 없습니다.");
         }
     }
 }

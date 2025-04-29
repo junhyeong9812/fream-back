@@ -4,6 +4,9 @@ import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
+/**
+ * 주문 입찰 상태별 개수 DTO
+ */
 @Data
 @AllArgsConstructor
 @NoArgsConstructor
