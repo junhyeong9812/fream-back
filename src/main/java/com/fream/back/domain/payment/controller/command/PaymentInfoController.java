@@ -24,7 +24,7 @@ import java.util.List;
  * 결제 수단 관리(등록, 삭제, 조회) API 제공
  */
 @RestController
-@RequestMapping("/api/v1/payment-info")
+@RequestMapping("/payment-info")
 @RequiredArgsConstructor
 @Slf4j
 public class PaymentInfoController {

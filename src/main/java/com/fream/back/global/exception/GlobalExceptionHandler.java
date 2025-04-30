@@ -11,6 +11,8 @@ import com.fream.back.domain.notification.exception.NotificationException;
 import com.fream.back.domain.order.exception.OrderException;
 import com.fream.back.domain.payment.exception.PaymentException;
 import com.fream.back.domain.product.exception.ProductException;
+import com.fream.back.domain.sale.exception.SaleException;
+import com.fream.back.domain.shipment.exception.ShipmentException;
 import com.fream.back.domain.warehouseStorage.exception.WarehouseStorageException;
 import com.fream.back.domain.weather.exception.WeatherException;
 import com.fream.back.global.exception.file.FileException;
@@ -410,6 +412,52 @@ public class GlobalExceptionHandler {
             HttpServletRequest request, ProductException e) {
         ErrorCode errorCode = e.getErrorCode();
         log.error("상품 예외 발생: {} - {}", errorCode.getCode(), e.getMessage(), e);
+
+        return ResponseEntity
+                .status(errorCode.getStatus())
+                .body(ErrorResponse.of(
+                        errorCode.getCode(),
+                        errorCode.getMessage(),
+                        errorCode.getStatus(),
+                        request.getRequestURI()
+                ));
+    }
+
+    /**
+     * SaleException 및 하위 예외 처리
+     *
+     * @param request 현재 HTTP 요청
+     * @param e 발생한 예외
+     * @return 에러 응답
+     */
+    @ExceptionHandler(SaleException.class)
+    public ResponseEntity<ErrorResponse> handleSaleException(
+            HttpServletRequest request, SaleException e) {
+        ErrorCode errorCode = e.getErrorCode();
+        log.error("판매 예외 발생: {} - {}", errorCode.getCode(), e.getMessage(), e);
+
+        return ResponseEntity
+                .status(errorCode.getStatus())
+                .body(ErrorResponse.of(
+                        errorCode.getCode(),
+                        errorCode.getMessage(),
+                        errorCode.getStatus(),
+                        request.getRequestURI()
+                ));
+    }
+
+    /**
+     * ShipmentException 및 하위 예외 처리
+     *
+     * @param request 현재 HTTP 요청
+     * @param e 발생한 예외
+     * @return 에러 응답
+     */
+    @ExceptionHandler(ShipmentException.class)
+    public ResponseEntity<ErrorResponse> handleShipmentException(
+            HttpServletRequest request, ShipmentException e) {
+        ErrorCode errorCode = e.getErrorCode();
+        log.error("ShipmentException: {} - {}", errorCode.getCode(), e.getMessage(), e);
 
         return ResponseEntity
                 .status(errorCode.getStatus())
