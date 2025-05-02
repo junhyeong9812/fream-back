@@ -42,7 +42,7 @@ public class StyleLikeQueryService {
 
         try {
             Profile profile = profileQueryService.getProfileByEmail(email);
-            boolean isLiked = styleLikeRepository.existsByProfileIdAndStyleId(profile.getId(), styleId);
+            boolean isLiked = styleLikeRepository.existsByStyleIdAndProfileId(styleId, profile.getId());
 
             log.debug("사용자 이메일로 좋아요 여부 확인 완료: email={}, styleId={}, 좋아요={}",
                     email, styleId, isLiked);
