@@ -2,14 +2,18 @@ package com.fream.back.domain.style.service.command;
 
 import com.fream.back.domain.style.entity.Style;
 import com.fream.back.domain.style.entity.StyleLike;
+import com.fream.back.domain.style.exception.StyleErrorCode;
+import com.fream.back.domain.style.exception.StyleException;
 import com.fream.back.domain.style.repository.StyleLikeRepository;
 import com.fream.back.domain.style.service.query.StyleQueryService;
 import com.fream.back.domain.user.entity.Profile;
 import com.fream.back.domain.user.service.profile.ProfileQueryService;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+@Slf4j
 @Service
 @RequiredArgsConstructor
 @Transactional
@@ -19,27 +23,62 @@ public class StyleLikeCommandService {
     private final ProfileQueryService profileQueryService;
     private final StyleQueryService styleQueryService;
 
-    // 좋아요 추가 또는 취소
+    /**
+     * 좋아요 추가 또는 취소 (토글)
+     *
+     * @param email 사용자 이메일
+     * @param styleId 스타일 ID
+     * @throws StyleException 좋아요 처리 실패 시
+     */
     public void toggleLike(String email, Long styleId) {
-        Profile profile = profileQueryService.getProfileByEmail(email);
-        Style style = styleQueryService.findStyleById(styleId);
+        log.debug("스타일 좋아요 토글 시작: styleId={}, email={}", styleId, email);
 
-        // 기존 좋아요 조회
-        StyleLike existingLike = styleLikeRepository.findByStyleAndProfile(style, profile).orElse(null);
+        // 입력값 검증
+        if (email == null || email.isEmpty()) {
+            throw new StyleException(StyleErrorCode.STYLE_INVALID_REQUEST, "사용자 이메일이 필요합니다.");
+        }
 
-        if (existingLike != null) {
-            styleLikeRepository.delete(existingLike);
-            style.removeLike(existingLike); // Style -> Like 관계 제거
-        } else {
-            // 새로운 좋아요 추가
-            StyleLike styleLike = StyleLike.builder()
-                    .style(style)
-                    .profile(profile)
-                    .build();
+        if (styleId == null) {
+            throw new StyleException(StyleErrorCode.STYLE_INVALID_REQUEST, "스타일 ID가 필요합니다.");
+        }
 
-            style.addLike(styleLike); // Style -> Like 관계 설정
-            styleLikeRepository.save(styleLike);
+        try {
+            Profile profile = profileQueryService.getProfileByEmail(email);
+            log.debug("프로필 조회 성공: profileId={}, profileName={}",
+                    profile.getId(), profile.getProfileName());
+
+            Style style = styleQueryService.findStyleById(styleId);
+            log.debug("스타일 조회 성공: styleId={}", styleId);
+
+            // 기존 좋아요 조회
+            StyleLike existingLike = styleLikeRepository.findByStyleAndProfile(style, profile).orElse(null);
+
+            if (existingLike != null) {
+                // 좋아요 취소
+                log.debug("기존 좋아요 삭제: likeId={}, styleId={}, profileId={}",
+                        existingLike.getId(), styleId, profile.getId());
+                styleLikeRepository.delete(existingLike);
+                style.removeLike(existingLike); // Style -> Like 관계 제거
+                log.info("스타일 좋아요 취소 완료: styleId={}, profileId={}", styleId, profile.getId());
+            } else {
+                // 새로운 좋아요 추가
+                StyleLike styleLike = StyleLike.builder()
+                        .style(style)
+                        .profile(profile)
+                        .build();
+
+                style.addLike(styleLike); // Style -> Like 관계 설정
+                StyleLike savedLike = styleLikeRepository.save(styleLike);
+                log.info("스타일 좋아요 추가 완료: likeId={}, styleId={}, profileId={}",
+                        savedLike.getId(), styleId, profile.getId());
+            }
+        } catch (StyleException e) {
+            // StyleException은 이미 로깅됨
+            throw e;
+        } catch (Exception e) {
+            log.error("스타일 좋아요 토글 중 예상치 못한 오류 발생: styleId={}, email={}", styleId, email, e);
+            throw new StyleException(StyleErrorCode.LIKE_OPERATION_FAILED,
+                    "스타일 좋아요 처리 중 오류가 발생했습니다.", e);
         }
     }
 }
-

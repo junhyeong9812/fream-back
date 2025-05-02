@@ -139,6 +139,11 @@ imp:
   pg: ${IMP_PG} # PG사와 가맹점 ID
   storeId: ${IMP_STOREID}
 
+personal-data:
+  encryption:
+    secret-key: ${PERSONAL_ENCRYPTION_KEY}
+    iv: ${PERSONAL_ENCRYPTION_IV}
+
 openai:
   api:
     key: ${OPENAPI_KEY}  # 실제 API 키로 대체 필요
