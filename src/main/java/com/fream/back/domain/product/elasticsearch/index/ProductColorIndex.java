@@ -50,8 +50,10 @@ public class ProductColorIndex {
     private Long brandId;
     private Long categoryId;
     private Long collectionId;
-    @Field(type = FieldType.Date, format = DateFormat.date, pattern = "yyyy-MM-dd")
-    private String releaseDate;
+//    @Field(type = FieldType.Date, format = DateFormat.date, pattern = "yyyy-MM-dd")
+//    private String releaseDate;
+@Field(type = FieldType.Keyword)  // 또는 String으로 처리하고 싶다면
+private String releaseDate;
 
     private int releasePrice; // 발매가
     private int minPrice;     // size 중 최저 purchasePrice
