@@ -53,6 +53,7 @@ import com.fream.back.domain.user.service.profile.ProfileCommandService;
 import com.fream.back.domain.warehouseStorage.entity.WarehouseStorage;
 import com.fream.back.domain.warehouseStorage.repository.WarehouseStorageRepository;
 import com.fream.back.domain.warehouseStorage.service.command.WarehouseStorageCommandService;
+import com.fream.back.global.utils.PersonalDataEncryptionUtil;
 import lombok.RequiredArgsConstructor;
 import org.hibernate.LazyInitializationException;
 import org.springframework.boot.CommandLineRunner;
@@ -99,6 +100,7 @@ public class DataInitializer implements CommandLineRunner {
     private final MediaUrlRepository mediaUrlRepository;
     private final StyleOrderItemRepository styleOrderItemRepository;
     private final ProfileRepository profileRepository;
+    private final PersonalDataEncryptionUtil encryptionUtil;
 
     @Transactional
     @Override
@@ -558,13 +560,21 @@ public class DataInitializer implements CommandLineRunner {
     }
     // 주소 생성 메서드
     private void createAddress(User user, String recipientName, String phoneNumber, String zipCode, String address, String detailedAddress, boolean isDefault) {
+        // 개인정보 암호화
+        String encryptedRecipientName = encryptionUtil.encrypt(recipientName);
+        String encryptedPhoneNumber = encryptionUtil.encrypt(phoneNumber);
+        String encryptedZipCode = encryptionUtil.encrypt(zipCode);
+        String encryptedAddress = encryptionUtil.encrypt(address);
+        String encryptedDetailedAddress = detailedAddress != null ?
+                encryptionUtil.encrypt(detailedAddress) : null;
+
         Address newAddress = Address.builder()
                 .user(user) // 연관관계 설정
-                .recipientName(recipientName)
-                .phoneNumber(phoneNumber)
-                .zipCode(zipCode)
-                .address(address)
-                .detailedAddress(detailedAddress)
+                .recipientName(encryptedRecipientName)
+                .phoneNumber(encryptedPhoneNumber)
+                .zipCode(encryptedZipCode)
+                .address(encryptedAddress)
+                .detailedAddress(encryptedDetailedAddress)
                 .isDefault(isDefault)
                 .build();
 

@@ -9,6 +9,7 @@ import com.fream.back.domain.address.exception.AddressUserNotFoundException;
 import com.fream.back.domain.address.repository.AddressRepository;
 import com.fream.back.domain.user.entity.User;
 import com.fream.back.domain.user.repository.UserRepository;
+import com.fream.back.global.utils.PersonalDataEncryptionUtil;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -24,6 +25,7 @@ public class AddressQueryService {
 
     private final UserRepository userRepository;
     private final AddressRepository addressRepository;
+    private final PersonalDataEncryptionUtil encryptionUtil;
 
     //주소지 목록 조회
     @Transactional(readOnly = true)
@@ -39,11 +41,13 @@ public class AddressQueryService {
             List<AddressResponseDto> addresses = user.getAddresses().stream()
                     .map(address -> new AddressResponseDto(
                             address.getId(),
-                            address.getRecipientName(),
-                            address.getPhoneNumber(),
-                            address.getZipCode(),
-                            address.getAddress(),
-                            address.getDetailedAddress(),
+                            // 암호화된 값 복호화
+                            encryptionUtil.decrypt(address.getRecipientName()),
+                            encryptionUtil.decrypt(address.getPhoneNumber()),
+                            encryptionUtil.decrypt(address.getZipCode()),
+                            encryptionUtil.decrypt(address.getAddress()),
+                            address.getDetailedAddress() != null ?
+                                    encryptionUtil.decrypt(address.getDetailedAddress()) : null,
                             address.isDefault()))
                     .collect(Collectors.toList());
 
@@ -73,13 +77,15 @@ public class AddressQueryService {
                             "주소 ID '" + addressId + "'에 해당하는 주소를 찾을 수 없습니다."
                     ));
 
+            // 암호화된 값 복호화하여 DTO 생성
             AddressResponseDto responseDto = new AddressResponseDto(
                     address.getId(),
-                    address.getRecipientName(),
-                    address.getPhoneNumber(),
-                    address.getZipCode(),
-                    address.getAddress(),
-                    address.getDetailedAddress(),
+                    encryptionUtil.decrypt(address.getRecipientName()),
+                    encryptionUtil.decrypt(address.getPhoneNumber()),
+                    encryptionUtil.decrypt(address.getZipCode()),
+                    encryptionUtil.decrypt(address.getAddress()),
+                    address.getDetailedAddress() != null ?
+                            encryptionUtil.decrypt(address.getDetailedAddress()) : null,
                     address.isDefault()
             );
 

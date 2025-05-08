@@ -35,7 +35,7 @@ public class Address extends BaseTimeEntity {
     @Column(nullable = false)
     private String phoneNumber; // 전화번호
 
-    @Column(nullable = false, length = 5)
+    @Column(nullable = false)
     private String zipCode; // 우편번호
 
     @Column(nullable = false)

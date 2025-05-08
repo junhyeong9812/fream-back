@@ -10,6 +10,7 @@ import com.fream.back.domain.address.exception.AddressUserNotFoundException;
 import com.fream.back.domain.address.repository.AddressRepository;
 import com.fream.back.domain.user.entity.User;
 import com.fream.back.domain.user.repository.UserRepository;
+import com.fream.back.global.utils.PersonalDataEncryptionUtil;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -22,6 +23,7 @@ public class AddressCommandService {
 
     private final UserRepository userRepository;
     private final AddressRepository addressRepository;
+    private final PersonalDataEncryptionUtil encryptionUtil;
 
     //주소지 생성
     @Transactional
@@ -41,15 +43,21 @@ public class AddressCommandService {
                         null, null, null, null, null, false));
             }
 
-            // 입력값 검증은 @Validated로 대체되어 컨트롤러에서 수행됨
+            // 개인정보 암호화
+            String encryptedRecipientName = encryptionUtil.encrypt(createDto.getRecipientName());
+            String encryptedPhoneNumber = encryptionUtil.encrypt(createDto.getPhoneNumber());
+            String encryptedZipCode = encryptionUtil.encrypt(createDto.getZipCode());
+            String encryptedAddress = encryptionUtil.encrypt(createDto.getAddress());
+            String encryptedDetailedAddress = createDto.getDetailedAddress() != null ?
+                    encryptionUtil.encrypt(createDto.getDetailedAddress()) : null;
 
             Address newAddress = Address.builder()
                     .user(user)
-                    .recipientName(createDto.getRecipientName())
-                    .phoneNumber(createDto.getPhoneNumber())
-                    .zipCode(createDto.getZipCode())
-                    .address(createDto.getAddress())
-                    .detailedAddress(createDto.getDetailedAddress())
+                    .recipientName(encryptedRecipientName)
+                    .phoneNumber(encryptedPhoneNumber)
+                    .zipCode(encryptedZipCode)
+                    .address(encryptedAddress)
+                    .detailedAddress(encryptedDetailedAddress)
                     .isDefault(createDto.getIsDefault() != null && createDto.getIsDefault())
                     .build();
 
@@ -79,20 +87,30 @@ public class AddressCommandService {
                             "주소 ID '" + updateDto.getAddressId() + "'에 해당하는 주소를 찾을 수 없습니다."
                     ));
 
-            // 입력값 검증은 @Validated로 대체되어 컨트롤러에서 수행됨
-
             if (updateDto.getIsDefault() != null && updateDto.getIsDefault()) {
                 log.debug("기존 기본 주소 해제: 사용자={}", email);
                 user.getAddresses().forEach(addr -> addr.updateAddress(
                         null, null, null, null, null, false));
             }
 
+            // 개인정보 암호화
+            String encryptedRecipientName = updateDto.getRecipientName() != null ?
+                    encryptionUtil.encrypt(updateDto.getRecipientName()) : null;
+            String encryptedPhoneNumber = updateDto.getPhoneNumber() != null ?
+                    encryptionUtil.encrypt(updateDto.getPhoneNumber()) : null;
+            String encryptedZipCode = updateDto.getZipCode() != null ?
+                    encryptionUtil.encrypt(updateDto.getZipCode()) : null;
+            String encryptedAddress = updateDto.getAddress() != null ?
+                    encryptionUtil.encrypt(updateDto.getAddress()) : null;
+            String encryptedDetailedAddress = updateDto.getDetailedAddress() != null ?
+                    encryptionUtil.encrypt(updateDto.getDetailedAddress()) : null;
+
             address.updateAddress(
-                    updateDto.getRecipientName(),
-                    updateDto.getPhoneNumber(),
-                    updateDto.getZipCode(),
-                    updateDto.getAddress(),
-                    updateDto.getDetailedAddress(),
+                    encryptedRecipientName,
+                    encryptedPhoneNumber,
+                    encryptedZipCode,
+                    encryptedAddress,
+                    encryptedDetailedAddress,
                     updateDto.getIsDefault()
             );
 
