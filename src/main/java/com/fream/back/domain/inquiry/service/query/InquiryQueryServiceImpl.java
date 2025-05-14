@@ -50,7 +50,7 @@ public class InquiryQueryServiceImpl implements InquiryQueryService {
             }
 
             // 3. 이미지 조회
-            List<InquiryImage> images = inquiryImageRepository.findAllByInquiryId(inquiryId);
+            List<InquiryImage> images = inquiryImageRepository.findAllByInquiry_Id(inquiryId);
 
             // 4. 응답 DTO 생성
             return InquiryResponseDto.from(inquiry, images);

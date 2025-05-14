@@ -77,7 +77,7 @@ public class InquiryCommandServiceImpl implements InquiryCommandService {
             }
 
             // 3. 응답 DTO 생성
-            List<InquiryImage> images = inquiryImageRepository.findAllByInquiryId(savedInquiry.getId());
+            List<InquiryImage> images = inquiryImageRepository.findAllByInquiry_Id(savedInquiry.getId());
             return InquiryResponseDto.from(savedInquiry, images);
 
         } catch (IllegalArgumentException e) {
@@ -107,7 +107,7 @@ public class InquiryCommandServiceImpl implements InquiryCommandService {
 
             // 2. 이미지 처리
             // 2-1. 현재 DB에 저장된 이미지들
-            List<InquiryImage> currentImages = inquiryImageRepository.findAllByInquiryIdAndIsAnswerFalse(inquiryId);
+            List<InquiryImage> currentImages = inquiryImageRepository.findAllByInquiry_IdAndIsAnswerFalse(inquiryId);
 
             // 2-2. 삭제할 이미지 파일 찾기 (현재 이미지 중 유지될 이미지에 없는 것들)
             List<InquiryImage> imagesToDelete = currentImages.stream()
@@ -133,7 +133,7 @@ public class InquiryCommandServiceImpl implements InquiryCommandService {
             );
 
             // 4. 응답 DTO 생성
-            List<InquiryImage> updatedImages = inquiryImageRepository.findAllByInquiryId(inquiry.getId());
+            List<InquiryImage> updatedImages = inquiryImageRepository.findAllByInquiry_Id(inquiry.getId());
             return InquiryResponseDto.from(inquiry, updatedImages);
 
         } catch (InquiryNotFoundException | IllegalArgumentException e) {
@@ -159,7 +159,7 @@ public class InquiryCommandServiceImpl implements InquiryCommandService {
             }
 
             // 2. 이미지 조회
-            List<InquiryImage> images = inquiryImageRepository.findAllByInquiryId(inquiryId);
+            List<InquiryImage> images = inquiryImageRepository.findAllByInquiry_Id(inquiryId);
 
             // 3. 이미지 삭제
             deleteImages(inquiry, images);
@@ -192,7 +192,7 @@ public class InquiryCommandServiceImpl implements InquiryCommandService {
             inquiry.updateStatus(status);
 
             // 3. 응답 DTO 생성
-            List<InquiryImage> images = inquiryImageRepository.findAllByInquiryId(inquiry.getId());
+            List<InquiryImage> images = inquiryImageRepository.findAllByInquiry_Id(inquiry.getId());
             return InquiryResponseDto.from(inquiry, images);
 
         } catch (InquiryNotFoundException e) {
@@ -220,7 +220,7 @@ public class InquiryCommandServiceImpl implements InquiryCommandService {
             inquiry.setAnswer(answer, requestDto.getAnsweredBy());
 
             // 4. 응답 DTO 생성
-            List<InquiryImage> images = inquiryImageRepository.findAllByInquiryId(inquiry.getId());
+            List<InquiryImage> images = inquiryImageRepository.findAllByInquiry_Id(inquiry.getId());
             return InquiryResponseDto.from(inquiry, images);
 
         } catch (InquiryNotFoundException e) {
