@@ -38,8 +38,8 @@ public class InquiryResponseDto {
     // 사용자 정보
     private Long userId;
     private String userEmail;
-    private String userProfileName;
-    private String userName;
+    private String userProfileName; // Profile.profileName
+    private String userName;        // Profile.Name
 
     // 이미지 URL 리스트
     @Builder.Default

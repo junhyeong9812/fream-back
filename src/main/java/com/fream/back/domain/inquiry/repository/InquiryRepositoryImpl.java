@@ -109,7 +109,7 @@ public class InquiryRepositoryImpl implements InquiryRepositoryCustom {
                         user.id.as("userId"),
                         user.email,
                         user.profile.profileName,
-                        user.profile.name
+                        user.profile.Name
                 ))
                 .from(inquiry)
                 .leftJoin(inquiry.user, user)
@@ -143,7 +143,7 @@ public class InquiryRepositoryImpl implements InquiryRepositoryCustom {
                         user.id.as("userId"),
                         user.email,
                         user.profile.profileName,
-                        user.profile.name
+                        user.profile.Name
                 ))
                 .from(inquiry)
                 .leftJoin(inquiry.user, user)
@@ -188,7 +188,7 @@ public class InquiryRepositoryImpl implements InquiryRepositoryCustom {
                         user.id.as("userId"),
                         user.email,
                         user.profile.profileName,
-                        user.profile.name
+                        user.profile.Name
                 ))
                 .from(inquiry)
                 .leftJoin(inquiry.user, user)
@@ -239,7 +239,7 @@ public class InquiryRepositoryImpl implements InquiryRepositoryCustom {
                         user.id.as("userId"),
                         user.email,
                         user.profile.profileName,
-                        user.profile.name
+                        user.profile.Name
                 ))
                 .from(inquiry)
                 .leftJoin(inquiry.user, user)

@@ -35,8 +35,8 @@ public class InquirySearchResultDto {
     // 사용자 정보
     private Long userId;
     private String email;
-    private String profileName;
-    private String name;
+    private String profileName; // Profile.profileName
+    private String name;        // Profile.Name
 
     // 이미지 URL 리스트 (별도 설정 필요)
     @Builder.Default
