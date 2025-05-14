@@ -5,6 +5,7 @@ import com.fream.back.domain.address.exception.AddressException;
 import com.fream.back.domain.chatQuestion.exception.ChatQuestionException;
 import com.fream.back.domain.event.exception.EventException;
 import com.fream.back.domain.faq.exception.FAQException;
+import com.fream.back.domain.inquiry.exception.InquiryException;
 import com.fream.back.domain.inspection.exception.InspectionException;
 import com.fream.back.domain.notice.exception.NoticeException;
 import com.fream.back.domain.notification.exception.NotificationException;
@@ -482,6 +483,29 @@ public class GlobalExceptionHandler {
             HttpServletRequest request, StyleException e) {
         ErrorCode errorCode = e.getErrorCode();
         log.error("스타일 예외 발생: {} - {}", errorCode.getCode(), e.getMessage(), e);
+
+        return ResponseEntity
+                .status(errorCode.getStatus())
+                .body(ErrorResponse.of(
+                        errorCode.getCode(),
+                        errorCode.getMessage(),
+                        errorCode.getStatus(),
+                        request.getRequestURI()
+                ));
+    }
+
+    /**
+     * InquiryException 및 하위 예외 처리
+     *
+     * @param request 현재 HTTP 요청
+     * @param e 발생한 예외
+     * @return 에러 응답
+     */
+    @ExceptionHandler(InquiryException.class)
+    public ResponseEntity<ErrorResponse> handleInquiryException(
+            HttpServletRequest request, InquiryException e) {
+        ErrorCode errorCode = e.getErrorCode();
+        log.error("InquiryException: {} - {}", errorCode.getCode(), e.getMessage(), e);
 
         return ResponseEntity
                 .status(errorCode.getStatus())
