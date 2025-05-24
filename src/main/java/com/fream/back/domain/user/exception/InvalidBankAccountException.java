@@ -5,7 +5,7 @@ package com.fream.back.domain.user.exception;
  */
 public class InvalidBankAccountException extends UserException {
 
-    private final String bankCode;
+    private final String bankName;
     private final String accountNumber;
 
     /**
@@ -13,23 +13,23 @@ public class InvalidBankAccountException extends UserException {
      */
     public InvalidBankAccountException() {
         super(UserErrorCode.INVALID_BANK_ACCOUNT);
-        this.bankCode = null;
+        this.bankName = null;
         this.accountNumber = null;
     }
 
     /**
-     * 은행 코드와 계좌번호를 기반으로 한 생성자
+     * 은행명과 계좌번호를 기반으로 한 생성자
      *
-     * @param bankCode 은행 코드
+     * @param bankName 은행명
      * @param accountNumber 계좌번호
      */
-    public InvalidBankAccountException(String bankCode, String accountNumber) {
+    public InvalidBankAccountException(String bankName, String accountNumber) {
         super(UserErrorCode.INVALID_BANK_ACCOUNT,
-                String.format("잘못된 계좌 정보입니다. 은행코드: %s, 계좌번호: %s****",
-                        bankCode,
+                String.format("잘못된 계좌 정보입니다. 은행명: %s, 계좌번호: %s****",
+                        bankName,
                         accountNumber != null && accountNumber.length() > 4
                                 ? accountNumber.substring(0, 4) : "****"));
-        this.bankCode = bankCode;
+        this.bankName = bankName;
         this.accountNumber = accountNumber;
     }
 
@@ -40,7 +40,7 @@ public class InvalidBankAccountException extends UserException {
      */
     public InvalidBankAccountException(String message) {
         super(UserErrorCode.INVALID_BANK_ACCOUNT, message);
-        this.bankCode = null;
+        this.bankName = null;
         this.accountNumber = null;
     }
 
@@ -52,17 +52,17 @@ public class InvalidBankAccountException extends UserException {
      */
     public InvalidBankAccountException(String message, Throwable cause) {
         super(UserErrorCode.INVALID_BANK_ACCOUNT, message, cause);
-        this.bankCode = null;
+        this.bankName = null;
         this.accountNumber = null;
     }
 
     /**
-     * 은행 코드 반환
+     * 은행명 반환
      *
-     * @return 은행 코드
+     * @return 은행명
      */
-    public String getBankCode() {
-        return bankCode;
+    public String getBankName() {
+        return bankName;
     }
 
     /**
