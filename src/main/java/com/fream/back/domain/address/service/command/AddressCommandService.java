@@ -43,11 +43,14 @@ public class AddressCommandService {
                         null, null, null, null, null, false));
             }
 
-            // 개인정보 암호화
-            String encryptedRecipientName = encryptionUtil.encrypt(createDto.getRecipientName());
-            String encryptedPhoneNumber = encryptionUtil.encrypt(createDto.getPhoneNumber());
-            String encryptedZipCode = encryptionUtil.encrypt(createDto.getZipCode());
-            String encryptedAddress = encryptionUtil.encrypt(createDto.getAddress());
+            // 개인정보 암호화 (필드별 차별 적용)
+            // 검색 가능한 필드: 결정적 암호화
+            String encryptedRecipientName = encryptionUtil.deterministicEncrypt(createDto.getRecipientName());
+            String encryptedPhoneNumber = encryptionUtil.deterministicEncrypt(createDto.getPhoneNumber());
+            String encryptedZipCode = encryptionUtil.deterministicEncrypt(createDto.getZipCode());
+            String encryptedAddress = encryptionUtil.deterministicEncrypt(createDto.getAddress());
+
+            // 상세주소: 양방향 암호화 (보안성 우선)
             String encryptedDetailedAddress = createDto.getDetailedAddress() != null ?
                     encryptionUtil.encrypt(createDto.getDetailedAddress()) : null;
 
@@ -93,15 +96,18 @@ public class AddressCommandService {
                         null, null, null, null, null, false));
             }
 
-            // 개인정보 암호화
+            // 개인정보 암호화 (필드별 차별 적용)
+            // 검색 가능한 필드: 결정적 암호화
             String encryptedRecipientName = updateDto.getRecipientName() != null ?
-                    encryptionUtil.encrypt(updateDto.getRecipientName()) : null;
+                    encryptionUtil.deterministicEncrypt(updateDto.getRecipientName()) : null;
             String encryptedPhoneNumber = updateDto.getPhoneNumber() != null ?
-                    encryptionUtil.encrypt(updateDto.getPhoneNumber()) : null;
+                    encryptionUtil.deterministicEncrypt(updateDto.getPhoneNumber()) : null;
             String encryptedZipCode = updateDto.getZipCode() != null ?
-                    encryptionUtil.encrypt(updateDto.getZipCode()) : null;
+                    encryptionUtil.deterministicEncrypt(updateDto.getZipCode()) : null;
             String encryptedAddress = updateDto.getAddress() != null ?
-                    encryptionUtil.encrypt(updateDto.getAddress()) : null;
+                    encryptionUtil.deterministicEncrypt(updateDto.getAddress()) : null;
+
+            // 상세주소: 양방향 암호화 (보안성 우선)
             String encryptedDetailedAddress = updateDto.getDetailedAddress() != null ?
                     encryptionUtil.encrypt(updateDto.getDetailedAddress()) : null;
 

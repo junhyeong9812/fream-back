@@ -560,11 +560,14 @@ public class DataInitializer implements CommandLineRunner {
     }
     // 주소 생성 메서드
     private void createAddress(User user, String recipientName, String phoneNumber, String zipCode, String address, String detailedAddress, boolean isDefault) {
-        // 개인정보 암호화
-        String encryptedRecipientName = encryptionUtil.encrypt(recipientName);
-        String encryptedPhoneNumber = encryptionUtil.encrypt(phoneNumber);
-        String encryptedZipCode = encryptionUtil.encrypt(zipCode);
-        String encryptedAddress = encryptionUtil.encrypt(address);
+        // 개인정보 암호화 (필드별 차별 적용)
+        // 검색 가능한 필드: 결정적 암호화
+        String encryptedRecipientName = encryptionUtil.deterministicEncrypt(recipientName);
+        String encryptedPhoneNumber = encryptionUtil.deterministicEncrypt(phoneNumber);
+        String encryptedZipCode = encryptionUtil.deterministicEncrypt(zipCode);
+        String encryptedAddress = encryptionUtil.deterministicEncrypt(address);
+
+        // 상세주소: 양방향 암호화 (보안성 우선)
         String encryptedDetailedAddress = detailedAddress != null ?
                 encryptionUtil.encrypt(detailedAddress) : null;
 
@@ -580,6 +583,9 @@ public class DataInitializer implements CommandLineRunner {
 
         addressRepository.save(newAddress);
         user.addAddress(newAddress); // 편의 메서드를 통해 User와 Address 연관 설정
+
+        System.out.println("주소 생성 완료 - 사용자: " + user.getEmail() +
+                ", 이름: " + recipientName + " (암호화: " + encryptedRecipientName + ")");
     }
     // 은행 계좌 생성 메서드
     private void createBankAccount(User user, String bankName, String accountNumber, String accountHolder) {
