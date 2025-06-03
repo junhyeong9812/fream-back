@@ -13,6 +13,17 @@ import java.util.ArrayList;
 import java.util.List;
 
 @Entity
+@Table(name = "product", indexes = {
+        @Index(name = "idx_product_brand", columnList = "brand_id"),                    // 브랜드별 상품 조회
+        @Index(name = "idx_product_category", columnList = "category_id"),              // 카테고리별 상품 조회
+        @Index(name = "idx_product_collection", columnList = "collection_id"),          // 컬렉션별 상품 조회
+        @Index(name = "idx_product_gender", columnList = "gender"),                     // 성별 필터링
+        @Index(name = "idx_product_price", columnList = "release_price"),               // 가격 필터링
+        @Index(name = "idx_product_date", columnList = "release_date"),                 // 출시일 정렬
+        @Index(name = "idx_product_brand_category", columnList = "brand_id, category_id"), // 복합 인덱스 (브랜드+카테고리)
+        @Index(name = "idx_product_name", columnList = "name"),                         // 상품명 검색
+        @Index(name = "idx_product_english_name", columnList = "english_name")          // 영어명 검색
+})
 @Getter
 @NoArgsConstructor
 @AllArgsConstructor

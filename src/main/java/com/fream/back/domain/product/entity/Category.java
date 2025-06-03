@@ -11,6 +11,10 @@ import java.util.ArrayList;
 import java.util.List;
 
 @Entity
+@Table(name = "category", indexes = {
+        @Index(name = "idx_category_name", columnList = "name"),              // 카테고리명 검색 최적화
+        @Index(name = "idx_category_parent", columnList = "parent_category_id") // 계층 구조 조회 최적화
+})
 @Getter
 @NoArgsConstructor
 @AllArgsConstructor

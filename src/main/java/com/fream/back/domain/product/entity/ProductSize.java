@@ -9,6 +9,10 @@ import lombok.Getter;
 import lombok.NoArgsConstructor;
 
 @Entity
+@Table(name = "product_size", indexes = {
+        @Index(name = "idx_product_size_color", columnList = "product_color_id"),       // 색상별 사이즈 조회 (FK, 필수)
+        @Index(name = "idx_product_size_purchase_price", columnList = "purchase_price") // 최저가 조회용 (자주 사용)
+})
 @Getter
 @NoArgsConstructor
 @AllArgsConstructor

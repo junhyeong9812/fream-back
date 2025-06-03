@@ -8,6 +8,9 @@ import lombok.Getter;
 import lombok.NoArgsConstructor;
 
 @Entity
+@Table(name = "brand", indexes = {
+        @Index(name = "idx_brand_name", columnList = "name")  // 브랜드명 검색 최적화
+})
 @Getter
 @NoArgsConstructor
 @AllArgsConstructor

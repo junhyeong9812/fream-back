@@ -11,6 +11,10 @@ import java.util.ArrayList;
 import java.util.List;
 
 @Entity
+@Table(name = "product_color", indexes = {
+        @Index(name = "idx_product_color_name", columnList = "color_name"),         // 색상명 필터링 (핵심)
+        @Index(name = "idx_product_color_product", columnList = "product_id")       // 상품별 색상 조회 (FK)
+})
 @Getter
 @NoArgsConstructor
 @AllArgsConstructor
