@@ -8,6 +8,8 @@ import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.config.annotation.authentication.configuration.AuthenticationConfiguration;
+import com.fream.back.global.security.redis.IpBlockingRedisService;
+import com.fream.back.global.security.filter.IpBlockingFilter;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
@@ -21,11 +23,15 @@ import org.springframework.security.web.authentication.UsernamePasswordAuthentic
 public class SecurityConfig {
     private final JwtTokenProvider jwtTokenProvider;
     private final AuthRedisService authRedisService;
+    private final IpBlockingRedisService ipBlockingRedisService;
     private final CustomOAuth2UserService customOAuth2UserService;
     private final OAuth2AuthenticationSuccessHandler oAuth2AuthenticationSuccessHandler;
 
     @Bean
     public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
+        // IP 차단 필터 생성
+        IpBlockingFilter ipBlockingFilter = new IpBlockingFilter(ipBlockingRedisService);
+
         //JWT 필터 생성
         JwtAuthenticationFilter jwtFilter = new JwtAuthenticationFilter(jwtTokenProvider, authRedisService);
 
@@ -58,7 +64,8 @@ public class SecurityConfig {
                         .successHandler(oAuth2AuthenticationSuccessHandler))
 
                 //커스텀 JWT필터 추가
-                .addFilterBefore(jwtFilter, UsernamePasswordAuthenticationFilter.class);
+                .addFilterBefore(ipBlockingFilter, UsernamePasswordAuthenticationFilter.class)
+                .addFilterAfter(jwtFilter, IpBlockingFilter.class);
                 // 6) Security 필터 완전히 제거 (필요하면 주석 해제)
 //                .securityMatcher("/**");
 
