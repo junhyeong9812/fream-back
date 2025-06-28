@@ -178,7 +178,8 @@ public class ProductQueryController {
 
         try {
             // 실제 경로: /home/ubuntu/fream/product/{productId}/{imageName}
-            String baseDir = "/home/ubuntu/fream";
+//            String baseDir = "/home/ubuntu/fream";
+            String baseDir = "C:\\Users\\pickj\\webserver\\dockerVolums\\fream";
             String directory = "product/" + productId;
 
             String fullPath = baseDir + File.separator + directory + File.separator + imageName;

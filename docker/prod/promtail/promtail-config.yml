@@ -22,4 +22,4 @@ scrape_configs:
           - localhost
         labels:
           job: spring
-          __path__: /home/ubuntu/springlog/*.log
+          __path__:  C:\Users\pickj\webserver\dockerVolums\springlog\*.log

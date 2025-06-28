@@ -49,8 +49,8 @@ public class InquiryQueryController {
     private final InquiryQueryService inquiryQueryService;
     private final UserQueryService userQueryService;
     private final FileUtils fileUtils;
-    private static final String BASE_DIR = "/home/ubuntu/fream";
-
+//    private static final String BASE_DIR = "/home/ubuntu/fream";
+    private static final String BASE_DIR = "C:\\Users\\pickj\\webserver\\dockerVolums\\fream";
     /**
      * 1대1 문의 상세 조회
      *

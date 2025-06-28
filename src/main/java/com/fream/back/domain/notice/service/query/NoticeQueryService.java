@@ -39,8 +39,8 @@ import java.util.stream.Collectors;
 public class NoticeQueryService {
 
     // 상수 정의
-    private static final String NOTICE_BASE_DIR = "/home/ubuntu/fream/notice";
-
+//    private static final String NOTICE_BASE_DIR = "/home/ubuntu/fream/notice";
+    private static final String NOTICE_BASE_DIR = "C:\\Users\\pickj\\webserver\\dockerVolums\\fream\\notice";
     // 의존성 주입
     private final NoticeRepository noticeRepository;
     private final NoticeImageRepository noticeImageRepository;

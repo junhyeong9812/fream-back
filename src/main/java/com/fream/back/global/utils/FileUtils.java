@@ -24,7 +24,8 @@ import java.util.UUID;
 public class FileUtils {
 
     // 서버에서 파일을 저장할 루트 디렉토리 (배포환경 경로)
-    private static final String BASE_DIR = "/home/ubuntu/fream";
+//    private static final String BASE_DIR = "/home/ubuntu/fream";
+    private static final String BASE_DIR = "C:\\Users\\pickj\\webserver\\dockerVolums\\fream";
 
     /**
      * 파일 존재 여부 확인

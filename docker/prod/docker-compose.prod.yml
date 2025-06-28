@@ -14,7 +14,7 @@ services:
     ports:
       - "3306:3306"
     volumes:
-      - mysql_data_prod:/var/lib/mysql
+      - C:\Users\pickj\webserver\dockerVolums\mysql_data:/var/lib/mysql
 
   redis:
     build:
@@ -47,9 +47,10 @@ services:
       - zookeeper
     environment:
       TZ: Asia/Seoul
+      KAFKA_BROKER_ID: 1
       KAFKA_ZOOKEEPER_CONNECT: zookeeper_prod:2181
       KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: PLAINTEXT:PLAINTEXT
-#      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka_prod:9092
+      #      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka_prod:9092
       KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka:9092
       KAFKA_LISTENERS: PLAINTEXT://0.0.0.0:9092
       KAFKA_INTER_BROKER_LISTENER_NAME: PLAINTEXT
@@ -71,8 +72,8 @@ services:
         soft: -1
         hard: -1
     volumes:
-      - es_data_prod:/usr/share/elasticsearch/data
-      - /home/ubuntu/es_logs:/usr/share/elasticsearch/logs
+      - C:\Users\pickj\webserver\dockerVolums\es_data:/usr/share/elasticsearch/data
+      - C:\Users\pickj\webserver\dockerVolums\es_logs:/usr/share/elasticsearch/logs
     ports:
       - "9200:9200"
       - "9300:9300"
@@ -112,13 +113,16 @@ services:
       - front
       - app
       - certbot
-#      - stt_tts
+      - stt_tts
     volumes:
-      - letsencrypt_data:/etc/letsencrypt
-      - certbot_www:/var/www/certbot
+      - C:\Users\pickj\webserver\dockerVolums\letsencrypt_data:/etc/letsencrypt
+      - C:\Users\pickj\webserver\dockerVolums\certbot_www:/var/www/certbot
+
 
   app:
-    image: ghcr.io/junhyeong9812/fream-back:latest
+    build:
+      context: ../..  # fream-back 루트 폴더
+      dockerfile: docker/Dockerfile  # context 기준에서 docker/Dockerfile
     container_name: spring_boot_app_prod
     ports:
       - "8080:8080"
@@ -127,21 +131,60 @@ services:
       SPRING_PROFILES_ACTIVE: prod
     env_file:
       - .env
-    depends_on:
-      - mysql
-      - redis
-      - kafka
-      - elasticsearch
+#    depends_on:
+#      - mysql
+#      - redis
+#      - kafka
+#      - elasticsearch
     volumes:
-      - /home/ubuntu/fream:/home/ubuntu/fream
-      - /home/ubuntu/springlog:/logs
+      - C:\Users\pickj\webserver\dockerVolums\fream:/home/ubuntu/fream
+      - C:\Users\pickj\webserver\dockerVolums\springlog:/logs
+
   front:
-    image: ghcr.io/junhyeong9812/fream-front:latest
+    build:
+      context: ../../../fream-front  # C:\Users\pickj\webserver\fream-back\docker\prod로부터 C:\Users\pickj\webserver\fream-front
+      dockerfile: Dockerfile  # 실제 Dockerfile 경로
     environment:
       TZ: Asia/Seoul
     container_name: fream_front_prod
     depends_on:
       - app  # optional
+
+  # STT/TTS 서비스 추가
+  stt_tts:
+    build:
+      context: ../../../fream-stt-tts  # 상대 경로로 stt-tts 프로젝트 폴더 지정
+      dockerfile: Dockerfile  # fream-stt-tts 폴더 내의 Dockerfile
+    container_name: stt_tts_prod
+    environment:
+      TZ: Asia/Seoul
+      FLASK_APP: app.py
+      FLASK_ENV: production
+      DEBUG: false
+      TEMP_FILES_LIFETIME: 3600
+    env_file:
+      - .env  # OpenAI API 키 등 환경변수
+    ports:
+      - "5000:5000"
+    volumes:
+      - C:\Users\pickj\webserver\dockerVolums\stt_tts_temp:/app/temp
+      - C:\Users\pickj\webserver\dockerVolums\stt_tts_models:/app/models
+      - C:\Users\pickj\webserver\dockerVolums\stt_tts_logs:/app/logs
+    restart: unless-stopped
+    deploy:
+      resources:
+        limits:
+          memory: 2G
+          cpus: '1.0'
+        reservations:
+          memory: 512M
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://localhost:5000/health || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
+
   # certbot (선택)
   certbot:
     build:
@@ -151,8 +194,8 @@ services:
     environment:
       TZ: Asia/Seoul
     volumes:
-      - letsencrypt_data:/etc/letsencrypt
-      - certbot_www:/var/www/certbot
+      - C:\Users\pickj\webserver\dockerVolums\letsencrypt_data:/etc/letsencrypt
+      - C:\Users\pickj\webserver\dockerVolums\certbot_www:/var/www/certbot
     entrypoint: >
       sh -c "trap exit TERM;
       certbot certonly --webroot --webroot-path=/var/www/certbot
@@ -172,6 +215,7 @@ services:
       echo '0 2 * * * sh /scripts/clear_caches.sh' > /etc/crontabs/root &&
       crond -f
       "
+
   metricbeat:
     image: docker.elastic.co/beats/metricbeat:8.13.4
     container_name: metricbeat_prod
@@ -193,114 +237,312 @@ services:
         limits:
           memory: 150M
 
-  # 새로운 모니터링 서비스들 추가
-#  prometheus:
-#    image: prom/prometheus
-#    container_name: prometheus_prod
-#    volumes:
-#      - ./prometheus/prometheus.yml:/etc/prometheus/prometheus.yml
-#      - prometheus_data:/prometheus
+# 네임드 볼륨 대신 직접 경로 바인딩 사용
+# volumes 섹션 제거됨 (윈도우 직접 경로 사용)
+
+#version: '3.8'
+#services:
+#  mysql:
+#    build:
+#      context: ../..
+#      dockerfile: docker/mysql/Dockerfile-mysql
+#    container_name: mysql_prod
+#    environment:
+#      MYSQL_ROOT_PASSWORD: rootpass
+#      MYSQL_DATABASE: freamdb
+#      MYSQL_USER: fream
+#      MYSQL_PASSWORD: fream
+#      TZ: Asia/Seoul
 #    ports:
-#      - "9090:9090"
+#      - "3306:3306"
+#    volumes:
+#      - mysql_data_prod:/var/lib/mysql
+#
+#  redis:
+#    build:
+#      context: ../..
+#      dockerfile: docker/redis/Dockerfile-redis
+#    container_name: redis_prod
 #    environment:
 #      TZ: Asia/Seoul
-#    deploy:
-#      resources:
-#        limits:
-#          memory: 400M
-#
-#  node-exporter:
-#    image: prom/node-exporter
-#    container_name: node_exporter_prod
-#    volumes:
-#      - /proc:/host/proc:ro
-#      - /sys:/host/sys:ro
-#      - /:/rootfs:ro
-#    command:
-#      - '--path.procfs=/host/proc'
-#      - '--path.sysfs=/host/sys'
-#      - '--collector.filesystem.ignored-mount-points=^/(sys|proc|dev|host|etc)($$|/)'
 #    ports:
-#      - "9100:9100"
+#      - "6379:6379"
+#
+#  zookeeper:
+#    build:
+#      context: ../..
+#      dockerfile: docker/kafka/Dockerfile-zookeeper
+#    container_name: zookeeper_prod
 #    environment:
 #      TZ: Asia/Seoul
-#    deploy:
-#      resources:
-#        limits:
-#          memory: 50M
-#
-#  nginx-prometheus-exporter:
-#    image: nginx/nginx-prometheus-exporter
-#    container_name: nginx_exporter_prod
-#    command:
-#      - '-nginx.scrape-uri=http://nginx:80/stub_status'
+#      ZOOKEEPER_CLIENT_PORT: 2181
+#      ZOOKEEPER_TICK_TIME: 2000
 #    ports:
-#      - "9113:9113"
+#      - "2181:2181"
+#
+#  kafka:
+#    build:
+#      context: ../..
+#      dockerfile: docker/kafka/Dockerfile-kafka
+#    container_name: kafka_prod
 #    depends_on:
-#      - nginx
+#      - zookeeper
 #    environment:
 #      TZ: Asia/Seoul
-#    deploy:
-#      resources:
-#        limits:
-#          memory: 50M
-#
-#  loki:
-#    image: grafana/loki
-#    container_name: loki_prod
+#      KAFKA_ZOOKEEPER_CONNECT: zookeeper_prod:2181
+#      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: PLAINTEXT:PLAINTEXT
+##      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka_prod:9092
+#      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka:9092
+#      KAFKA_LISTENERS: PLAINTEXT://0.0.0.0:9092
+#      KAFKA_INTER_BROKER_LISTENER_NAME: PLAINTEXT
+#      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
 #    ports:
-#      - "3100:3100"
-#    volumes:
-#      - loki_data:/loki
+#      - "9092:9092"
+#
+#  elasticsearch:
+#    build:
+#      context: ../..
+#      dockerfile: docker/elasticsearch/Dockerfile-elasticsearch
+#    container_name: es_prod
 #    environment:
 #      TZ: Asia/Seoul
-#    deploy:
-#      resources:
-#        limits:
-#          memory: 300M
-#
-#  promtail:
-#    image: grafana/promtail
-#    container_name: promtail_prod
+#      discovery.type: single-node
+#      xpack.security.enabled: 'false'
+#    ulimits:
+#      memlock:
+#        soft: -1
+#        hard: -1
 #    volumes:
-#      - ./promtail/promtail-config.yml:/etc/promtail/config.yml
-#      - /var/log/nginx:/var/log/nginx:ro
-#    command:
-#      - '-config.file=/etc/promtail/config.yml'
-#    environment:
-#      TZ: Asia/Seoul
-#    deploy:
-#      resources:
-#        limits:
-#          memory: 100M
-#
-#  grafana:
-#    image: grafana/grafana
-#    container_name: grafana_prod
-#    volumes:
-#      - grafana_data:/var/lib/grafana
+#      - es_data_prod:/usr/share/elasticsearch/data
+#      - /home/ubuntu/es_logs:/usr/share/elasticsearch/logs
 #    ports:
-#      - "3000:3000"
-#    environment:
-#      TZ: Asia/Seoul
-#      GF_SERVER_ROOT_URL: https://www.pinjun.xyz/grafana
-#      GF_SERVER_SERVE_FROM_SUB_PATH: "true"
+#      - "9200:9200"
+#      - "9300:9300"
+#
+#  kibana:
+#    build:
+#      context: ../..
+#      dockerfile: docker/elasticsearch/Dockerfile-kibana
+#    container_name: kibana_prod
 #    depends_on:
-#      - prometheus
-#      - loki
+#      - elasticsearch
+#    environment:
+#      TZ: Asia/Seoul
+#      ELASTICSEARCH_HOSTS: http://elasticsearch:9200
+#      SERVER_BASEPATH: /kibana
+#      SERVER_REWRITEBASEPATH: true
+#    ports:
+#      - "5601:5601"
+#
+#  nginx:
+#    build:
+#      context: ../..
+#      dockerfile: docker/prod/nginx/Dockerfile-nginx-prod
+#    container_name: nginx_prod
+#    ports:
+#      - "80:80"
+#      - "443:443"
+#    extra_hosts:
+#      - "host.docker.internal:host-gateway"
+#    environment:
+#      TZ: Asia/Seoul
+#    depends_on:
+#      - mysql
+#      - redis
+#      - kafka
+#      - elasticsearch
+#      - front
+#      - app
+#      - certbot
+##      - stt_tts
+#    volumes:
+#      - letsencrypt_data:/etc/letsencrypt
+#      - certbot_www:/var/www/certbot
+#
+#  app:
+#    image: ghcr.io/junhyeong9812/fream-back:latest
+#    container_name: spring_boot_app_prod
+#    ports:
+#      - "8080:8080"
+#    environment:
+#      TZ: Asia/Seoul
+#      SPRING_PROFILES_ACTIVE: prod
+#    env_file:
+#      - .env
+#    depends_on:
+#      - mysql
+#      - redis
+#      - kafka
+#      - elasticsearch
+#    volumes:
+#      - /home/ubuntu/fream:/home/ubuntu/fream
+#      - /home/ubuntu/springlog:/logs
+#  front:
+#    image: ghcr.io/junhyeong9812/fream-front:latest
+#    environment:
+#      TZ: Asia/Seoul
+#    container_name: fream_front_prod
+#    depends_on:
+#      - app  # optional
+#  # certbot (선택)
+#  certbot:
+#    build:
+#      context: ../..
+#      dockerfile: docker/prod/nginx/certbot/Dockerfile-certbot
+#    container_name: certbot_prod
+#    environment:
+#      TZ: Asia/Seoul
+#    volumes:
+#      - letsencrypt_data:/etc/letsencrypt
+#      - certbot_www:/var/www/certbot
+#    entrypoint: >
+#      sh -c "trap exit TERM;
+#      certbot certonly --webroot --webroot-path=/var/www/certbot
+#      -d www.pinjun.xyz --email pickjog@naver.com --agree-tos --no-eff-email --force-renewal;
+#      while :; do sleep 12h; certbot renew -q; done"
+#
+#  cache-cleaner:
+#    image: alpine:latest
+#    container_name: cache_cleaner_prod
+#    depends_on:
+#      - elasticsearch
+#      - redis
+#    volumes:
+#      - ./scripts:/scripts
+#    command: >
+#      sh -c "
+#      echo '0 2 * * * sh /scripts/clear_caches.sh' > /etc/crontabs/root &&
+#      crond -f
+#      "
+#  metricbeat:
+#    image: docker.elastic.co/beats/metricbeat:8.13.4
+#    container_name: metricbeat_prod
+#    user: root
+#    volumes:
+#      - /proc:/hostfs/proc:ro
+#      - /sys/fs/cgroup:/hostfs/sys/fs/cgroup:ro
+#      - /:/hostfs:ro
+#      - ./metricbeat.yml:/usr/share/metricbeat/metricbeat.yml:ro
+#    environment:
+#      - ELASTICSEARCH_HOSTS=http://elasticsearch:9200
+#      - TZ=Asia/Seoul
+#    command: -e -system.hostfs=/hostfs
+#    depends_on:
+#      - elasticsearch
+#      - kibana
 #    deploy:
 #      resources:
 #        limits:
-#          memory: 200M
-
-
-
-volumes:
-  mysql_data_prod:
-  es_data_prod:
-  letsencrypt_data:
-  certbot_www:
-#  prometheus_data:
-#  grafana_data:
-#  loki_data:
-
+#          memory: 150M
+#
+#  # 새로운 모니터링 서비스들 추가
+##  prometheus:
+##    image: prom/prometheus
+##    container_name: prometheus_prod
+##    volumes:
+##      - ./prometheus/prometheus.yml:/etc/prometheus/prometheus.yml
+##      - prometheus_data:/prometheus
+##    ports:
+##      - "9090:9090"
+##    environment:
+##      TZ: Asia/Seoul
+##    deploy:
+##      resources:
+##        limits:
+##          memory: 400M
+##
+##  node-exporter:
+##    image: prom/node-exporter
+##    container_name: node_exporter_prod
+##    volumes:
+##      - /proc:/host/proc:ro
+##      - /sys:/host/sys:ro
+##      - /:/rootfs:ro
+##    command:
+##      - '--path.procfs=/host/proc'
+##      - '--path.sysfs=/host/sys'
+##      - '--collector.filesystem.ignored-mount-points=^/(sys|proc|dev|host|etc)($$|/)'
+##    ports:
+##      - "9100:9100"
+##    environment:
+##      TZ: Asia/Seoul
+##    deploy:
+##      resources:
+##        limits:
+##          memory: 50M
+##
+##  nginx-prometheus-exporter:
+##    image: nginx/nginx-prometheus-exporter
+##    container_name: nginx_exporter_prod
+##    command:
+##      - '-nginx.scrape-uri=http://nginx:80/stub_status'
+##    ports:
+##      - "9113:9113"
+##    depends_on:
+##      - nginx
+##    environment:
+##      TZ: Asia/Seoul
+##    deploy:
+##      resources:
+##        limits:
+##          memory: 50M
+##
+##  loki:
+##    image: grafana/loki
+##    container_name: loki_prod
+##    ports:
+##      - "3100:3100"
+##    volumes:
+##      - loki_data:/loki
+##    environment:
+##      TZ: Asia/Seoul
+##    deploy:
+##      resources:
+##        limits:
+##          memory: 300M
+##
+##  promtail:
+##    image: grafana/promtail
+##    container_name: promtail_prod
+##    volumes:
+##      - ./promtail/promtail-config.yml:/etc/promtail/config.yml
+##      - /var/log/nginx:/var/log/nginx:ro
+##    command:
+##      - '-config.file=/etc/promtail/config.yml'
+##    environment:
+##      TZ: Asia/Seoul
+##    deploy:
+##      resources:
+##        limits:
+##          memory: 100M
+##
+##  grafana:
+##    image: grafana/grafana
+##    container_name: grafana_prod
+##    volumes:
+##      - grafana_data:/var/lib/grafana
+##    ports:
+##      - "3000:3000"
+##    environment:
+##      TZ: Asia/Seoul
+##      GF_SERVER_ROOT_URL: https://www.pinjun.xyz/grafana
+##      GF_SERVER_SERVE_FROM_SUB_PATH: "true"
+##    depends_on:
+##      - prometheus
+##      - loki
+##    deploy:
+##      resources:
+##        limits:
+##          memory: 200M
+#
+#
+#
+#volumes:
+#  mysql_data_prod:
+#  es_data_prod:
+#  letsencrypt_data:
+#  certbot_www:
+##  prometheus_data:
+##  grafana_data:
+##  loki_data:
+#

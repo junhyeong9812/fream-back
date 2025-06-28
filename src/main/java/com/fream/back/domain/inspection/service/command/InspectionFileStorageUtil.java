@@ -22,8 +22,8 @@ import java.util.regex.Pattern;
 public class InspectionFileStorageUtil {
 
     // 운영 서버 디렉터리 (예시)
-    private static final String INSPECTION_BASE_DIR = "/home/ubuntu/fream/inspection";
-
+//    private static final String INSPECTION_BASE_DIR = "/home/ubuntu/fream/inspection";
+    private static final String INSPECTION_BASE_DIR = "C:\\Users\\pickj\\webserver\\dockerVolums\\fream\\inspection";
     // 배포 도메인 및 엔드포인트 (하드코딩 예시)
     private static final String INSPECTION_DOMAIN_URL = "https://www.pinjun.xyz";
     private static final String INSPECTION_FILES_ENDPOINT = "/api/inspections/files";

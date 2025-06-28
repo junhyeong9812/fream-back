@@ -99,10 +99,12 @@ public class PersonalDataEncryptionUtil {
 
         try {
             // 입력값에 대한 해시를 생성하여 고정된 키 생성
-            String deterministicKey = generateDeterministicKey(plainText);
+//            String deterministicKey = generateDeterministicKey(plainText);
+            byte[] deterministicKeyBytes = generateDeterministicKeyBytes(plainText);
 
             Cipher cipher = Cipher.getInstance(DETERMINISTIC_ALGORITHM);
-            SecretKeySpec keySpec = new SecretKeySpec(deterministicKey.getBytes(StandardCharsets.UTF_8), "AES");
+//            SecretKeySpec keySpec = new SecretKeySpec(deterministicKey.getBytes(StandardCharsets.UTF_8), "AES");
+            SecretKeySpec keySpec = new SecretKeySpec(deterministicKeyBytes, "AES"); // 바이트 배열 직접 사용
 
             cipher.init(Cipher.ENCRYPT_MODE, keySpec);
             byte[] encrypted = cipher.doFinal(plainText.getBytes(StandardCharsets.UTF_8));
@@ -113,6 +115,23 @@ public class PersonalDataEncryptionUtil {
             throw new RuntimeException("결정적 암호화 처리 중 오류가 발생했습니다", e);
         }
     }
+
+    private byte[] generateDeterministicKeyBytes(String input) {
+        try {
+            MessageDigest digest = MessageDigest.getInstance("SHA-256");
+            byte[] hash = digest.digest((secretKey + input).getBytes(StandardCharsets.UTF_8));
+
+            byte[] keyBytes = new byte[16];
+            System.arraycopy(hash, 0, keyBytes, 0, 16);
+
+            return keyBytes; // 문자열 변환 없이 바이트 배열 그대로 반환
+        } catch (Exception e) {
+            log.error("결정적 키 생성 중 오류 발생: {}", e.getMessage(), e);
+            throw new RuntimeException("결정적 키 생성 중 오류가 발생했습니다", e);
+        }
+    }
+
+
 
     /**
      * 결정적 복호화 (이름, 전화번호, 주소용)
@@ -148,21 +167,21 @@ public class PersonalDataEncryptionUtil {
     /**
      * 입력값 기반 결정적 키 생성
      */
-    private String generateDeterministicKey(String input) {
-        try {
-            MessageDigest digest = MessageDigest.getInstance("SHA-256");
-            byte[] hash = digest.digest((secretKey + input).getBytes(StandardCharsets.UTF_8));
-
-            // 32바이트 중 처음 16바이트만 사용 (AES-128)
-            byte[] keyBytes = new byte[16];
-            System.arraycopy(hash, 0, keyBytes, 0, 16);
-
-            return new String(keyBytes, StandardCharsets.UTF_8);
-        } catch (Exception e) {
-            log.error("결정적 키 생성 중 오류 발생: {}", e.getMessage(), e);
-            throw new RuntimeException("결정적 키 생성 중 오류가 발생했습니다", e);
-        }
-    }
+//    private String generateDeterministicKey(String input) {
+//        try {
+//            MessageDigest digest = MessageDigest.getInstance("SHA-256");
+//            byte[] hash = digest.digest((secretKey + input).getBytes(StandardCharsets.UTF_8));
+//
+//            // 32바이트 중 처음 16바이트만 사용 (AES-128)
+//            byte[] keyBytes = new byte[16];
+//            System.arraycopy(hash, 0, keyBytes, 0, 16);
+//
+//            return new String(keyBytes, StandardCharsets.UTF_8);
+//        } catch (Exception e) {
+//            log.error("결정적 키 생성 중 오류 발생: {}", e.getMessage(), e);
+//            throw new RuntimeException("결정적 키 생성 중 오류가 발생했습니다", e);
+//        }
+//    }
 
     /**
      * 검색용 암호화된 값 생성

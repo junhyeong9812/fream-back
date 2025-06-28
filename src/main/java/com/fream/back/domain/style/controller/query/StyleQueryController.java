@@ -193,7 +193,8 @@ public class StyleQueryController {
 
         try {
             // /home/ubuntu/fream/styles/{styleId}/{fileName}
-            String baseDir = "/home/ubuntu/fream";
+//            String baseDir = "/home/ubuntu/fream";
+            String baseDir = "C:\\Users\\pickj\\webserver\\dockerVolums\\fream";
             String directory = "styles/" + styleId;
             String fullPath = baseDir + File.separator + directory + File.separator + fileName;
             log.debug("미디어 파일 전체 경로: {}", fullPath);
