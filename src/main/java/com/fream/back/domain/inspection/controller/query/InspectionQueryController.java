@@ -40,8 +40,8 @@ import java.nio.file.Paths;
 public class InspectionQueryController {
 
     private final InspectionStandardQueryService queryService;
-//    private static final String INSPECTION_BASE_DIR = "/home/ubuntu/fream/inspection";
-    private static final String INSPECTION_BASE_DIR = "C:\\Users\\pickj\\webserver\\dockerVolums\\fream\\inspection";
+    private static final String INSPECTION_BASE_DIR = "/home/ubuntu/fream/inspection";
+//    private static final String INSPECTION_BASE_DIR = "C:/Users/pickj/webserver/dockerVolums/fream/inspection";
     /**
      * 검수 기준 목록 조회 API
      * - 캐싱이 적용되어 성능 향상

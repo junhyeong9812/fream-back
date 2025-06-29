@@ -23,8 +23,8 @@ import java.util.regex.Pattern;
 public class FAQFileStorageUtil {
 
     // 실제 운영 경로 (예: EC2)
-//    private static final String FAQ_BASE_DIR = "/home/ubuntu/fream/faq";
-    private static final String FAQ_BASE_DIR = "C:\\Users\\pickj\\webserver\\dockerVolums\\fream\\faq";
+    private static final String FAQ_BASE_DIR = "/home/ubuntu/fream/faq";
+//    private static final String FAQ_BASE_DIR = "C:\\Users\\pickj\\webserver\\dockerVolums\\fream\\faq";
     // 도메인 & 엔드포인트
     private static final String FAQ_DOMAIN_URL = "https://www.pinjun.xyz";
     private static final String FAQ_FILES_ENDPOINT = "/api/faq/files";

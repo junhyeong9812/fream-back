@@ -24,8 +24,9 @@ import java.util.UUID;
 public class FileUtils {
 
     // 서버에서 파일을 저장할 루트 디렉토리 (배포환경 경로)
-//    private static final String BASE_DIR = "/home/ubuntu/fream";
-    private static final String BASE_DIR = "C:\\Users\\pickj\\webserver\\dockerVolums\\fream";
+    private static final String BASE_DIR = "/home/ubuntu/fream";
+//    private static final String BASE_DIR = "C:\\Users\\pickj\\webserver\\dockerVolums\\fream";
+//    private static final String BASE_DIR = "C:/Users/pickj/webserver/dockerVolums/fream";
 
     /**
      * 파일 존재 여부 확인
@@ -38,7 +39,8 @@ public class FileUtils {
         log.debug("파일 존재 여부 확인: 디렉토리={}, 파일명={}", directory, fileName);
 
         // 최종 경로: /home/ubuntu/fream/product/10/thumbnail_xxx.jpg
-        File file = new File(BASE_DIR + File.separator + directory + File.separator + fileName);
+//        File file = new File(BASE_DIR + File.separator + directory + File.separator + fileName);
+        File file = new File(BASE_DIR + "/" + directory + "/" + fileName);
         boolean exists = file.exists();
 
         if (!exists) {
@@ -129,7 +131,9 @@ public class FileUtils {
     public boolean deleteFile(String directory, String fileName) {
         log.info("파일 삭제 시작: 디렉토리={}, 파일명={}", directory, fileName);
 
-        File file = new File(BASE_DIR + File.separator + directory + File.separator + fileName);
+//        File file = new File(BASE_DIR + File.separator + directory + File.separator + fileName);
+        File file = new File(BASE_DIR + "/" + directory + "/" + fileName);
+
         if (!file.exists()) {
             log.warn("삭제할 파일이 존재하지 않음: {}", file.getAbsolutePath());
             return false;
@@ -167,7 +171,8 @@ public class FileUtils {
     public boolean deleteDirectory(String directory) {
         log.info("디렉토리 삭제 시작: {}", directory);
 
-        File dir = new File(BASE_DIR + File.separator + directory);
+//        File dir = new File(BASE_DIR + File.separator + directory);
+        File dir = new File(BASE_DIR + "/" + directory);
         if (!dir.exists() || !dir.isDirectory()) {
             log.warn("삭제할 디렉토리가 존재하지 않거나 디렉토리가 아님: {}", dir.getAbsolutePath());
             return false;
@@ -178,7 +183,8 @@ public class FileUtils {
         if (files != null) {
             for (File file : files) {
                 if (file.isDirectory()) {
-                    deleteDirectory(directory + File.separator + file.getName());
+//                    deleteDirectory(directory + File.separator + file.getName());
+                    deleteDirectory(directory + "/" + file.getName());
                     log.debug("하위 디렉토리 삭제: {}", file.getAbsolutePath());
                 } else {
                     boolean deleted = file.delete();

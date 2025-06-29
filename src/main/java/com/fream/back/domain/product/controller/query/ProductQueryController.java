@@ -178,12 +178,16 @@ public class ProductQueryController {
 
         try {
             // 실제 경로: /home/ubuntu/fream/product/{productId}/{imageName}
-//            String baseDir = "/home/ubuntu/fream";
-            String baseDir = "C:\\Users\\pickj\\webserver\\dockerVolums\\fream";
+            String baseDir = "/home/ubuntu/fream";
             String directory = "product/" + productId;
 
             String fullPath = baseDir + File.separator + directory + File.separator + imageName;
             File imageFile = new File(fullPath);
+
+//            String baseDir = "C:/Users/pickj/webserver/dockerVolums/fream";
+//            String directory = "product/" + productId;
+//            String fullPath = Paths.get(baseDir, directory, imageName).toString();
+//            File imageFile = new File(fullPath);
 
             if (!imageFile.exists()) {
                 log.error("이미지 파일이 존재하지 않음 - 경로: {}", fullPath);

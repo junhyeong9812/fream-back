@@ -117,6 +117,8 @@ services:
     volumes:
       - C:\Users\pickj\webserver\dockerVolums\letsencrypt_data:/etc/letsencrypt
       - C:\Users\pickj\webserver\dockerVolums\certbot_www:/var/www/certbot
+      - C:\Users\pickj\webserver\fream-back\docker\prod\nginx\certs\localhost.pem:/etc/ssl/certs/localhost.pem:ro
+      - C:\Users\pickj\webserver\fream-back\docker\prod\nginx\certs\localhost-key.pem:/etc/ssl/private/localhost-key.pem:ro
 
 
   app:

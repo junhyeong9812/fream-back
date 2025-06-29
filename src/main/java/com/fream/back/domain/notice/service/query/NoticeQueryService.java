@@ -39,8 +39,8 @@ import java.util.stream.Collectors;
 public class NoticeQueryService {
 
     // 상수 정의
-//    private static final String NOTICE_BASE_DIR = "/home/ubuntu/fream/notice";
-    private static final String NOTICE_BASE_DIR = "C:\\Users\\pickj\\webserver\\dockerVolums\\fream\\notice";
+    private static final String NOTICE_BASE_DIR = "/home/ubuntu/fream/notice";
+//    private static final String NOTICE_BASE_DIR = "C:/Users/pickj/webserver/dockerVolums/fream/notice";
     // 의존성 주입
     private final NoticeRepository noticeRepository;
     private final NoticeImageRepository noticeImageRepository;
@@ -229,7 +229,8 @@ public class NoticeQueryService {
             }
 
             // 파일 경로 및 데이터 읽기
-            File file = new File(NOTICE_BASE_DIR + File.separator + directory + File.separator + name);
+//            File file = new File(NOTICE_BASE_DIR + File.separator + directory + File.separator + name);
+            File file = new File(NOTICE_BASE_DIR + "/" + directory + "/" + name);
             return java.nio.file.Files.readAllBytes(file.toPath());
         } catch (NoticeFileException e) {
             throw e;

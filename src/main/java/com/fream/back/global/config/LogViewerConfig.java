@@ -17,8 +17,8 @@ import java.util.Arrays;
 @EnableMethodSecurity
 public class LogViewerConfig {
 
-//    @Value("${logging.file.path:/home/ubuntu/springlog}")
-    @Value("${logging.file.path:C:\\Users\\pickj\\webserver\\dockerVolums\\springlog}")
+    @Value("${logging.file.path:/home/ubuntu/springlog}")
+//    @Value("${logging.file.path:C:\\Users\\pickj\\webserver\\dockerVolums\\springlog}")
     private String logDirectoryPath;
 
     /**

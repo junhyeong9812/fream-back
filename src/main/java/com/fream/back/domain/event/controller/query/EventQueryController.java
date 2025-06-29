@@ -32,8 +32,9 @@ public class EventQueryController {
 
     private final EventQueryService eventQueryService;
     private final FileUtils fileUtils;
-//    private static final String BASE_DIR = "/home/ubuntu/fream";
-    private static final String BASE_DIR = "C:\\Users\\pickj\\webserver\\dockerVolums\\fream";
+    private static final String BASE_DIR = "/home/ubuntu/fream";
+//    private static final String BASE_DIR = "C:/Users/pickj/webserver/dockerVolums/fream";
+
     /**
      * 모든 이벤트 목록 조회 (페이징)
      * GET /events/page
@@ -149,7 +150,8 @@ public class EventQueryController {
         }
 
         // 파일 경로 생성
-        File file = new File(BASE_DIR + File.separator + directory + File.separator + fileName);
+//        File file = new File(BASE_DIR + File.separator + directory + File.separator + fileName);
+        File file = new File(BASE_DIR + "/" + directory + "/" + fileName);
 
         // 파일 확장자에 따라 ContentType 설정
         HttpHeaders headers = new HttpHeaders();

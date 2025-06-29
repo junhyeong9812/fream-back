@@ -60,8 +60,8 @@ public class ProfileController {
         // DB에서 파일명 얻어온다고 가정
         String profileImageFileName = profileQueryService.getProfileImageFileName(profileId);
         // directory = "profile_images"
-//        String baseDir = "/home/ubuntu/fream";
-        String baseDir = "C:\\Users\\pickj\\webserver\\dockerVolums\\fream";
+        String baseDir = "/home/ubuntu/fream";
+//        String baseDir = "C:\\Users\\pickj\\webserver\\dockerVolums\\fream";
         String directory = "profile_images";
         String fullPath = baseDir + File.separator + directory + File.separator + profileImageFileName;
 

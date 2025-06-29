@@ -37,8 +37,8 @@ public class FAQQueryController {
 
     private final FAQQueryService faqQueryService;
     private final FileUtils fileUtils;
-//    private static final String BASE_DIR = "/home/ubuntu/fream";
-    private static final String BASE_DIR = "C:\\Users\\pickj\\webserver\\dockerVolums\\fream";
+    private static final String BASE_DIR = "/home/ubuntu/fream";
+//    private static final String BASE_DIR = "C:/Users/pickj/webserver/dockerVolums/fream";
     /**
      * FAQ 목록 조회 (페이징, 카테고리별 필터링 지원)
      */

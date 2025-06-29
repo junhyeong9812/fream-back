@@ -23,8 +23,8 @@ public class NoticeFileStorageUtil {
 
     private static final String NOTICE_DOMAIN_URL = "https://www.pinjun.xyz";
     private static final String NOTICE_FILES_ENDPOINT = "/api/notices/files";
-//    private static final String NOTICE_BASE_DIR = "/home/ubuntu/fream/notice";
-    private static final String NOTICE_BASE_DIR = "C:\\Users\\pickj\\webserver\\dockerVolums\\fream\\notice";
+    private static final String NOTICE_BASE_DIR = "/home/ubuntu/fream/notice";
+//    private static final String NOTICE_BASE_DIR = "C:\\Users\\pickj\\webserver\\dockerVolums\\fream\\notice";
 
     // 허용된 이미지 확장자
     private static final List<String> ALLOWED_IMAGE_EXTENSIONS = Arrays.asList(".jpg", ".jpeg", ".png", ".gif");
