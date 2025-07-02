@@ -1,6 +1,7 @@
 # Fream Backend
 
 Fream은 확장 가능한 웹 서비스를 위한 견고한 인프라를 제공하는 Spring Boot 기반의 백엔드 애플리케이션입니다. 이 프로젝트는 [이전 버전](https://github.com/junhyeong9812/Improve_Fream_Back)에서 더 나아가 배포 자동화와 운영 효율성을 크게 개선한 버전입니다.
+윈도우 배포 완료
 
 ## 프로젝트 재구성 배경
 
