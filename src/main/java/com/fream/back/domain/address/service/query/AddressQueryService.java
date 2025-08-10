@@ -33,7 +33,9 @@ public class AddressQueryService {
         try {
             log.info("주소 목록 조회 시작: 사용자={}", email);
 
-            User user = userRepository.findByEmail(email)
+            // 이메일을 암호화해서 사용자 조회
+            String encryptedEmail = encryptionUtil.deterministicEncrypt(email);
+            User user = userRepository.findByEmail(encryptedEmail)
                     .orElseThrow(() -> new AddressUserNotFoundException(
                             "이메일 '" + email + "'에 해당하는 사용자를 찾을 수 없습니다."
                     ));
@@ -68,7 +70,9 @@ public class AddressQueryService {
         try {
             log.info("단일 주소 조회 시작: 사용자={}, 주소ID={}", email, addressId);
 
-            User user = userRepository.findByEmail(email)
+            // 이메일을 암호화해서 사용자 조회
+            String encryptedEmail = encryptionUtil.deterministicEncrypt(email);
+            User user = userRepository.findByEmail(encryptedEmail)
                     .orElseThrow(() -> new AddressUserNotFoundException(
                             "이메일 '" + email + "'에 해당하는 사용자를 찾을 수 없습니다."
                     ));
@@ -111,7 +115,9 @@ public class AddressQueryService {
         try {
             log.info("이름으로 주소 검색 시작: 사용자={}, 검색어={}", email, recipientName);
 
-            User user = userRepository.findByEmail(email)
+            // 이메일을 암호화해서 사용자 조회
+            String encryptedEmail = encryptionUtil.deterministicEncrypt(email);
+            User user = userRepository.findByEmail(encryptedEmail)
                     .orElseThrow(() -> new AddressUserNotFoundException(
                             "이메일 '" + email + "'에 해당하는 사용자를 찾을 수 없습니다."
                     ));
@@ -154,7 +160,9 @@ public class AddressQueryService {
         try {
             log.info("전화번호로 주소 검색 시작: 사용자={}, 검색어={}", email, phoneNumber);
 
-            User user = userRepository.findByEmail(email)
+            // 이메일을 암호화해서 사용자 조회
+            String encryptedEmail = encryptionUtil.deterministicEncrypt(email);
+            User user = userRepository.findByEmail(encryptedEmail)
                     .orElseThrow(() -> new AddressUserNotFoundException(
                             "이메일 '" + email + "'에 해당하는 사용자를 찾을 수 없습니다."
                     ));
