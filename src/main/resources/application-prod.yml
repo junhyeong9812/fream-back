@@ -30,20 +30,37 @@ spring:
             trust: smtp.gmail.com
   kafka:
     bootstrap-servers: kafka:9092
+    producer:
+      acks: all  # 결제 안정성을 위한 설정
+      retries: 3
+      enable-idempotence: true  # 멱등성 보장
+      batch-size: 16384
+      linger-ms: 5
+      buffer-memory: 33554432
     consumer:
-      group-id: "my-group"
+      group-id: "my-group"  # 기본 그룹 (기존 ViewEvent용)
       auto-offset-reset: "earliest"
+      enable-auto-commit: false  # 수동 커밋 (결제 처리 확실성)
+      max-poll-records: 10
+      fetch-min-size: 1024
+      fetch-max-wait: 500
+    # 결제 관련 추가 설정
+    payment:
+      consumer:
+        processing-group: "payment-processing-group"  # 결제 처리 그룹
+        retry-group: "payment-retry-group"            # 결제 재시도 그룹
+      topics:
+        processing: "payment-processing-topic"        # 결제 처리 토픽
+        retry: "payment-retry-topic"                  # 결제 재시도 토픽
+      retry:
+        max-attempts: 3
+        backoff-delay-ms: 1000
   elasticsearch:
-     uris: http://elasticsearch:9200
-
+    uris: http://elasticsearch:9200
 
   batch:
     jdbc:
       initialize-schema: never # 운영에선 직접 관리
-#  autoconfigure:
-#    exclude:
-#      - org.springframework.boot.autoconfigure.security.servlet.SecurityAutoConfiguration
-#      - org.springframework.boot.autoconfigure.security.servlet.UserDetailsServiceAutoConfiguration
 
   # OAuth2 설정 추가
   security:
@@ -100,24 +117,13 @@ management:
       show-details: when-authorized
 kibana:
   url: https://www.pinjun.xyz/kibana
-#management:
-#  endpoints:
-#    web:
-#      exposure:
-#        include: health,info,prometheus,metrics
-#  metrics:
-#    export:
-#      prometheus:
-#        enabled: true
-#
-#grafana:
-#  url: https://www.pinjun.xyz/grafana
 
 logging:
   level:
     org.hibernate.SQL: debug
     org.springframework.security: DEBUG
     com.fream: INFO  # 프로젝트 패키지에 맞게 수정
+    org.apache.kafka: INFO  # Kafka 로깅 레벨
   file:
     name: /logs/spring-app.log
   pattern:
@@ -154,21 +160,6 @@ server:
   use-forward-headers: true
 
 # 결제 도메인 관련 설정 추가
-#payment:
-#  encryption:
-#    secret-key: ${PAYMENT_ENCRYPTION_KEY}
-#    salt: ${PAYMENT_ENCRYPTION_SALT}
-#    iv: ${PAYMENT_ENCRYPTION_IV}
-#  card-info:
-#    max-count: 5 # 사용자당 최대 등록 가능한 카드 정보 수
-#  retry:
-#    max-attempts: 3 # 결제 실패 시 최대 재시도 횟수
-#    delay-ms: 1000 # 재시도 간격 (밀리초)
-#  logging:
-#    mask-sensitive-data: true # 민감 정보 마스킹 활성화 여부
-#  api:
-#    timeout: 10000 # 외부 API 호출 타임아웃 (밀리초)
-# 결제 도메인 관련 설정 추가
 payment:
   encryption:
     # 개발/테스트 환경용 하드코딩 암호화 키 (실제 운영 환경에서는 환경변수로 교체 필요)
@@ -184,6 +175,22 @@ payment:
     mask-sensitive-data: true # 민감 정보 마스킹 활성화 여부
   api:
     timeout: 10000 # 외부 API 호출 타임아웃 (밀리초)
+  # Kafka 결제 처리 관련 설정
+  kafka:
+    enabled: true  # Kafka 결제 처리 활성화 여부
+    topics:
+      processing: "payment-processing-topic"
+      retry: "payment-retry-topic"
+    consumer:
+      processing-group: "payment-processing-group"
+      retry-group: "payment-retry-group"
+      concurrency: 1  # 동시 처리 수 (결제는 순차 처리 권장)
+    producer:
+      timeout-ms: 5000
+    retry:
+      max-attempts: 3
+      backoff-multiplier: 2
+      initial-delay-ms: 1000
 
 # weather 도메인 설정
 weather:
@@ -211,4 +218,3 @@ access-log:
   kafka:
     topic: user-access-log-topic
     group-id: user-access-log-group
-

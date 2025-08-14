@@ -4,7 +4,8 @@ public enum PaymentStatus {
     PENDING, // 결제 대기
     PAID, // 결제 완료
     REFUND_REQUESTED, // 환불 대기
-    REFUNDED; // 환불 완료
+    REFUNDED, // 환불 완료
+    FAILED;
 
     public boolean canTransitionTo(PaymentStatus newStatus) {
         switch (this) {

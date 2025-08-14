@@ -2,10 +2,7 @@ package com.fream.back.global.config.security.filter;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fream.back.domain.user.dto.LoginRequestDto;
-import com.fream.back.domain.user.entity.User;
-import com.fream.back.domain.user.redis.AuthRedisService;
-import com.fream.back.domain.user.repository.UserRepository;
-import com.fream.back.global.config.security.JwtTokenProvider;
+import com.fream.back.domain.user.service.command.AuthService;
 import com.fream.back.global.config.security.dto.TokenDto;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
@@ -17,27 +14,22 @@ import org.springframework.http.HttpMethod;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseCookie;
-import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.web.filter.OncePerRequestFilter;
 
 import java.io.IOException;
 import java.time.Duration;
 import java.util.HashMap;
 import java.util.Map;
-import java.util.Optional;
 
 /**
- * 로그인 요청을 처리하는 필터
+ * 로그인 요청을 처리하는 필터 (AuthService 활용)
  * /auth/login 경로의 POST 요청을 가로채서 처리
  */
 @Slf4j
 @RequiredArgsConstructor
 public class LoginAuthenticationFilter extends OncePerRequestFilter {
 
-    private final UserRepository userRepository;
-    private final PasswordEncoder passwordEncoder;
-    private final JwtTokenProvider jwtTokenProvider;
-    private final AuthRedisService authRedisService;
+    private final AuthService authService;
     private final ObjectMapper objectMapper = new ObjectMapper();
 
     @Override
@@ -56,7 +48,7 @@ public class LoginAuthenticationFilter extends OncePerRequestFilter {
             // 요청 본문에서 로그인 정보 추출
             LoginRequestDto loginRequest = extractLoginRequest(request);
 
-            // 로그인 처리
+            // AuthService를 통한 로그인 처리
             handleLogin(loginRequest, request, response);
 
         } catch (Exception e) {
@@ -81,52 +73,28 @@ public class LoginAuthenticationFilter extends OncePerRequestFilter {
     }
 
     /**
-     * 로그인 처리 로직
+     * AuthService를 활용한 로그인 처리
      */
     private void handleLogin(LoginRequestDto loginRequest,
                              HttpServletRequest request,
                              HttpServletResponse response) throws IOException {
 
-        log.info("로그인 시도: {}", loginRequest.getEmail());
+        log.info("로그인 필터 처리 시작: {}", loginRequest.getEmail());
 
-        // 1. 사용자 조회
-        Optional<User> optionalUser = userRepository.findByEmail(loginRequest.getEmail());
-        if (optionalUser.isEmpty()) {
-            throw new IllegalArgumentException("존재하지 않는 사용자입니다.");
-        }
-
-        User user = optionalUser.get();
-
-        // 2. 비밀번호 검증
-        if (!passwordEncoder.matches(loginRequest.getPassword(), user.getPassword())) {
-            throw new IllegalArgumentException("비밀번호가 일치하지 않습니다.");
-        }
-
-        // 3. 사용자 상태 검증 (필요시 추가)
-        if (!user.isVerified()) {
-            throw new IllegalArgumentException("이메일 인증이 완료되지 않은 사용자입니다.");
-        }
-
-        // 4. IP 주소 추출
+        // IP 주소 추출
         String clientIp = getClientIp(request);
 
-        // 5. JWT 토큰 생성
-        TokenDto tokenDto = jwtTokenProvider.generateTokenPair(
-                user.getEmail(),
-                user.getAge(),
-                user.getGender(),
-                clientIp,
-                user.getRole()
-        );
+        // AuthService의 login 메소드 활용
+        TokenDto tokenDto = authService.login(loginRequest, clientIp);
 
-        // 6. 쿠키에 토큰 설정
+        // 쿠키에 토큰 설정
         setCookie(response, "ACCESS_TOKEN", tokenDto.getAccessToken(), 30 * 60); // 30분
         setCookie(response, "REFRESH_TOKEN", tokenDto.getRefreshToken(), 24 * 60 * 60); // 24시간
 
-        // 7. 성공 응답
+        // 성공 응답
         handleLoginSuccess(response);
 
-        log.info("로그인 성공: {}", user.getEmail());
+        log.info("로그인 필터 처리 완료: {}", loginRequest.getEmail());
     }
 
     /**
@@ -182,7 +150,7 @@ public class LoginAuthenticationFilter extends OncePerRequestFilter {
     }
 
     /**
-     * 로그인 실패 응답
+     * 로그인 실패 응답 (AuthService의 예외를 그대로 활용)
      */
     private void handleLoginError(HttpServletResponse response, String errorMessage) throws IOException {
         response.setStatus(HttpStatus.UNAUTHORIZED.value());
