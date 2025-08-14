@@ -45,6 +45,22 @@ spring:
       fetch-min-size: 1024
       fetch-max-wait: 500
     # 결제 관련 추가 설정
+    # 🚀 Order 처리 관련 Kafka 설정 (수정된 부분)
+    order:
+      consumer:
+        processing-group: "order-processing-group"    # 주문 처리 그룹
+        retry-group: "order-retry-group"              # 주문 재시도 그룹
+        notification-group: "order-notification-group" # 주문 알림 그룹
+      topics:
+        processing: "order-processing-topic"          # 주문 처리 토픽
+        retry: "order-retry-topic"                    # 주문 재시도 토픽
+        notification: "notification-topic"            # 알림 토픽
+      retry:
+        max-attempts: 3
+        backoff-delay-ms: 1000
+      processing:
+        concurrency: 2                                # 병렬 처리 수
+        timeout-ms: 30000
     payment:
       consumer:
         processing-group: "payment-processing-group"  # 결제 처리 그룹
