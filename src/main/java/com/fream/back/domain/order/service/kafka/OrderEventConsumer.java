@@ -372,4 +372,5 @@ public class OrderEventConsumer {
             log.error("실패 알림 전송 실패: 주문ID={}, 오류={}", orderId, e.getMessage(), e);
         }
     }
+
 }
