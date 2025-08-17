@@ -16,15 +16,40 @@ services:
     volumes:
       - C:\Users\pickj\webserver\dockerVolums\mysql_data:/var/lib/mysql
 
-  redis:
+#  redis:
+#    build:
+#      context: ../..
+#      dockerfile: docker/redis/Dockerfile-redis
+#    container_name: redis_prod
+#    environment:
+#      TZ: Asia/Seoul
+#    ports:
+#      - "6379:6379"
+  redis-primary:
     build:
       context: ../..
-      dockerfile: docker/redis/Dockerfile-redis
-    container_name: redis_prod
+      dockerfile: docker/redis/Dockerfile-redis-primary
+    container_name: redis_primary_prod
     environment:
       TZ: Asia/Seoul
     ports:
       - "6379:6379"
+    volumes:
+      - C:\Users\pickj\webserver\dockerVolums\redis_primary_data:/data
+
+  redis-replica:
+    build:
+      context: ../..
+      dockerfile: docker/redis/Dockerfile-redis-replica
+    container_name: redis_replica_prod
+    environment:
+      TZ: Asia/Seoul
+    ports:
+      - "6380:6379"
+    depends_on:
+      - redis-primary
+    volumes:
+      - C:\Users\pickj\webserver\dockerVolums\redis_replica_data:/data
 
   zookeeper:
     build:
