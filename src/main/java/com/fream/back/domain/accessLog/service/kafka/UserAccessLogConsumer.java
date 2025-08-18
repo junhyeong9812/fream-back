@@ -1,5 +1,8 @@
 package com.fream.back.domain.accessLog.service.kafka;
 
+import com.fream.back.domain.accessLog.aop.annotation.AccessLogExceptionHandler;
+import com.fream.back.domain.accessLog.aop.annotation.AccessLogMethodLogger;
+import com.fream.back.domain.accessLog.aop.annotation.AccessLogPerformanceMonitor;
 import com.fream.back.domain.accessLog.dto.UserAccessLogEvent;
 import com.fream.back.domain.accessLog.entity.UserAccessLog;
 import com.fream.back.domain.accessLog.exception.AccessLogErrorCode;
@@ -33,6 +36,27 @@ public class UserAccessLogConsumer {
      * @throws AccessLogKafkaException Kafka 수신 처리 오류 시
      * @throws AccessLogSaveException 데이터 저장 오류 시
      */
+    @AccessLogExceptionHandler(
+            defaultType = AccessLogExceptionHandler.ExceptionType.KAFKA,
+            message = "Kafka 메시지 소비 중 오류가 발생했습니다",
+            retry = true,
+            retryCount = 2,
+            logLevel = AccessLogExceptionHandler.LogLevel.ERROR
+    )
+    @AccessLogMethodLogger(
+            level = AccessLogMethodLogger.LogLevel.INFO,
+            logParameters = true,
+            logReturnValue = false,
+            measureExecutionTime = true,
+            customMessage = "Kafka 접근 로그 이벤트 소비 및 저장"
+    )
+    @AccessLogPerformanceMonitor(
+            thresholdMs = 1500L,
+            measureMemory = false,
+            collectMetrics = true,
+            slowQueryThresholdMs = 5000L,
+            enablePerformanceGrading = true
+    )
     @KafkaListener(
             topics = "user-access-log-topic",
             groupId = "user-access-log-group",
@@ -76,6 +100,17 @@ public class UserAccessLogConsumer {
     /**
      * 이벤트와 위치 정보를 이용하여 UserAccessLog 엔티티를 생성합니다.
      */
+    @AccessLogExceptionHandler(
+            defaultType = AccessLogExceptionHandler.ExceptionType.GENERAL,
+            retry = false,
+            logLevel = AccessLogExceptionHandler.LogLevel.ERROR
+    )
+    @AccessLogMethodLogger(
+            level = AccessLogMethodLogger.LogLevel.TRACE,
+            logParameters = false,
+            logReturnValue = false,
+            measureExecutionTime = false
+    )
     private UserAccessLog buildUserAccessLog(UserAccessLogEvent event, GeoIPService.Location location) {
         return UserAccessLog.builder()
                 .refererUrl(event.getRefererUrl())

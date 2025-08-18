@@ -1,5 +1,8 @@
 package com.fream.back.domain.accessLog.service.geo;
 
+import com.fream.back.domain.accessLog.aop.annotation.AccessLogExceptionHandler;
+import com.fream.back.domain.accessLog.aop.annotation.AccessLogMethodLogger;
+import com.fream.back.domain.accessLog.aop.annotation.AccessLogPerformanceMonitor;
 import com.fream.back.domain.accessLog.exception.AccessLogErrorCode;
 import com.fream.back.domain.accessLog.exception.GeoIPException;
 import com.maxmind.geoip2.DatabaseReader;
@@ -52,6 +55,27 @@ public class GeoIPService {
      * @param ip IP 주소
      * @return 위치 정보 (국가, 지역, 도시)
      */
+    @AccessLogExceptionHandler(
+            defaultType = AccessLogExceptionHandler.ExceptionType.GEO_IP,
+            message = "IP 위치 정보 조회 중 오류가 발생했습니다",
+            retry = true,
+            retryCount = 2,
+            logLevel = AccessLogExceptionHandler.LogLevel.WARN
+    )
+    @AccessLogMethodLogger(
+            level = AccessLogMethodLogger.LogLevel.DEBUG,
+            logParameters = true,
+            logReturnValue = false,
+            measureExecutionTime = true,
+            customMessage = "IP 주소 위치 정보 조회"
+    )
+    @AccessLogPerformanceMonitor(
+            thresholdMs = 1000L,
+            measureMemory = false,
+            collectMetrics = true,
+            slowQueryThresholdMs = 3000L,
+            logPerformance = false
+    )
     public Location getLocation(String ip) {
         if (ip == null || ip.isEmpty() || "localhost".equals(ip) || "127.0.0.1".equals(ip) || "0:0:0:0:0:0:0:1".equals(ip)) {
             // 로컬 주소이거나 IP가 없는 경우
