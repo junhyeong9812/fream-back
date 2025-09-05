@@ -1,6 +1,7 @@
-package com.fream.back.domain.faq.aop;
+package com.fream.back.domain.faq.aop.aspect;
 
 import com.fream.back.domain.faq.aop.annotation.FAQContentProcessing;
+import com.fream.back.domain.faq.aop.annotation.FAQContentProcessing.FailureAction;
 import com.fream.back.domain.faq.dto.FAQCreateRequestDto;
 import com.fream.back.domain.faq.dto.FAQUpdateRequestDto;
 import lombok.RequiredArgsConstructor;
@@ -13,455 +14,517 @@ import org.jsoup.nodes.Document;
 import org.jsoup.nodes.Element;
 import org.jsoup.safety.Safelist;
 import org.jsoup.select.Elements;
-import org.springframework.core.annotation.Order;
 import org.springframework.stereotype.Component;
 import org.springframework.web.multipart.MultipartFile;
 
+import javax.imageio.IIOImage;
 import javax.imageio.ImageIO;
+import javax.imageio.ImageWriteParam;
+import javax.imageio.ImageWriter;
+import javax.imageio.stream.ImageOutputStream;
 import java.awt.*;
 import java.awt.image.BufferedImage;
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
+import java.net.HttpURLConnection;
+import java.net.URL;
+import java.nio.charset.StandardCharsets;
 import java.util.*;
 import java.util.List;
-import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.CompletableFuture;
+import java.util.regex.Matcher;
 import java.util.regex.Pattern;
+import java.util.stream.Collectors;
+import java.util.zip.GZIPOutputStream;
 
-/**
- * FAQ 컨텐츠 처리 AOP
- * HTML 컨텐츠 정제, 이미지 최적화, XSS 방지 등
- */
 @Aspect
 @Component
-@RequiredArgsConstructor
 @Slf4j
-@Order(2)
+@RequiredArgsConstructor
 public class FAQContentProcessingAspect {
 
-    // 위험한 태그/속성 패턴
-    private static final Pattern DANGEROUS_TAGS = Pattern.compile(
-            "<\\s*(script|iframe|object|embed|applet)[^>]*>.*?</\\s*\\1\\s*>",
-            Pattern.CASE_INSENSITIVE | Pattern.DOTALL
+    private static final Pattern XSS_PATTERN = Pattern.compile(
+            "(<script[^>]*>.*?</script>)|" +
+                    "(javascript:)|" +
+                    "(on\\w+\\s*=)|" +
+                    "(<iframe[^>]*>.*?</iframe>)",
+            Pattern.CASE_INSENSITIVE | Pattern.MULTILINE | Pattern.DOTALL
     );
 
-    private static final Pattern JAVASCRIPT_PATTERN = Pattern.compile(
-            "javascript:|on\\w+\\s*=",
+    private static final Pattern URL_PATTERN = Pattern.compile(
+            "https?://[-a-zA-Z0-9+&@#/%?=~_|!:,.;]*[-a-zA-Z0-9+&@#/%=~_|]",
             Pattern.CASE_INSENSITIVE
     );
-
-    // 이미지 처리 통계
-    private final Map<String, ImageProcessingStats> imageStats = new ConcurrentHashMap<>();
-
-    private static class ImageProcessingStats {
-        private int totalProcessed = 0;
-        private long totalSizeBefore = 0;
-        private long totalSizeAfter = 0;
-        private int optimizationCount = 0;
-        private int failureCount = 0;
-
-        public double getCompressionRatio() {
-            return totalSizeBefore > 0 ?
-                    (double)(totalSizeBefore - totalSizeAfter) / totalSizeBefore * 100 : 0;
-        }
-    }
 
     @Around("@annotation(contentProcessing)")
     public Object processContent(ProceedingJoinPoint joinPoint, FAQContentProcessing contentProcessing) throws Throwable {
         Object[] args = joinPoint.getArgs();
-        String methodName = joinPoint.getSignature().getName();
-
-        log.debug("FAQ_CONTENT_PROCESSING_START - Method: {}", methodName);
 
         try {
-            // 요청 데이터 전처리
-            preprocessContent(args, contentProcessing);
-
-            // 이미지 최적화
-            if (contentProcessing.optimizeImages()) {
-                optimizeImages(args, contentProcessing);
+            // 요청 DTO 처리
+            for (int i = 0; i < args.length; i++) {
+                if (args[i] instanceof FAQCreateRequestDto) {
+                    args[i] = processFAQCreateRequest((FAQCreateRequestDto) args[i], contentProcessing);
+                } else if (args[i] instanceof FAQUpdateRequestDto) {
+                    args[i] = processFAQUpdateRequest((FAQUpdateRequestDto) args[i], contentProcessing);
+                }
             }
 
             // 메서드 실행
             Object result = joinPoint.proceed(args);
 
-            // 응답 데이터 후처리
-            if (contentProcessing.sanitizeOutput()) {
-                result = postprocessContent(result, contentProcessing);
+            // 응답 처리
+            if (contentProcessing.sanitizeOutput() && result != null) {
+                result = processOutput(result, contentProcessing);
             }
 
-            log.debug("FAQ_CONTENT_PROCESSING_SUCCESS - Method: {}", methodName);
             return result;
 
         } catch (Exception e) {
-            log.error("FAQ_CONTENT_PROCESSING_ERROR - Method: {}, Error: {}",
-                    methodName, e.getMessage());
+            return handleProcessingFailure(e, contentProcessing, joinPoint);
+        }
+    }
 
-            // 실패 처리
-            switch (contentProcessing.onFailure()) {
-                case THROW_EXCEPTION:
-                    throw e;
-                case LOG_AND_CONTINUE:
-                    log.warn("Content processing failed, continuing with original content");
-                    return joinPoint.proceed();
-                case USE_ORIGINAL:
-                    return joinPoint.proceed();
-                case RETURN_EMPTY:
-                    return null;
-                default:
-                    return joinPoint.proceed();
+    private FAQCreateRequestDto processFAQCreateRequest(FAQCreateRequestDto dto,
+                                                        FAQContentProcessing contentProcessing) {
+        // HTML 컨텐츠 처리
+        if (contentProcessing.sanitizeHtml()) {
+            String processedAnswer = processHtmlContent(dto.getAnswer(), contentProcessing);
+            dto.setAnswer(processedAnswer);
+        }
+
+        // 이미지 최적화
+        if (contentProcessing.optimizeImages() && dto.getFiles() != null) {
+            List<MultipartFile> optimizedFiles = optimizeImages(dto.getFiles(), contentProcessing);
+            dto.setFiles(optimizedFiles);
+        }
+
+        // 컨텐츠 압축
+        if (contentProcessing.compressContent() && dto.getAnswer().length() > 1000) {
+            // 압축 로직은 저장 시 처리
+            log.debug("Content marked for compression");
+        }
+
+        // 자동 요약 생성
+        if (contentProcessing.generateSummary()) {
+            String summary = generateSummary(dto.getAnswer(), contentProcessing.summaryMaxLength());
+            // summary는 별도 필드나 메타데이터로 저장
+            log.debug("Generated summary: {}", summary);
+        }
+
+        return dto;
+    }
+
+    private FAQUpdateRequestDto processFAQUpdateRequest(FAQUpdateRequestDto dto,
+                                                        FAQContentProcessing contentProcessing) {
+        // HTML 컨텐츠 처리
+        if (contentProcessing.sanitizeHtml()) {
+            String processedAnswer = processHtmlContent(dto.getAnswer(), contentProcessing);
+            dto.setAnswer(processedAnswer);
+        }
+
+        // 새 이미지 최적화
+        if (contentProcessing.optimizeImages() && dto.getNewFiles() != null) {
+            List<MultipartFile> optimizedFiles = optimizeImages(dto.getNewFiles(), contentProcessing);
+            dto.setNewFiles(optimizedFiles);
+        }
+
+        return dto;
+    }
+
+    private String processHtmlContent(String content, FAQContentProcessing contentProcessing) {
+        if (content == null || content.isEmpty()) {
+            return content;
+        }
+
+        try {
+            // XSS 방지
+            if (contentProcessing.preventXSS()) {
+                content = preventXSS(content);
             }
-        }
-    }
 
-    /**
-     * 컨텐츠 전처리
-     */
-    private void preprocessContent(Object[] args, FAQContentProcessing annotation) {
-        for (Object arg : args) {
-            if (arg instanceof FAQCreateRequestDto) {
-                FAQCreateRequestDto dto = (FAQCreateRequestDto) arg;
+            // HTML 파싱
+            Document doc = Jsoup.parse(content);
 
-                // HTML 정제
-                if (annotation.sanitizeHtml()) {
-                    dto.setAnswer(sanitizeHtml(dto.getAnswer(), annotation));
-                }
-
-                // 컨텐츠 길이 제한
-                if (dto.getAnswer().length() > annotation.maxContentLength()) {
-                    dto.setAnswer(dto.getAnswer().substring(0, annotation.maxContentLength()));
-                    log.warn("Content truncated to {} characters", annotation.maxContentLength());
-                }
-
-            } else if (arg instanceof FAQUpdateRequestDto) {
-                FAQUpdateRequestDto dto = (FAQUpdateRequestDto) arg;
-
-                // HTML 정제
-                if (annotation.sanitizeHtml()) {
-                    dto.setAnswer(sanitizeHtml(dto.getAnswer(), annotation));
-                }
-
-                // 컨텐츠 길이 제한
-                if (dto.getAnswer().length() > annotation.maxContentLength()) {
-                    dto.setAnswer(dto.getAnswer().substring(0, annotation.maxContentLength()));
-                    log.warn("Content truncated to {} characters", annotation.maxContentLength());
-                }
+            // 화이트리스트 기반 정제
+            if (contentProcessing.useWhitelist()) {
+                content = sanitizeWithWhitelist(content, contentProcessing);
+                doc = Jsoup.parse(content);
             }
+
+            // 이미지 태그 최적화
+            if (contentProcessing.optimizeImageTags()) {
+                optimizeImageTags(doc, contentProcessing);
+            }
+
+            // 링크 처리
+            if (contentProcessing.validateLinks()) {
+                processLinks(doc, contentProcessing);
+            }
+
+            // 길이 제한 체크
+            String processed = doc.body().html();
+            if (processed.length() > contentProcessing.maxContentLength()) {
+                processed = truncateContent(processed, contentProcessing.maxContentLength());
+            }
+
+            return processed;
+
+        } catch (Exception e) {
+            log.error("Error processing HTML content: {}", e.getMessage());
+            return handleContentError(content, contentProcessing);
         }
     }
 
-    /**
-     * HTML 정제
-     */
-    private String sanitizeHtml(String html, FAQContentProcessing annotation) {
-        if (html == null || html.isEmpty()) {
-            return html;
-        }
+    private String preventXSS(String content) {
+        // XSS 패턴 제거
+        Matcher matcher = XSS_PATTERN.matcher(content);
+        content = matcher.replaceAll("");
 
-        // XSS 방지
-        if (annotation.preventXSS()) {
-            html = removeScriptTags(html);
-            html = removeJavaScript(html);
-        }
+        // HTML 엔티티 이스케이프
+        content = content.replace("<script", "&lt;script")
+                .replace("javascript:", "")
+                .replace("onerror=", "")
+                .replace("onclick=", "")
+                .replace("onload=", "");
 
-        // Safelist 설정
-        Safelist safelist = createSafelist(annotation);
-
-        // HTML 정제
-        String cleanHtml = Jsoup.clean(html, safelist);
-
-        // Jsoup으로 파싱
-        Document doc = Jsoup.parse(cleanHtml);
-
-        // 추가 처리
-        if (annotation.validateLinks()) {
-            validateAndFixLinks(doc, annotation);
-        }
-
-        if (annotation.optimizeImageTags()) {
-            optimizeImageTags(doc, annotation);
-        }
-
-        // 금지된 속성 제거
-        removeProhibitedAttributes(doc, annotation.prohibitedAttributes());
-
-        log.debug("HTML_SANITIZED - Original length: {}, Cleaned length: {}",
-                html.length(), doc.body().html().length());
-
-        return doc.body().html();
+        return content;
     }
 
-    /**
-     * Safelist 생성
-     */
-    private Safelist createSafelist(FAQContentProcessing annotation) {
-        Safelist safelist = Safelist.relaxed();
+    private String sanitizeWithWhitelist(String content, FAQContentProcessing contentProcessing) {
+        // Jsoup Safelist 생성
+        Safelist safelist = new Safelist();
 
         // 허용된 태그 추가
-        for (String tag : annotation.allowedTags()) {
+        for (String tag : contentProcessing.allowedTags()) {
             safelist.addTags(tag);
         }
 
-        // 이미지 속성
-        safelist.addAttributes("img", "src", "alt", "width", "height", "loading", "class");
+        // 기본 속성 추가
+        safelist.addAttributes("a", "href", "target", "rel")
+                .addAttributes("img", "src", "alt", "width", "height", "loading")
+                .addAttributes("div", "class", "id")
+                .addAttributes("span", "class", "id")
+                .addAttributes("p", "class")
+                .addAttributes("table", "class", "border")
+                .addAttributes("td", "colspan", "rowspan")
+                .addAttributes("th", "colspan", "rowspan");
 
-        // 링크 속성
-        safelist.addAttributes("a", "href", "target", "rel");
+        // 금지된 속성 제거
+        for (String attr : contentProcessing.prohibitedAttributes()) {
+            safelist.removeAttributes("*", attr);
+        }
 
-        // 프로토콜
-        safelist.addProtocols("img", "src", "http", "https", "data");
-        safelist.addProtocols("a", "href", "http", "https", "mailto");
+        // URL 프로토콜 설정
+        safelist.addProtocols("a", "href", "http", "https", "mailto")
+                .addProtocols("img", "src", "http", "https");
 
-        return safelist;
+        return Jsoup.clean(content, safelist);
     }
 
-    /**
-     * 스크립트 태그 제거
-     */
-    private String removeScriptTags(String html) {
-        return DANGEROUS_TAGS.matcher(html).replaceAll("");
-    }
+    private void optimizeImageTags(Document doc, FAQContentProcessing contentProcessing) {
+        Elements images = doc.select("img");
 
-    /**
-     * JavaScript 제거
-     */
-    private String removeJavaScript(String html) {
-        return JAVASCRIPT_PATTERN.matcher(html).replaceAll("");
-    }
+        for (Element img : images) {
+            // 이미지 크기 제한
+            String width = img.attr("width");
+            if (!width.isEmpty()) {
+                try {
+                    int w = Integer.parseInt(width);
+                    if (w > contentProcessing.maxImageWidth()) {
+                        img.attr("width", String.valueOf(contentProcessing.maxImageWidth()));
+                        img.removeAttr("height"); // 비율 유지
+                    }
+                } catch (NumberFormatException e) {
+                    // 무시
+                }
+            }
 
-    /**
-     * 금지된 속성 제거
-     */
-    private void removeProhibitedAttributes(Document doc, String[] prohibitedAttributes) {
-        for (String attr : prohibitedAttributes) {
-            Elements elements = doc.select("[" + attr + "]");
-            elements.removeAttr(attr);
+            // lazy loading 설정
+            if (contentProcessing.enableLazyLoading()) {
+                img.attr("loading", "lazy");
+            }
+
+            // alt 텍스트 확인
+            if (!img.hasAttr("alt") || img.attr("alt").isEmpty()) {
+                img.attr("alt", "FAQ 이미지");
+            }
+
+            // 반응형 스타일 추가
+            String style = img.attr("style");
+            if (!style.contains("max-width")) {
+                img.attr("style", style + "; max-width: 100%; height: auto;");
+            }
         }
     }
 
-    /**
-     * 링크 검증 및 수정
-     */
-    private void validateAndFixLinks(Document doc, FAQContentProcessing annotation) {
+    private void processLinks(Document doc, FAQContentProcessing contentProcessing) {
         Elements links = doc.select("a[href]");
+        Set<String> invalidLinks = new HashSet<>();
 
         for (Element link : links) {
             String href = link.attr("href");
 
-            // 외부 링크 처리
-            if ((href.startsWith("http://") || href.startsWith("https://")) &&
-                    annotation.externalLinksInNewWindow()) {
-
-                if (!href.contains("fream.com")) {
+            // URL 검증
+            if (href.startsWith("http://") || href.startsWith("https://")) {
+                // 외부 링크 처리
+                if (contentProcessing.externalLinksInNewWindow()) {
                     link.attr("target", "_blank");
                     link.attr("rel", "noopener noreferrer");
                 }
-            }
 
-            // 위험한 프로토콜 제거
-            if (href.startsWith("javascript:") || href.startsWith("data:")) {
-                link.removeAttr("href");
-                log.warn("Removed dangerous link: {}", href);
-            }
-        }
-    }
-
-    /**
-     * 이미지 태그 최적화
-     */
-    private void optimizeImageTags(Document doc, FAQContentProcessing annotation) {
-        Elements images = doc.select("img");
-
-        for (Element img : images) {
-            // lazy loading 추가
-            if (annotation.enableLazyLoading()) {
-                img.attr("loading", "lazy");
-            }
-
-            // 최대 크기 제한
-            String width = img.attr("width");
-            if (width.isEmpty() || Integer.parseInt(width) > annotation.maxImageWidth()) {
-                img.attr("width", String.valueOf(annotation.maxImageWidth()));
-                img.removeAttr("height"); // 비율 유지를 위해 height 제거
-            }
-
-            // alt 텍스트 확인
-            if (!img.hasAttr("alt")) {
-                img.attr("alt", "FAQ 이미지");
-            }
-
-            // 반응형 클래스 추가
-            String classes = img.attr("class");
-            if (!classes.contains("img-fluid")) {
-                img.addClass("img-fluid");
-            }
-
-            // 위험한 src 제거
-            String src = img.attr("src");
-            if (src.startsWith("javascript:") ||
-                    (src.startsWith("data:") && !src.startsWith("data:image/"))) {
-                img.remove();
-                log.warn("Removed dangerous image: {}", src);
-            }
-        }
-    }
-
-    /**
-     * 이미지 파일 최적화
-     */
-    private void optimizeImages(Object[] args, FAQContentProcessing annotation) {
-        for (Object arg : args) {
-            List<MultipartFile> files = null;
-
-            if (arg instanceof FAQCreateRequestDto) {
-                files = ((FAQCreateRequestDto) arg).getFiles();
-            } else if (arg instanceof FAQUpdateRequestDto) {
-                files = ((FAQUpdateRequestDto) arg).getNewFiles();
-            }
-
-            if (files != null) {
-                optimizeImageFiles(files, annotation);
-            }
-        }
-    }
-
-    /**
-     * 이미지 파일 리스트 최적화
-     */
-    private void optimizeImageFiles(List<MultipartFile> files, FAQContentProcessing annotation) {
-        if (files == null || files.isEmpty()) {
-            return;
-        }
-
-        String statKey = "FAQ_IMAGES";
-        ImageProcessingStats stats = imageStats.computeIfAbsent(statKey, k -> new ImageProcessingStats());
-
-        for (MultipartFile file : files) {
-            if (file == null || file.isEmpty()) continue;
-
-            try {
-                if (!isImageFile(file)) continue;
-
-                long originalSize = file.getSize();
-                stats.totalSizeBefore += originalSize;
-
-                // 이미지 리사이징 및 압축
-                byte[] optimizedBytes = resizeAndCompressImage(
-                        file.getBytes(),
-                        annotation.maxImageWidth(),
-                        annotation.imageQuality()
-                );
-
-                stats.totalSizeAfter += optimizedBytes.length;
-                stats.totalProcessed++;
-
-                if (optimizedBytes.length < originalSize) {
-                    stats.optimizationCount++;
-                    log.debug("IMAGE_OPTIMIZED - Original: {}KB, Optimized: {}KB, Saved: {}%",
-                            originalSize / 1024,
-                            optimizedBytes.length / 1024,
-                            (originalSize - optimizedBytes.length) * 100 / originalSize);
+                // 링크 유효성 검증 (비동기)
+                if (contentProcessing.validateLinks()) {
+                    CompletableFuture.runAsync(() -> {
+                        if (!isValidUrl(href)) {
+                            invalidLinks.add(href);
+                        }
+                    });
                 }
-
-                // 실제 환경에서는 최적화된 바이트를 새 MultipartFile로 교체하는 로직 필요
-
-            } catch (IOException e) {
-                stats.failureCount++;
-                log.error("IMAGE_OPTIMIZATION_ERROR - File: {}, Error: {}",
-                        file.getOriginalFilename(), e.getMessage());
+            } else if (href.startsWith("javascript:")) {
+                // JavaScript 링크 제거
+                link.remove();
             }
         }
 
-        // 통계 로깅
-        if (stats.totalProcessed > 0 && stats.totalProcessed % 10 == 0) {
-            log.info("IMAGE_PROCESSING_STATS - Total: {}, Optimized: {}, Failed: {}, CompressionRatio: {:.1f}%",
-                    stats.totalProcessed, stats.optimizationCount, stats.failureCount, stats.getCompressionRatio());
+        // 유효하지 않은 링크 처리
+        if (!invalidLinks.isEmpty()) {
+            log.warn("Found {} invalid links in content", invalidLinks.size());
         }
     }
 
-    /**
-     * 이미지 파일 여부 확인
-     */
-    private boolean isImageFile(MultipartFile file) {
-        String contentType = file.getContentType();
-        return contentType != null && contentType.startsWith("image/");
+    private boolean isValidUrl(String urlString) {
+        try {
+            URL url = new URL(urlString);
+            HttpURLConnection connection = (HttpURLConnection) url.openConnection();
+            connection.setRequestMethod("HEAD");
+            connection.setConnectTimeout(3000);
+            connection.setReadTimeout(3000);
+
+            int responseCode = connection.getResponseCode();
+            return responseCode >= 200 && responseCode < 400;
+        } catch (Exception e) {
+            return false;
+        }
     }
 
-    /**
-     * 이미지 리사이징 및 압축
-     */
-    private byte[] resizeAndCompressImage(byte[] imageBytes, int maxWidth, float quality) throws IOException {
-        BufferedImage originalImage = ImageIO.read(new ByteArrayInputStream(imageBytes));
-
-        if (originalImage == null) {
-            return imageBytes;
+    private List<MultipartFile> optimizeImages(List<MultipartFile> files,
+                                               FAQContentProcessing contentProcessing) {
+        if (files == null || files.isEmpty()) {
+            return files;
         }
 
+        return files.stream()
+                .map(file -> optimizeImage(file, contentProcessing))
+                .filter(Objects::nonNull)
+                .collect(Collectors.toList());
+    }
+
+    private MultipartFile optimizeImage(MultipartFile file, FAQContentProcessing contentProcessing) {
+        try {
+            // 이미지 읽기
+            BufferedImage originalImage = ImageIO.read(file.getInputStream());
+            if (originalImage == null) {
+                return file; // 이미지가 아닌 파일
+            }
+
+            // 크기 조정
+            BufferedImage resizedImage = resizeImage(originalImage,
+                    contentProcessing.maxImageWidth());
+
+            // 압축
+            byte[] compressedBytes = compressImage(resizedImage,
+                    contentProcessing.imageQuality());
+
+            // MultipartFile로 변환
+            return new OptimizedMultipartFile(
+                    file.getName(),
+                    file.getOriginalFilename(),
+                    file.getContentType(),
+                    compressedBytes
+            );
+
+        } catch (IOException e) {
+            log.error("Error optimizing image: {}", e.getMessage());
+            return file; // 원본 반환
+        }
+    }
+
+    private BufferedImage resizeImage(BufferedImage originalImage, int maxWidth) {
         int originalWidth = originalImage.getWidth();
         int originalHeight = originalImage.getHeight();
 
-        // 리사이징 필요 여부 확인
         if (originalWidth <= maxWidth) {
-            return compressImage(originalImage, quality);
+            return originalImage;
         }
 
         // 비율 계산
         double ratio = (double) maxWidth / originalWidth;
-        int newWidth = maxWidth;
         int newHeight = (int) (originalHeight * ratio);
 
         // 리사이징
-        BufferedImage resizedImage = new BufferedImage(newWidth, newHeight, BufferedImage.TYPE_INT_RGB);
-        Graphics2D g = resizedImage.createGraphics();
-        g.setRenderingHint(RenderingHints.KEY_INTERPOLATION, RenderingHints.VALUE_INTERPOLATION_BILINEAR);
-        g.setRenderingHint(RenderingHints.KEY_RENDERING, RenderingHints.VALUE_RENDER_QUALITY);
-        g.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
-        g.drawImage(originalImage, 0, 0, newWidth, newHeight, null);
-        g.dispose();
+        BufferedImage resizedImage = new BufferedImage(maxWidth, newHeight,
+                originalImage.getType());
+        Graphics2D g2d = resizedImage.createGraphics();
+        g2d.setRenderingHint(RenderingHints.KEY_INTERPOLATION,
+                RenderingHints.VALUE_INTERPOLATION_BILINEAR);
+        g2d.drawImage(originalImage, 0, 0, maxWidth, newHeight, null);
+        g2d.dispose();
 
-        log.debug("IMAGE_RESIZED - {}x{} -> {}x{}",
-                originalWidth, originalHeight, newWidth, newHeight);
-
-        return compressImage(resizedImage, quality);
+        return resizedImage;
     }
 
-    /**
-     * 이미지 압축
-     */
     private byte[] compressImage(BufferedImage image, float quality) throws IOException {
-        ByteArrayOutputStream baos = new ByteArrayOutputStream();
+        ByteArrayOutputStream outputStream = new ByteArrayOutputStream();
 
-        // JPEG 압축 (실제 환경에서는 ImageIO 플러그인 사용 권장)
-        ImageIO.write(image, "jpg", baos);
-
-        return baos.toByteArray();
-    }
-
-    /**
-     * 응답 데이터 후처리
-     */
-    private Object postprocessContent(Object result, FAQContentProcessing annotation) {
-        // 필요시 응답 데이터 추가 처리
-        // 예: HTML 엔티티 인코딩, 추가 정제 등
-        return result;
-    }
-
-    /**
-     * 요약 생성
-     */
-    private String generateSummary(String content, int maxLength) {
-        if (content == null || content.length() <= maxLength) {
-            return content;
+        // JPEG 압축
+        Iterator<ImageWriter> writers = ImageIO.getImageWritersByFormatName("jpg");
+        if (!writers.hasNext()) {
+            throw new IOException("No JPEG writer found");
         }
 
+        ImageWriter writer = writers.next();
+        ImageOutputStream ios = ImageIO.createImageOutputStream(outputStream);
+        writer.setOutput(ios);
+
+        ImageWriteParam param = writer.getDefaultWriteParam();
+        if (param.canWriteCompressed()) {
+            param.setCompressionMode(ImageWriteParam.MODE_EXPLICIT);
+            param.setCompressionQuality(quality);
+        }
+
+        writer.write(null, new IIOImage(image, null, null), param);
+
+        ios.close();
+        writer.dispose();
+
+        return outputStream.toByteArray();
+    }
+
+    private String generateSummary(String content, int maxLength) {
         // HTML 태그 제거
         String plainText = Jsoup.parse(content).text();
 
-        // 요약 생성
-        if (plainText.length() > maxLength) {
-            return plainText.substring(0, maxLength - 3) + "...";
+        if (plainText.length() <= maxLength) {
+            return plainText;
         }
 
-        return plainText;
+        // 문장 단위로 자르기
+        String[] sentences = plainText.split("\\. ");
+        StringBuilder summary = new StringBuilder();
+
+        for (String sentence : sentences) {
+            if (summary.length() + sentence.length() > maxLength) {
+                break;
+            }
+            summary.append(sentence).append(". ");
+        }
+
+        // 마지막 처리
+        String result = summary.toString().trim();
+        if (result.length() > maxLength) {
+            result = result.substring(0, maxLength - 3) + "...";
+        }
+
+        return result;
+    }
+
+    private String truncateContent(String content, int maxLength) {
+        if (content.length() <= maxLength) {
+            return content;
+        }
+
+        // HTML 구조 유지하며 자르기
+        Document doc = Jsoup.parse(content);
+        String truncated = doc.text();
+
+        if (truncated.length() > maxLength) {
+            truncated = truncated.substring(0, maxLength - 3) + "...";
+        }
+
+        return truncated;
+    }
+
+    private Object processOutput(Object result, FAQContentProcessing contentProcessing) {
+        // 출력 데이터 정제 로직
+        // 실제 구현은 반환 타입에 따라 달라짐
+        return result;
+    }
+
+    private Object handleProcessingFailure(Exception e, FAQContentProcessing contentProcessing,
+                                           ProceedingJoinPoint joinPoint) throws Throwable {
+        FailureAction action = contentProcessing.onFailure();
+
+        switch (action) {
+            case THROW_EXCEPTION:
+                throw e;
+            case LOG_AND_CONTINUE:
+                log.error("Content processing failed, continuing: {}", e.getMessage());
+                return joinPoint.proceed();
+            case USE_ORIGINAL:
+                return joinPoint.proceed();
+            case RETURN_EMPTY:
+                return null;
+            default:
+                return joinPoint.proceed();
+        }
+    }
+
+    private String handleContentError(String content, FAQContentProcessing contentProcessing) {
+        FailureAction action = contentProcessing.onFailure();
+
+        switch (action) {
+            case USE_ORIGINAL:
+                return content;
+            case RETURN_EMPTY:
+                return "";
+            default:
+                return content;
+        }
+    }
+
+    // 최적화된 MultipartFile 구현
+    private static class OptimizedMultipartFile implements MultipartFile {
+        private final String name;
+        private final String originalFilename;
+        private final String contentType;
+        private final byte[] content;
+
+        public OptimizedMultipartFile(String name, String originalFilename,
+                                      String contentType, byte[] content) {
+            this.name = name;
+            this.originalFilename = originalFilename;
+            this.contentType = contentType;
+            this.content = content;
+        }
+
+        @Override
+        public String getName() { return name; }
+
+        @Override
+        public String getOriginalFilename() { return originalFilename; }
+
+        @Override
+        public String getContentType() { return contentType; }
+
+        @Override
+        public boolean isEmpty() { return content.length == 0; }
+
+        @Override
+        public long getSize() { return content.length; }
+
+        @Override
+        public byte[] getBytes() { return content; }
+
+        @Override
+        public java.io.InputStream getInputStream() {
+            return new ByteArrayInputStream(content);
+        }
+
+        @Override
+        public void transferTo(java.io.File dest) throws IOException {
+            java.nio.file.Files.write(dest.toPath(), content);
+        }
     }
 }

@@ -1,558 +1,567 @@
 package com.fream.back.domain.faq.aop;
 
 import com.fream.back.domain.faq.aop.annotation.FAQSearchOptimization;
+import com.fream.back.domain.faq.aop.annotation.FAQSearchOptimization.*;
+import com.fream.back.domain.faq.dto.FAQResponseDto;
+import com.fream.back.domain.faq.entity.FAQ;
+import jakarta.annotation.PostConstruct;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.aspectj.lang.ProceedingJoinPoint;
 import org.aspectj.lang.annotation.Around;
 import org.aspectj.lang.annotation.Aspect;
-import org.springframework.core.annotation.Order;
+import org.aspectj.lang.reflect.MethodSignature;
+import org.springframework.cache.Cache;
+import org.springframework.cache.CacheManager;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.Pageable;
+import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
 
-import javax.annotation.PostConstruct;
-import java.text.Normalizer;
+
+import java.lang.reflect.Method;
+import java.time.LocalDateTime;
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.atomic.AtomicLong;
 import java.util.stream.Collectors;
 
-/**
- * FAQ 검색 최적화 AOP
- * 검색어 정규화, 동의어 처리, 검색 결과 캐싱 등
- */
 @Aspect
 @Component
-@RequiredArgsConstructor
 @Slf4j
-@Order(3)
+@RequiredArgsConstructor
 public class FAQSearchOptimizationAspect {
 
-    // 검색 통계
-    private final Map<String, SearchStatistics> searchStats = new ConcurrentHashMap<>();
-
-    // 인기 검색어
-    private final Map<String, AtomicInteger> popularKeywords = new ConcurrentHashMap<>();
+    private final JdbcTemplate jdbcTemplate;
+    private final CacheManager cacheManager;
 
     // 동의어 사전
     private final Map<String, Set<String>> synonymDictionary = new ConcurrentHashMap<>();
 
-    // 검색 결과 캐시
-    private final Map<String, CachedSearchResult> searchCache = new ConcurrentHashMap<>();
+    // 검색 로그 및 통계
+    private final Map<String, AtomicLong> searchQueryLog = new ConcurrentHashMap<>();
+    private final Map<String, SearchResult> searchResultCache = new ConcurrentHashMap<>();
 
-    // 검색 히스토리 (최근 100개)
-    private final LinkedList<SearchHistory> searchHistories = new LinkedList<>();
+    // 자동완성 데이터
+    private final Set<String> autocompleteData = ConcurrentHashMap.newKeySet();
 
-    // 초성 매핑
-    private static final Map<Character, Character> CHOSUNG_MAP = new HashMap<>();
+    // 오타 교정 사전
+    private final Map<String, String> typoCorrections = new ConcurrentHashMap<>();
 
-    static {
-        // 초성 매핑 초기화
-        CHOSUNG_MAP.put('ㄱ', '가');
-        CHOSUNG_MAP.put('ㄴ', '나');
-        CHOSUNG_MAP.put('ㄷ', '다');
-        CHOSUNG_MAP.put('ㄹ', '라');
-        CHOSUNG_MAP.put('ㅁ', '마');
-        CHOSUNG_MAP.put('ㅂ', '바');
-        CHOSUNG_MAP.put('ㅅ', '사');
-        CHOSUNG_MAP.put('ㅇ', '아');
-        CHOSUNG_MAP.put('ㅈ', '자');
-        CHOSUNG_MAP.put('ㅊ', '차');
-        CHOSUNG_MAP.put('ㅋ', '카');
-        CHOSUNG_MAP.put('ㅌ', '타');
-        CHOSUNG_MAP.put('ㅍ', '파');
-        CHOSUNG_MAP.put('ㅎ', '하');
-    }
-
-    private static class SearchStatistics {
-        private int totalSearches = 0;
-        private int successfulSearches = 0;
-        private int noResultSearches = 0;
-        private double averageResponseTime = 0;
-        private final Map<String, Integer> keywordFrequency = new HashMap<>();
-        private LocalDateTime lastSearchTime = LocalDateTime.now();
-
-        public double getSuccessRate() {
-            return totalSearches > 0 ? (double) successfulSearches / totalSearches * 100 : 0;
-        }
-    }
-
-    private static class CachedSearchResult {
-        private final Object result;
-        private final long timestamp;
-        private int hitCount;
-
-        public CachedSearchResult(Object result) {
-            this.result = result;
-            this.timestamp = System.currentTimeMillis();
-            this.hitCount = 1;
-        }
-
-        public boolean isExpired(long ttlMillis) {
-            return System.currentTimeMillis() - timestamp > ttlMillis;
-        }
-
-        public void incrementHitCount() {
-            this.hitCount++;
-        }
-    }
-
-    private static class SearchHistory {
-        private final String keyword;
-        private final String normalizedKeyword;
-        private final LocalDateTime searchTime;
-        private final boolean hasResult;
-        private final String userEmail;
-
-        public SearchHistory(String keyword, String normalizedKeyword, boolean hasResult, String userEmail) {
-            this.keyword = keyword;
-            this.normalizedKeyword = normalizedKeyword;
-            this.searchTime = LocalDateTime.now();
-            this.hasResult = hasResult;
-            this.userEmail = userEmail;
-        }
-    }
+    // 한글 초성 매핑
+    private static final String[] CHOSUNG = {
+            "ㄱ", "ㄲ", "ㄴ", "ㄷ", "ㄸ", "ㄹ", "ㅁ", "ㅂ", "ㅃ",
+            "ㅅ", "ㅆ", "ㅇ", "ㅈ", "ㅉ", "ㅊ", "ㅋ", "ㅌ", "ㅍ", "ㅎ"
+    };
 
     @PostConstruct
     public void init() {
         initializeSynonymDictionary();
+        initializeTypoCorrections();
+        loadPopularKeywords();
+        log.info("FAQ Search Optimization initialized");
     }
 
     @Around("@annotation(searchOptimization)")
-    public Object optimizeSearch(ProceedingJoinPoint joinPoint, FAQSearchOptimization searchOptimization) throws Throwable {
+    public Object optimizeSearch(ProceedingJoinPoint joinPoint,
+                                 FAQSearchOptimization searchOptimization) throws Throwable {
+
         if (!searchOptimization.enabled()) {
             return joinPoint.proceed();
         }
 
-        Object[] args = joinPoint.getArgs();
-        String methodName = joinPoint.getSignature().getName();
-
         // 검색어 추출
-        String keyword = extractKeyword(args);
-
-        if (keyword == null || keyword.isEmpty()) {
+        String originalKeyword = extractKeyword(joinPoint);
+        if (originalKeyword == null || originalKeyword.trim().isEmpty()) {
             return joinPoint.proceed();
         }
 
-        log.debug("FAQ_SEARCH_START - Keyword: {}", keyword);
-
-        // 검색어 정규화
-        String normalizedKeyword = normalizeKeyword(keyword, searchOptimization);
-
-        // 동의어 확장
-        Set<String> expandedKeywords = new HashSet<>();
-        expandedKeywords.add(normalizedKeyword);
-
-        if (searchOptimization.enableSynonymExpansion()) {
-            expandedKeywords.addAll(expandWithSynonyms(normalizedKeyword));
-            log.debug("SEARCH_EXPANDED - Original: {}, Expanded: {}", keyword, expandedKeywords);
+        // 캐시 체크
+        if (searchOptimization.enableCaching()) {
+            Object cached = getCachedResult(originalKeyword, searchOptimization);
+            if (cached != null) {
+                return cached;
+            }
         }
 
-        // 검색어 업데이트
-        String finalSearchKeyword = String.join(" OR ", expandedKeywords);
-        updateKeywordInArgs(args, finalSearchKeyword);
+        // 검색어 최적화
+        String optimizedKeyword = optimizeKeyword(originalKeyword, searchOptimization);
 
-        // 캐시 확인
+        // 검색 실행
+        Object[] args = modifyArgs(joinPoint.getArgs(), optimizedKeyword);
+        Object result = joinPoint.proceed(args);
+
+        // 결과 처리
+        result = processSearchResult(result, originalKeyword, optimizedKeyword, searchOptimization);
+
+        // 로깅 및 통계
+        if (searchOptimization.logSearchQueries()) {
+            logSearchQuery(originalKeyword, optimizedKeyword, result);
+        }
+
+        // 캐싱
         if (searchOptimization.enableCaching()) {
-            String cacheKey = buildCacheKey(normalizedKeyword, args);
-            CachedSearchResult cached = searchCache.get(cacheKey);
+            cacheSearchResult(originalKeyword, result, searchOptimization);
+        }
 
-            if (cached != null && !cached.isExpired(searchOptimization.cacheTTLSeconds() * 1000L)) {
-                cached.incrementHitCount();
-                log.debug("SEARCH_CACHE_HIT - Keyword: {}, HitCount: {}", normalizedKeyword, cached.hitCount);
-                updateSearchStatistics(normalizedKeyword, 0, true);
+        // 인기 검색어 추적
+        if (searchOptimization.trackPopularKeywords()) {
+            trackKeyword(originalKeyword);
+        }
+
+        return result;
+    }
+
+    private String optimizeKeyword(String keyword, FAQSearchOptimization optimization) {
+        String processed = keyword;
+
+        // 1. 정규화
+        if (optimization.normalizeKeyword()) {
+            processed = normalizeKeyword(processed);
+        }
+
+        // 2. 특수문자 제거
+        if (optimization.removeSpecialChars()) {
+            processed = removeSpecialCharacters(processed);
+        }
+
+        // 3. 한글 정규화
+        if (optimization.normalizeKorean()) {
+            processed = normalizeKorean(processed);
+        }
+
+        // 4. 오타 교정
+        if (optimization.enableTypoCorrection()) {
+            processed = correctTypo(processed);
+        }
+
+        // 5. 동의어 확장
+        if (optimization.enableSynonymExpansion()) {
+            processed = expandWithSynonyms(processed);
+        }
+
+        // 6. 초성 검색 처리
+        if (optimization.supportChosungSearch() && isChosungQuery(processed)) {
+            processed = convertChosungToRegex(processed);
+        }
+
+        log.debug("Keyword optimization: '{}' -> '{}'", keyword, processed);
+        return processed;
+    }
+
+    private Object processSearchResult(Object result, String originalKeyword,
+                                       String optimizedKeyword, FAQSearchOptimization optimization) {
+
+        // Page 타입 처리
+        if (result instanceof Page) {
+            Page<?> page = (Page<?>) result;
+
+            // 결과가 없고 추천이 활성화된 경우
+            if (page.isEmpty() && optimization.suggestOnNoResult()) {
+                List<FAQResponseDto> suggestions = getSuggestions(
+                        originalKeyword,
+                        optimization.maxSuggestions()
+                );
+
+                if (!suggestions.isEmpty()) {
+                    log.info("No results found for '{}', providing {} suggestions",
+                            originalKeyword, suggestions.size());
+                    return new PageImpl<>(suggestions, page.getPageable(), suggestions.size());
+                }
+            }
+
+            // 검색 점수 기반 필터링
+            if (optimization.scoreThreshold() > 0) {
+                List<?> filtered = filterByScore(page.getContent(), optimization.scoreThreshold());
+                return new PageImpl<>(filtered, page.getPageable(), filtered.size());
+            }
+
+            // 정렬 처리
+            if (optimization.sortBy() != SortBy.RELEVANCE) {
+                List<?> sorted = sortResults(page.getContent(), optimization.sortBy());
+                return new PageImpl<>(sorted, page.getPageable(), page.getTotalElements());
+            }
+        }
+
+        return result;
+    }
+
+    private String normalizeKeyword(String keyword) {
+        return keyword.toLowerCase()
+                .trim()
+                .replaceAll("\\s+", " ");
+    }
+
+    private String removeSpecialCharacters(String keyword) {
+        return keyword.replaceAll("[^가-힣a-zA-Z0-9\\s]", "");
+    }
+
+    private String normalizeKorean(String keyword) {
+        // 한글 자모 분리 및 정규화
+        StringBuilder normalized = new StringBuilder();
+
+        for (char ch : keyword.toCharArray()) {
+            if (ch >= '가' && ch <= '힣') {
+                // 한글 분해
+                int unicode = ch - 0xAC00;
+                int cho = unicode / (21 * 28);
+                int jung = (unicode % (21 * 28)) / 28;
+                int jong = unicode % 28;
+
+                normalized.append(CHOSUNG[cho]);
+                // 중성, 종성도 필요시 추가
+            } else {
+                normalized.append(ch);
+            }
+        }
+
+        return normalized.toString();
+    }
+
+    private String correctTypo(String keyword) {
+        // 오타 교정 사전 확인
+        String corrected = typoCorrections.get(keyword);
+        if (corrected != null) {
+            log.debug("Typo correction: '{}' -> '{}'", keyword, corrected);
+            return corrected;
+        }
+
+        // 레벤슈타인 거리 기반 교정
+        for (Map.Entry<String, String> entry : typoCorrections.entrySet()) {
+            if (calculateLevenshteinDistance(keyword, entry.getKey()) <= 2) {
+                return entry.getValue();
+            }
+        }
+
+        return keyword;
+    }
+
+    private String expandWithSynonyms(String keyword) {
+        Set<String> expansions = new HashSet<>();
+        expansions.add(keyword);
+
+        // 각 단어에 대해 동의어 확장
+        String[] words = keyword.split("\\s+");
+        for (String word : words) {
+            Set<String> synonyms = synonymDictionary.get(word.toLowerCase());
+            if (synonyms != null) {
+                expansions.addAll(synonyms);
+            }
+        }
+
+        if (expansions.size() > 1) {
+            return String.join(" OR ", expansions);
+        }
+
+        return keyword;
+    }
+
+    private boolean isChosungQuery(String keyword) {
+        // 초성으로만 구성되었는지 확인
+        for (char ch : keyword.toCharArray()) {
+            boolean isChosung = false;
+            for (String cho : CHOSUNG) {
+                if (cho.charAt(0) == ch) {
+                    isChosung = true;
+                    break;
+                }
+            }
+            if (!isChosung && !Character.isWhitespace(ch)) {
+                return false;
+            }
+        }
+        return true;
+    }
+
+    private String convertChosungToRegex(String chosung) {
+        StringBuilder regex = new StringBuilder();
+
+        for (char ch : chosung.toCharArray()) {
+            int index = -1;
+            for (int i = 0; i < CHOSUNG.length; i++) {
+                if (CHOSUNG[i].charAt(0) == ch) {
+                    index = i;
+                    break;
+                }
+            }
+
+            if (index >= 0) {
+                // 해당 초성으로 시작하는 모든 한글
+                char start = (char) (0xAC00 + index * 21 * 28);
+                char end = (char) (start + 21 * 28 - 1);
+                regex.append("[").append(start).append("-").append(end).append("]");
+            }
+        }
+
+        return regex.toString();
+    }
+
+    private List<FAQResponseDto> getSuggestions(String keyword, int maxSuggestions) {
+        try {
+            // 인기 검색어 기반 추천
+            String sql = "SELECT f.* FROM faq f " +
+                    "JOIN faq_search_log l ON f.id = l.faq_id " +
+                    "WHERE l.search_count > 10 " +
+                    "ORDER BY l.search_count DESC " +
+                    "LIMIT ?";
+
+            // JDBC를 사용한 조회 (실제로는 Repository 사용 권장)
+            List<FAQ> suggestions = new ArrayList<>();
+            // ... 조회 로직
+
+            return suggestions.stream()
+                    .limit(maxSuggestions)
+                    .map(faq -> FAQResponseDto.builder()
+                            .id(faq.getId())
+                            .question(faq.getQuestion())
+                            .answer(faq.getAnswer())
+                            .category(faq.getCategory().name())
+                            .build())
+                    .collect(Collectors.toList());
+
+        } catch (Exception e) {
+            log.error("Error getting suggestions: {}", e.getMessage());
+            return Collections.emptyList();
+        }
+    }
+
+    private List<?> filterByScore(List<?> results, double threshold) {
+        // 점수 기반 필터링 (실제 구현은 검색 엔진에 따라 다름)
+        return results.stream()
+                .filter(item -> calculateScore(item) >= threshold)
+                .collect(Collectors.toList());
+    }
+
+    private double calculateScore(Object item) {
+        // 검색 점수 계산 로직
+        // 실제로는 검색 엔진의 스코어링 사용
+        return 1.0;
+    }
+
+    private List<?> sortResults(List<?> results, SortBy sortBy) {
+        switch (sortBy) {
+            case POPULARITY:
+                return sortByPopularity(results);
+            case RECENT:
+                return sortByRecent(results);
+            case ALPHABETICAL:
+                return sortByAlphabetical(results);
+            default:
+                return results;
+        }
+    }
+
+    private List<?> sortByPopularity(List<?> results) {
+        // 인기도 기반 정렬
+        return results.stream()
+                .sorted((a, b) -> {
+                    Long viewsA = getViewCount(a);
+                    Long viewsB = getViewCount(b);
+                    return viewsB.compareTo(viewsA);
+                })
+                .collect(Collectors.toList());
+    }
+
+    private List<?> sortByRecent(List<?> results) {
+        // 최신순 정렬
+        return results.stream()
+                .sorted((a, b) -> {
+                    LocalDateTime dateA = getCreatedDate(a);
+                    LocalDateTime dateB = getCreatedDate(b);
+                    return dateB.compareTo(dateA);
+                })
+                .collect(Collectors.toList());
+    }
+
+    private List<?> sortByAlphabetical(List<?> results) {
+        // 알파벳순 정렬
+        return results.stream()
+                .sorted(Comparator.comparing(this::getTitle))
+                .collect(Collectors.toList());
+    }
+
+    private Object getCachedResult(String keyword, FAQSearchOptimization optimization) {
+        String cacheKey = "search:" + keyword.hashCode();
+        SearchResult cached = searchResultCache.get(cacheKey);
+
+        if (cached != null) {
+            long age = System.currentTimeMillis() - cached.timestamp;
+            if (age < optimization.cacheTTLSeconds() * 1000) {
+                log.debug("Search cache hit for keyword: {}", keyword);
                 return cached.result;
             }
         }
 
-        // 검색 실행
-        long startTime = System.currentTimeMillis();
-        Object result = joinPoint.proceed(args);
-        long responseTime = System.currentTimeMillis() - startTime;
-
-        // 결과 검증
-        boolean hasResult = validateSearchResult(result);
-
-        // 결과 캐싱
-        if (searchOptimization.enableCaching() && result != null) {
-            String cacheKey = buildCacheKey(normalizedKeyword, args);
-            searchCache.put(cacheKey, new CachedSearchResult(result));
-        }
-
-        // 통계 업데이트
-        updateSearchStatistics(normalizedKeyword, responseTime, hasResult);
-
-        // 검색 히스토리 저장
-        if (searchOptimization.logSearchQueries()) {
-            saveSearchHistory(keyword, normalizedKeyword, hasResult);
-        }
-
-        // 인기 검색어 업데이트
-        if (searchOptimization.trackPopularKeywords()) {
-            updatePopularKeywords(normalizedKeyword);
-        }
-
-        // 검색 결과 없을 시 추천
-        if (!hasResult && searchOptimization.suggestOnNoResult()) {
-            result = addSuggestions(result, normalizedKeyword, searchOptimization.maxSuggestions());
-        }
-
-        log.info("FAQ_SEARCH_COMPLETE - Keyword: {}, NormalizedKeyword: {}, HasResult: {}, ResponseTime: {}ms",
-                keyword, normalizedKeyword, hasResult, responseTime);
-
-        return result;
-    }
-
-    /**
-     * 검색어 정규화
-     */
-    private String normalizeKeyword(String keyword, FAQSearchOptimization annotation) {
-        if (keyword == null) return "";
-
-        String normalized = keyword.trim();
-
-        // 대소문자 통일
-        normalized = normalized.toLowerCase();
-
-        // 한글 정규화
-        if (annotation.normalizeKorean()) {
-            normalized = Normalizer.normalize(normalized, Normalizer.Form.NFC);
-        }
-
-        // 특수문자 제거
-        if (annotation.removeSpecialChars()) {
-            normalized = normalized.replaceAll("[^가-힣a-zA-Z0-9\\s]", " ");
-        }
-
-        // 중복 공백 제거
-        normalized = normalized.replaceAll("\\s+", " ").trim();
-
-        // 초성 검색 지원
-        if (annotation.supportChosungSearch()) {
-            normalized = expandChosung(normalized);
-        }
-
-        return normalized;
-    }
-
-    /**
-     * 동의어 확장
-     */
-    private Set<String> expandWithSynonyms(String keyword) {
-        Set<String> expanded = new HashSet<>();
-        expanded.add(keyword);
-
-        // 전체 키워드에 대한 동의어
-        Set<String> keywordSynonyms = synonymDictionary.get(keyword);
-        if (keywordSynonyms != null) {
-            expanded.addAll(keywordSynonyms);
-        }
-
-        // 단어별로 동의어 확장
-        String[] words = keyword.split("\\s+");
-        for (String word : words) {
-            Set<String> synonyms = synonymDictionary.get(word);
-            if (synonyms != null) {
-                for (String synonym : synonyms) {
-                    expanded.add(keyword.replace(word, synonym));
-                }
-            }
-        }
-
-        return expanded;
-    }
-
-    /**
-     * 동의어 사전 초기화
-     */
-    private void initializeSynonymDictionary() {
-        // FAQ 도메인 특화 동의어
-        addSynonyms("구매", "구입", "매입", "사기", "buy", "purchase");
-        addSynonyms("판매", "판매하기", "팔기", "sell", "selling");
-        addSynonyms("배송", "배달", "택배", "delivery", "shipping");
-        addSynonyms("환불", "반품", "취소", "refund", "return", "cancel");
-        addSynonyms("가격", "비용", "금액", "price", "cost", "fee");
-        addSynonyms("결제", "지불", "payment", "pay");
-        addSynonyms("회원", "멤버", "member", "user", "사용자");
-        addSynonyms("로그인", "signin", "login", "sign in", "log in");
-        addSynonyms("비밀번호", "패스워드", "password", "pw", "pwd");
-        addSynonyms("가입", "회원가입", "signup", "sign up", "register");
-        addSynonyms("탈퇴", "회원탈퇴", "withdrawal", "leave");
-        addSynonyms("상품", "제품", "product", "item", "goods");
-        addSynonyms("주문", "오더", "order", "purchase order");
-        addSynonyms("배송지", "주소", "address", "delivery address");
-        addSynonyms("쿠폰", "할인", "discount", "coupon");
-
-        log.info("SYNONYM_DICTIONARY_INITIALIZED - Total entries: {}", synonymDictionary.size());
-    }
-
-    /**
-     * 동의어 추가
-     */
-    private void addSynonyms(String... words) {
-        Set<String> synonymSet = new HashSet<>(Arrays.asList(words));
-        for (String word : words) {
-            synonymDictionary.put(word.toLowerCase(), synonymSet);
-        }
-    }
-
-    /**
-     * 초성 확장
-     */
-    private String expandChosung(String keyword) {
-        StringBuilder expanded = new StringBuilder();
-
-        for (char ch : keyword.toCharArray()) {
-            Character replacement = CHOSUNG_MAP.get(ch);
-            if (replacement != null) {
-                expanded.append(replacement);
-            } else {
-                expanded.append(ch);
-            }
-        }
-
-        return expanded.toString();
-    }
-
-    /**
-     * 검색 결과 검증
-     */
-    private boolean validateSearchResult(Object result) {
-        if (result == null) {
-            return false;
-        }
-
-        if (result instanceof Page<?>) {
-            Page<?> page = (Page<?>) result;
-            return page.hasContent();
-        }
-
-        if (result instanceof List<?>) {
-            List<?> list = (List<?>) result;
-            return !list.isEmpty();
-        }
-
-        return true;
-    }
-
-    /**
-     * 검색 통계 업데이트
-     */
-    private void updateSearchStatistics(String keyword, long responseTime, boolean successful) {
-        SearchStatistics stats = searchStats.computeIfAbsent(keyword, k -> new SearchStatistics());
-
-        stats.totalSearches++;
-        if (successful) {
-            stats.successfulSearches++;
-        } else {
-            stats.noResultSearches++;
-        }
-
-        // 이동 평균으로 응답 시간 계산
-        stats.averageResponseTime = (stats.averageResponseTime * 0.9) + (responseTime * 0.1);
-
-        // 키워드 빈도 업데이트
-        stats.keywordFrequency.merge(keyword, 1, Integer::sum);
-
-        stats.lastSearchTime = LocalDateTime.now();
-
-        // 주기적 로깅
-        if (stats.totalSearches % 100 == 0) {
-            log.info("SEARCH_STATS - Keyword: {}, Total: {}, SuccessRate: {:.1f}%, NoResult: {}, AvgTime: {:.0f}ms",
-                    keyword, stats.totalSearches, stats.getSuccessRate(),
-                    stats.noResultSearches, stats.averageResponseTime);
-        }
-    }
-
-    /**
-     * 검색 히스토리 저장
-     */
-    private void saveSearchHistory(String keyword, String normalizedKeyword, boolean hasResult) {
-        String userEmail = extractUserEmail();
-        SearchHistory history = new SearchHistory(keyword, normalizedKeyword, hasResult, userEmail);
-
-        synchronized (searchHistories) {
-            searchHistories.addLast(history);
-            if (searchHistories.size() > 100) {
-                searchHistories.removeFirst();
-            }
-        }
-    }
-
-    /**
-     * 인기 검색어 업데이트
-     */
-    private void updatePopularKeywords(String keyword) {
-        popularKeywords.computeIfAbsent(keyword, k -> new AtomicInteger(0)).incrementAndGet();
-
-        // 상위 10개 인기 검색어 주기적 로깅
-        if (getTotalSearchCount() % 500 == 0) {
-            logPopularKeywords();
-        }
-    }
-
-    /**
-     * 검색 제안 추가
-     */
-    private Object addSuggestions(Object result, String keyword, int maxSuggestions) {
-        List<String> suggestions = generateSuggestions(keyword, maxSuggestions);
-
-        // 실제 구현에서는 result 타입에 따라 suggestions를 추가
-        log.info("SEARCH_SUGGESTIONS - Keyword: {}, Suggestions: {}", keyword, suggestions);
-
-        return result;
-    }
-
-    /**
-     * 검색 제안 생성
-     */
-    private List<String> generateSuggestions(String keyword, int maxSuggestions) {
-        List<String> suggestions = new ArrayList<>();
-
-        // 1. 유사한 인기 검색어 추천
-        suggestions.addAll(findSimilarPopularKeywords(keyword, maxSuggestions / 2));
-
-        // 2. 동의어 기반 추천
-        Set<String> synonyms = synonymDictionary.get(keyword);
-        if (synonyms != null) {
-            suggestions.addAll(synonyms.stream()
-                    .limit(maxSuggestions / 2)
-                    .collect(Collectors.toList()));
-        }
-
-        return suggestions.stream()
-                .limit(maxSuggestions)
-                .collect(Collectors.toList());
-    }
-
-    /**
-     * 유사한 인기 검색어 찾기
-     */
-    private List<String> findSimilarPopularKeywords(String keyword, int limit) {
-        return popularKeywords.entrySet().stream()
-                .filter(entry -> calculateSimilarity(entry.getKey(), keyword) > 0.5)
-                .sorted(Map.Entry.<String, AtomicInteger>comparingByValue()
-                        .reversed()
-                        .thenComparing(Map.Entry.comparingByKey()))
-                .limit(limit)
-                .map(Map.Entry::getKey)
-                .collect(Collectors.toList());
-    }
-
-    /**
-     * 문자열 유사도 계산 (간단한 구현)
-     */
-    private double calculateSimilarity(String s1, String s2) {
-        if (s1.equals(s2)) return 1.0;
-        if (s1.contains(s2) || s2.contains(s1)) return 0.7;
-
-        // 간단한 자카드 유사도
-        Set<String> set1 = new HashSet<>(Arrays.asList(s1.split("\\s+")));
-        Set<String> set2 = new HashSet<>(Arrays.asList(s2.split("\\s+")));
-
-        Set<String> intersection = new HashSet<>(set1);
-        intersection.retainAll(set2);
-
-        Set<String> union = new HashSet<>(set1);
-        union.addAll(set2);
-
-        return union.isEmpty() ? 0 : (double) intersection.size() / union.size();
-    }
-
-    /**
-     * 캐시 키 생성
-     */
-    private String buildCacheKey(String keyword, Object[] args) {
-        StringBuilder keyBuilder = new StringBuilder("search:");
-        keyBuilder.append(keyword);
-
-        // Pageable 정보 추가
-        for (Object arg : args) {
-            if (arg instanceof Pageable) {
-                Pageable pageable = (Pageable) arg;
-                keyBuilder.append(":p").append(pageable.getPageNumber());
-                keyBuilder.append(":s").append(pageable.getPageSize());
-            }
-        }
-
-        return keyBuilder.toString();
-    }
-
-    /**
-     * 인기 검색어 조회
-     */
-    public List<Map.Entry<String, Integer>> getPopularKeywords(int limit) {
-        return popularKeywords.entrySet().stream()
-                .sorted(Map.Entry.<String, AtomicInteger>comparingByValue(
-                        (a, b) -> b.get() - a.get()))
-                .limit(limit)
-                .map(entry -> Map.entry(entry.getKey(), entry.getValue().get()))
-                .collect(Collectors.toList());
-    }
-
-    /**
-     * 검색 캐시 정리 (스케줄링)
-     */
-    @Scheduled(fixedDelay = 300000) // 5분마다
-    public void cleanupExpiredCache() {
-        int beforeSize = searchCache.size();
-
-        searchCache.entrySet().removeIf(entry ->
-                entry.getValue().isExpired(300000) // 5분 후 만료
-        );
-
-        int removed = beforeSize - searchCache.size();
-        if (removed > 0) {
-            log.info("SEARCH_CACHE_CLEANUP - Removed: {}, Remaining: {}",
-                    removed, searchCache.size());
-        }
-    }
-
-    /**
-     * 인기 검색어 로깅
-     */
-    private void logPopularKeywords() {
-        List<Map.Entry<String, Integer>> topKeywords = getPopularKeywords(10);
-        log.info("POPULAR_KEYWORDS - Top 10: {}", topKeywords);
-    }
-
-    /**
-     * 전체 검색 횟수
-     */
-    private int getTotalSearchCount() {
-        return popularKeywords.values().stream()
-                .mapToInt(AtomicInteger::get)
-                .sum();
-    }
-
-    // 헬퍼 메서드들
-    private String extractKeyword(Object[] args) {
-        for (Object arg : args) {
-            if (arg instanceof String) {
-                return (String) arg;
-            }
-        }
         return null;
     }
 
-    private void updateKeywordInArgs(Object[] args, String newKeyword) {
-        for (int i = 0; i < args.length; i++) {
-            if (args[i] instanceof String) {
-                args[i] = newKeyword;
-                break;
-            }
+    private void cacheSearchResult(String keyword, Object result, FAQSearchOptimization optimization) {
+        String cacheKey = "search:" + keyword.hashCode();
+        searchResultCache.put(cacheKey, new SearchResult(result, System.currentTimeMillis()));
+
+        // 캐시 크기 제한
+        if (searchResultCache.size() > 1000) {
+            cleanOldCache();
         }
     }
 
-    private String extractUserEmail() {
-        // SecurityContext에서 사용자 정보 추출
-        return "anonymous"; // 실제 구현 필요
+    private void cleanOldCache() {
+        long now = System.currentTimeMillis();
+        searchResultCache.entrySet().removeIf(entry ->
+                now - entry.getValue().timestamp > 3600000 // 1시간 이상 된 캐시 제거
+        );
     }
 
-    private LocalDateTime LocalDateTime.now() {
-        return java.time.LocalDateTime.now();
+    private void logSearchQuery(String original, String optimized, Object result) {
+        try {
+            int resultCount = 0;
+            if (result instanceof Page) {
+                resultCount = (int) ((Page<?>) result).getTotalElements();
+            }
+
+            String sql = "INSERT INTO faq_search_log (keyword, optimized_keyword, " +
+                    "result_count, searched_at) VALUES (?, ?, ?, ?)";
+
+            jdbcTemplate.update(sql, original, optimized, resultCount, LocalDateTime.now());
+
+        } catch (Exception e) {
+            log.error("Error logging search query: {}", e.getMessage());
+        }
+    }
+
+    private void trackKeyword(String keyword) {
+        searchQueryLog.computeIfAbsent(keyword, k -> new AtomicLong(0)).incrementAndGet();
+
+        // 자동완성 데이터 추가
+        if (searchQueryLog.get(keyword).get() > 5) {
+            autocompleteData.add(keyword);
+        }
+    }
+
+    private String extractKeyword(ProceedingJoinPoint joinPoint) {
+        Object[] args = joinPoint.getArgs();
+        String[] paramNames = ((MethodSignature) joinPoint.getSignature()).getParameterNames();
+
+        for (int i = 0; i < args.length && i < paramNames.length; i++) {
+            if ("keyword".equalsIgnoreCase(paramNames[i]) && args[i] != null) {
+                return args[i].toString();
+            }
+        }
+
+        return null;
+    }
+
+    private Object[] modifyArgs(Object[] args, String newKeyword) {
+        Object[] modified = Arrays.copyOf(args, args.length);
+
+        for (int i = 0; i < modified.length; i++) {
+            if (modified[i] instanceof String) {
+                // 키워드로 보이는 문자열 파라미터 수정
+                modified[i] = newKeyword;
+                break;
+            }
+        }
+
+        return modified;
+    }
+
+    private int calculateLevenshteinDistance(String s1, String s2) {
+        int[][] dp = new int[s1.length() + 1][s2.length() + 1];
+
+        for (int i = 0; i <= s1.length(); i++) {
+            dp[i][0] = i;
+        }
+
+        for (int j = 0; j <= s2.length(); j++) {
+            dp[0][j] = j;
+        }
+
+        for (int i = 1; i <= s1.length(); i++) {
+            for (int j = 1; j <= s2.length(); j++) {
+                int cost = s1.charAt(i - 1) == s2.charAt(j - 1) ? 0 : 1;
+                dp[i][j] = Math.min(Math.min(
+                                dp[i - 1][j] + 1,
+                                dp[i][j - 1] + 1),
+                        dp[i - 1][j - 1] + cost
+                );
+            }
+        }
+
+        return dp[s1.length()][s2.length()];
+    }
+
+    // Helper methods
+    private Long getViewCount(Object item) {
+        // 실제 구현 필요
+        return 0L;
+    }
+
+    private LocalDateTime getCreatedDate(Object item) {
+        // 실제 구현 필요
+        return LocalDateTime.now();
+    }
+
+    private String getTitle(Object item) {
+        // 실제 구현 필요
+        return "";
+    }
+
+    // 초기화 메서드들
+    private void initializeSynonymDictionary() {
+        // 동의어 사전 초기화
+        synonymDictionary.put("구매", Set.of("구입", "매입", "쇼핑", "buying"));
+        synonymDictionary.put("판매", Set.of("매매", "거래", "selling"));
+        synonymDictionary.put("환불", Set.of("반품", "반환", "리턴", "refund"));
+        synonymDictionary.put("배송", Set.of("택배", "운송", "배달", "delivery"));
+        synonymDictionary.put("가격", Set.of("비용", "금액", "요금", "price"));
+        // ... 더 많은 동의어 추가
+    }
+
+    private void initializeTypoCorrections() {
+        // 오타 교정 사전 초기화
+        typoCorrections.put("구메", "구매");
+        typoCorrections.put("팜매", "판매");
+        typoCorrections.put("환볼", "환불");
+        typoCorrections.put("배숑", "배송");
+        // ... 더 많은 오타 교정 추가
+    }
+
+    private void loadPopularKeywords() {
+        try {
+            String sql = "SELECT keyword, COUNT(*) as count FROM faq_search_log " +
+                    "WHERE searched_at > ? " +
+                    "GROUP BY keyword ORDER BY count DESC LIMIT 100";
+
+            // 최근 30일 인기 검색어 로드
+            LocalDateTime thirtyDaysAgo = LocalDateTime.now().minusDays(30);
+
+            // JDBC 조회 로직
+            // ... 구현 필요
+
+        } catch (Exception e) {
+            log.error("Error loading popular keywords: {}", e.getMessage());
+        }
+    }
+
+    // 정기적으로 인기 검색어 업데이트
+    @Scheduled(fixedDelay = 3600000) // 1시간마다
+    public void updatePopularKeywords() {
+        loadPopularKeywords();
+
+        // 로그 정리
+        searchQueryLog.entrySet().removeIf(entry -> entry.getValue().get() < 2);
+    }
+
+    // 내부 클래스
+    private static class SearchResult {
+        final Object result;
+        final long timestamp;
+
+        SearchResult(Object result, long timestamp) {
+            this.result = result;
+            this.timestamp = timestamp;
+        }
     }
 }
