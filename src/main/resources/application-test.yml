@@ -1,6 +1,7 @@
 spring:
   datasource:
-    url: jdbc:h2:mem:testdb;DB_CLOSE_DELAY=-1
+    # MODE=MySQL: 엔티티에 MySQL 전용 columnDefinition(BIT(1) DEFAULT 1 등)이 있어 H2를 MySQL 호환 모드로 구동
+    url: jdbc:h2:mem:testdb;DB_CLOSE_DELAY=-1;MODE=MySQL
     driver-class-name: org.h2.Driver
   jpa:
     hibernate:

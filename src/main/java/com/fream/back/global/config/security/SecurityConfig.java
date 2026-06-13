@@ -2,6 +2,7 @@ package com.fream.back.global.config.security;
 
 import com.fream.back.domain.user.redis.AuthRedisService;
 import com.fream.back.domain.user.repository.UserRepository;
+import com.fream.back.domain.user.service.command.AuthService;
 import com.fream.back.domain.user.security.oauth2.CustomOAuth2UserService;
 import com.fream.back.domain.user.security.oauth2.OAuth2AuthenticationSuccessHandler;
 import com.fream.back.global.config.security.filter.LoginAuthenticationFilter;
@@ -31,14 +32,14 @@ public class SecurityConfig {
     private final OAuth2AuthenticationSuccessHandler oAuth2AuthenticationSuccessHandler;
     private final UserRepository userRepository;
     private final PasswordEncoder passwordEncoder;
+    private final AuthService authService;
 
     @Bean
     public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
         // 커스텀 필터들 생성
         IpBlockingFilter ipBlockingFilter = new IpBlockingFilter(ipBlockingRedisService);
         JwtAuthenticationFilter jwtFilter = new JwtAuthenticationFilter(jwtTokenProvider, authRedisService);
-        LoginAuthenticationFilter loginFilter = new LoginAuthenticationFilter(
-                userRepository, passwordEncoder, jwtTokenProvider, authRedisService);
+        LoginAuthenticationFilter loginFilter = new LoginAuthenticationFilter(authService);
         LogoutAuthenticationFilter logoutFilter = new LogoutAuthenticationFilter(
                 authRedisService, jwtTokenProvider);
         TokenRefreshFilter refreshFilter = new TokenRefreshFilter(

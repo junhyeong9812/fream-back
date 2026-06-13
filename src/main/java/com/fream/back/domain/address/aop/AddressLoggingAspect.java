@@ -303,15 +303,16 @@ public class AddressLoggingAspect {
         boolean first = true;
 
         for (int i = 0; i < args.length; i++) {
+            final int index = i;
             // includeParams가 설정되어 있으면 해당 인덱스만 포함
             if (includeParams.length > 0) {
-                boolean included = Arrays.stream(includeParams).anyMatch(idx -> idx == i);
+                boolean included = Arrays.stream(includeParams).anyMatch(idx -> idx == index);
                 if (!included) continue;
             }
 
             // excludeParams에 포함된 인덱스는 제외
             if (excludeParams.length > 0) {
-                boolean excluded = Arrays.stream(excludeParams).anyMatch(idx -> idx == i);
+                boolean excluded = Arrays.stream(excludeParams).anyMatch(idx -> idx == index);
                 if (excluded) continue;
             }
 

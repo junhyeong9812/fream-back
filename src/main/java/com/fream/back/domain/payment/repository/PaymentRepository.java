@@ -68,6 +68,6 @@ public interface PaymentRepository extends JpaRepository<Payment, Long> {
     /**
      * 특정 시간 이후 생성된 결제 조회 (모니터링용)
      */
-    @Query("SELECT p FROM Payment p WHERE p.createdAt >= :since")
+    @Query("SELECT p FROM Payment p WHERE p.createdDate >= :since")
     List<Payment> findPaymentsCreatedSince(@Param("since") java.time.LocalDateTime since);
 }
