@@ -308,7 +308,13 @@ warehouse    2    -    -    2    -    -    4    -    -    -
 - ✅ 검증: `compileTestJava` 그린, ModularityTests 2메서드 PASSED, 순환 baseline 불변(선언은 구조 미변경 — 예상대로)
 - 입도 결정 기록: 도메인 1:1 채택. 모듈맵 그룹핑(identity/trade…)은 대규모 import 이동이라 **순환 해소 후 별도 검토**.
 
-### 9.1 다음 (Phase 1 이후)
-- **allowedDependencies 점진 적용** — 비순환 모듈(SCC 밖 9개: accessLog·chatQuestion·event·faq·inquiry·inspection·monitoring·notice·weather)부터 의존 잠금, SCC는 순환 해소와 함께.
+### 9.1 비순환 모듈 allowedDependencies 잠금 (완료)
+> 브랜치 `refactor/modulith-allowed-deps`, 순차 3커밋. 상세 `changelog-allowed-deps.md`.
+- ✅ 무의존 3개(accessLog·monitoring·weather) `allowedDependencies = {}` → verify 위반 0건(진짜 clean)
+- ✅ 의존 6개(faq·inquiry·inspection→user, event→product·user, chatQuestion→faq·user, notice→notification·user) 의존 한정 → 허용 외 의존 0건
+- 잔여: 6개 모듈의 대상 모듈 **내부 타입 접근 위반**은 그대로(allowedDependencies는 모듈 레벨만 통제) → named interface 노출로 해소.
+
+### 9.2 다음
+- **named interface 노출(우선)** — `user` 모듈부터 사용되는 API 타입을 `@NamedInterface`로 노출 → 다수 모듈 내부 접근 위반 일괄 감소.
 - **Phase 3 notification 이벤트화** (순환 #10) — 첫 순환 제거.
 - 상세: `next-steps.md`.
