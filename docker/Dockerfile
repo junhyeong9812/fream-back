@@ -1,5 +1,6 @@
 # 베이스 이미지
-FROM openjdk:17-jdk-slim
+# openjdk:17-jdk-slim 은 Docker Hub에서 제거됨(openjdk 공식 이미지 deprecated) → Eclipse Temurin으로 교체
+FROM eclipse-temurin:17-jdk-jammy
 
 # Playwright/Chromium 의존 라이브러리 등 (필요시)
 RUN apt-get update && apt-get install -y \

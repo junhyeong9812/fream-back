@@ -1,0 +1,8 @@
+# 빌드 컨텍스트 축소 — Dockerfile은 build/libs/*.jar 만 COPY하므로 무관한 디렉터리는 제외
+.git
+.gradle
+logs
+docs
+.github
+*.md
+src/test
