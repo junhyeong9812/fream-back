@@ -1,10 +1,8 @@
 package com.fream.back.domain.order.controller.query;
 
-import com.fream.back.domain.order.dto.OrderStatusDto;
 import com.fream.back.domain.order.entity.Order;
 import com.fream.back.domain.order.entity.OrderStatus;
 import com.fream.back.domain.order.repository.OrderRepository;
-import com.fream.back.domain.order.service.query.OrderQueryService;
 import com.fream.back.global.dto.ResponseDto;
 import com.fream.back.global.utils.SecurityUtils;
 import lombok.RequiredArgsConstructor;
@@ -61,7 +59,7 @@ public class OrderQueryController {
             statusData.put("status", order.getStatus().name());
             statusData.put("statusDescription", getStatusDescription(order.getStatus()));
             statusData.put("canCancel", canCancelOrder(order.getStatus()));
-            statusData.put("lastUpdated", order.getUpdatedAt());
+            statusData.put("lastUpdated", order.getModifiedDate());
             statusData.put("totalAmount", order.getTotalAmount());
 
             // 결제 정보 추가
