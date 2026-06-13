@@ -296,3 +296,19 @@ warehouse    2    -    -    2    -    -    4    -    -    -
 
 ### 8.8 누적 함의 (중요)
 컴파일 6건 + 기동차단 2건 = **커밋된 main은 빌드도 기동도 안 되던 상태**. "기존 동작을 보존"하는 특성화 테스트의 전제(작동하는 베이스라인)가 약함 → 안전망은 *현 동작 캡처*가 아니라 **"부팅 가능한 베이스라인을 만들며 핵심 불변식을 고정"**하는 성격으로 진행한다.
+
+---
+
+## 9. Phase 1 — 모듈 경계 전체 선언 (진행)
+
+> 브랜치: `refactor/modulith-phase-1` (PR #1 머지된 main 기반). 상세 changelog: `changelog-phase1.md`.
+
+- ✅ **19개 도메인 전체에 `@ApplicationModule` 선언** (`domain/*/package-info.java`) — 도메인 1:1, 선언 전용(패키지 이동·allowedDependencies 미적용)
+- ✅ **ModularityTests에 Documenter 추가** — 모듈 의존 다이어그램(C4 PlantUML) 생성, Before 스냅샷 `diagrams/before/` 보존
+- ✅ 검증: `compileTestJava` 그린, ModularityTests 2메서드 PASSED, 순환 baseline 불변(선언은 구조 미변경 — 예상대로)
+- 입도 결정 기록: 도메인 1:1 채택. 모듈맵 그룹핑(identity/trade…)은 대규모 import 이동이라 **순환 해소 후 별도 검토**.
+
+### 9.1 다음 (Phase 1 이후)
+- **allowedDependencies 점진 적용** — 비순환 모듈(SCC 밖 9개: accessLog·chatQuestion·event·faq·inquiry·inspection·monitoring·notice·weather)부터 의존 잠금, SCC는 순환 해소와 함께.
+- **Phase 3 notification 이벤트화** (순환 #10) — 첫 순환 제거.
+- 상세: `next-steps.md`.

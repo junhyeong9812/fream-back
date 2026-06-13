@@ -1,0 +1,78 @@
+@startuml
+set separator none
+title Modules
+
+top to bottom direction
+
+!include <C4/C4>
+!include <C4/C4_Context>
+!include <C4/C4_Component>
+
+Container_Boundary("Modules.Modules_boundary", "Modules", $tags="") {
+  Component(Modules.Modules.Notice, "Notice", $techn="Module", $descr="", $tags="", $link="")
+  Component(Modules.Modules.Notification, "Notification", $techn="Module", $descr="", $tags="", $link="")
+  Component(Modules.Modules.Order, "Order", $techn="Module", $descr="", $tags="", $link="")
+  Component(Modules.Modules.Payment, "Payment", $techn="Module", $descr="", $tags="", $link="")
+  Component(Modules.Modules.Product, "Product", $techn="Module", $descr="", $tags="", $link="")
+  Component(Modules.Modules.Sale, "Sale", $techn="Module", $descr="", $tags="", $link="")
+  Component(Modules.Modules.Shipment, "Shipment", $techn="Module", $descr="", $tags="", $link="")
+  Component(Modules.Modules.Style, "Style", $techn="Module", $descr="", $tags="", $link="")
+  Component(Modules.Modules.User, "User", $techn="Module", $descr="", $tags="", $link="")
+  Component(Modules.Modules.WarehouseStorage, "Warehouse Storage", $techn="Module", $descr="", $tags="", $link="")
+  Component(Modules.Modules.Address, "Address", $techn="Module", $descr="", $tags="", $link="")
+  Component(Modules.Modules.ChatQuestion, "Chat Question", $techn="Module", $descr="", $tags="", $link="")
+  Component(Modules.Modules.Event, "Event", $techn="Module", $descr="", $tags="", $link="")
+  Component(Modules.Modules.FAQ, "FAQ", $techn="Module", $descr="", $tags="", $link="")
+  Component(Modules.Modules.Inquiry, "Inquiry", $techn="Module", $descr="", $tags="", $link="")
+  Component(Modules.Modules.Inspection, "Inspection", $techn="Module", $descr="", $tags="", $link="")
+}
+
+Rel(Modules.Modules.Sale, Modules.Modules.User, "uses", $techn="", $tags="", $link="")
+Rel(Modules.Modules.Sale, Modules.Modules.Product, "uses", $techn="", $tags="", $link="")
+Rel(Modules.Modules.Sale, Modules.Modules.Order, "uses", $techn="", $tags="", $link="")
+Rel(Modules.Modules.Sale, Modules.Modules.Notification, "uses", $techn="", $tags="", $link="")
+Rel(Modules.Modules.Sale, Modules.Modules.Shipment, "uses", $techn="", $tags="", $link="")
+Rel(Modules.Modules.Style, Modules.Modules.Product, "depends on", $techn="", $tags="", $link="")
+Rel(Modules.Modules.Style, Modules.Modules.User, "uses", $techn="", $tags="", $link="")
+Rel(Modules.Modules.Style, Modules.Modules.Order, "uses", $techn="", $tags="", $link="")
+Rel(Modules.Modules.Address, Modules.Modules.User, "uses", $techn="", $tags="", $link="")
+Rel(Modules.Modules.Notice, Modules.Modules.User, "uses", $techn="", $tags="", $link="")
+Rel(Modules.Modules.Notice, Modules.Modules.Notification, "uses", $techn="", $tags="", $link="")
+Rel(Modules.Modules.Product, Modules.Modules.User, "uses", $techn="", $tags="", $link="")
+Rel(Modules.Modules.Product, Modules.Modules.Style, "uses", $techn="", $tags="", $link="")
+Rel(Modules.Modules.Product, Modules.Modules.Order, "uses", $techn="", $tags="", $link="")
+Rel(Modules.Modules.ChatQuestion, Modules.Modules.User, "uses", $techn="", $tags="", $link="")
+Rel(Modules.Modules.ChatQuestion, Modules.Modules.FAQ, "uses", $techn="", $tags="", $link="")
+Rel(Modules.Modules.FAQ, Modules.Modules.User, "uses", $techn="", $tags="", $link="")
+Rel(Modules.Modules.Shipment, Modules.Modules.Notification, "uses", $techn="", $tags="", $link="")
+Rel(Modules.Modules.Shipment, Modules.Modules.Sale, "uses", $techn="", $tags="", $link="")
+Rel(Modules.Modules.Shipment, Modules.Modules.Order, "uses", $techn="", $tags="", $link="")
+Rel(Modules.Modules.Shipment, Modules.Modules.WarehouseStorage, "uses", $techn="", $tags="", $link="")
+Rel(Modules.Modules.WarehouseStorage, Modules.Modules.Order, "depends on", $techn="", $tags="", $link="")
+Rel(Modules.Modules.WarehouseStorage, Modules.Modules.User, "depends on", $techn="", $tags="", $link="")
+Rel(Modules.Modules.WarehouseStorage, Modules.Modules.Sale, "depends on", $techn="", $tags="", $link="")
+Rel(Modules.Modules.Inquiry, Modules.Modules.User, "uses", $techn="", $tags="", $link="")
+Rel(Modules.Modules.User, Modules.Modules.Style, "depends on", $techn="", $tags="", $link="")
+Rel(Modules.Modules.User, Modules.Modules.Payment, "depends on", $techn="", $tags="", $link="")
+Rel(Modules.Modules.User, Modules.Modules.Product, "depends on", $techn="", $tags="", $link="")
+Rel(Modules.Modules.User, Modules.Modules.Address, "depends on", $techn="", $tags="", $link="")
+Rel(Modules.Modules.User, Modules.Modules.Notification, "uses", $techn="", $tags="", $link="")
+Rel(Modules.Modules.Payment, Modules.Modules.Notification, "uses", $techn="", $tags="", $link="")
+Rel(Modules.Modules.Payment, Modules.Modules.Sale, "uses", $techn="", $tags="", $link="")
+Rel(Modules.Modules.Payment, Modules.Modules.User, "uses", $techn="", $tags="", $link="")
+Rel(Modules.Modules.Payment, Modules.Modules.Order, "uses", $techn="", $tags="", $link="")
+Rel(Modules.Modules.Event, Modules.Modules.Product, "uses", $techn="", $tags="", $link="")
+Rel(Modules.Modules.Event, Modules.Modules.User, "uses", $techn="", $tags="", $link="")
+Rel(Modules.Modules.Inspection, Modules.Modules.User, "uses", $techn="", $tags="", $link="")
+Rel(Modules.Modules.Order, Modules.Modules.Product, "uses", $techn="", $tags="", $link="")
+Rel(Modules.Modules.Order, Modules.Modules.User, "uses", $techn="", $tags="", $link="")
+Rel(Modules.Modules.Order, Modules.Modules.Sale, "uses", $techn="", $tags="", $link="")
+Rel(Modules.Modules.Order, Modules.Modules.Payment, "uses", $techn="", $tags="", $link="")
+Rel(Modules.Modules.Order, Modules.Modules.Shipment, "uses", $techn="", $tags="", $link="")
+Rel(Modules.Modules.Order, Modules.Modules.WarehouseStorage, "uses", $techn="", $tags="", $link="")
+Rel(Modules.Modules.Order, Modules.Modules.Address, "uses", $techn="", $tags="", $link="")
+Rel(Modules.Modules.Notification, Modules.Modules.User, "uses", $techn="", $tags="", $link="")
+Rel(Modules.Modules.Sale, Modules.Modules.Payment, "depends on", $techn="", $tags="", $link="")
+
+SHOW_LEGEND(true)
+@enduml

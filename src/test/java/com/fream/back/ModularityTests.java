@@ -2,6 +2,7 @@ package com.fream.back;
 
 import org.junit.jupiter.api.Test;
 import org.springframework.modulith.core.ApplicationModules;
+import org.springframework.modulith.docs.Documenter;
 
 /**
  * Spring Modulith 경계 진단용 테스트.
@@ -30,6 +31,21 @@ class ModularityTests {
             System.out.println("=== MODULITH VIOLATIONS START ===");
             System.out.println(t.getMessage());
             System.out.println("=== MODULITH VIOLATIONS END ===");
+        }
+    }
+
+    /**
+     * 모듈 의존 다이어그램/캔버스를 생성한다(아키텍처 Before 스냅샷).
+     * 출력은 빌드 산출이므로 실패해도 빌드를 막지 않는다.
+     */
+    @Test
+    void writeModuleDocumentation() {
+        try {
+            ApplicationModules modules = ApplicationModules.of(DOMAIN_BASE_PACKAGE);
+            new Documenter(modules).writeDocumentation();
+            System.out.println("=== MODULITH DOCS WRITTEN ===");
+        } catch (Throwable t) {
+            System.out.println("=== MODULITH DOCS SKIPPED: " + t.getMessage() + " ===");
         }
     }
 }
