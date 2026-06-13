@@ -1,64 +1,66 @@
-#name: CI/CD for fream-back
+name: CI for fream-back
+
+# 간소화된 CI: 빌드 검증 + 인프라 불필요 슬라이스 테스트 + Docker 이미지 빌드(푸시/배포 없음).
+# GHCR push 및 EC2 배포(CD)는 secrets·실서버 의존으로 실패하기 쉬워 제거함 — 재활성화 방법은 파일 하단 주석 참조.
+
+on:
+  push:
+    branches: [ "main" ]
+  pull_request:
+    branches: [ "main" ]
+
+jobs:
+  build:
+    name: Build, slice tests & Docker image
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out the repository
+        uses: actions/checkout@v4
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'temurin'
+          java-version: '17'
+          cache: gradle
+
+      - name: Grant execute permission for gradlew
+        run: chmod +x gradlew
+
+      # 1) 빌드 (전체 테스트는 스킵 — 일부 테스트가 외부 인프라 필요)
+      - name: Build (skip tests)
+        run: ./gradlew clean build -x test
+
+      # 2) 인프라 불필요 슬라이스 테스트만 실행 (H2/정적분석 — Redis/Kafka/ES 불필요)
+      - name: Run infra-free slice tests
+        run: >
+          ./gradlew test
+          --tests "com.fream.back.ModularityTests"
+          --tests "com.fream.back.PersistenceSmokeTest"
+          --tests "com.fream.back.domain.characterization.*"
+
+      # 3) Docker 이미지 빌드만 (푸시 없음 — Dockerfile 유효성 검증)
+      - name: Build Docker image (no push)
+        run: docker build -f ./docker/Dockerfile -t fream-back:ci .
+
+# ──────────────────────────────────────────────────────────────────────────
+# 배포(CD) 재활성화 시 참고: 아래 job을 추가하려면 GitHub repo secrets 필요
+#   - GHCR_TOKEN (ghcr.io 푸시용), EC2_HOST / EC2_USER / EC2_SSH_KEY (배포 대상)
+# 그리고 위 build job에 GHCR 로그인·push 스텝을 추가한 뒤:
 #
-#on:
-#  push:
-#    branches: [ "main" ]
-#  pull_request:
-#    branches: [ "main" ]
-#
-#jobs:
-#  build-and-push:
-#    runs-on: ubuntu-latest
-#    steps:
-#      # 1) Checkout
-#      - name: Check out the repository
-#        uses: actions/checkout@v3
-#
-#      # 2) Set up JDK
-#      - name: Set up JDK 17
-#        uses: actions/setup-java@v3
-#        with:
-#          distribution: 'temurin'   # 여기에 distribution
-#          java-version: 17
-#
-#      - name: Grant execution permission for gradlew
-#        run: chmod +x gradlew
-#
-#      # 3) Gradle build
-#      - name: Build and Test
-#        run: |
-#          ./gradlew clean build -x test
-#      # -- 위처럼 -x test 옵션을 주어 테스트를 완전히 스킵합니다.
-##      ./gradlew clean build -Dspring.profiles.active=test
-#      # -- test 프로필에서 H2를 사용해 DB문제 없이 테스트
-#
-#      # 4) Login to GHCR
-#      - name: Log in to GitHub Container Registry
-#        run: echo ${{ secrets.GHCR_TOKEN }} | docker login ghcr.io -u $GITHUB_ACTOR --password-stdin
-#
-#      # 5) Docker build
-#      - name: Build Docker Image
-#        run: |
-#          docker build -f ./docker/Dockerfile -t ghcr.io/junhyeong9812/fream-back:latest .
-#
-#      # 6) Docker push
-#      - name: Push Docker Image
-#        run: |
-#          docker push ghcr.io/junhyeong9812/fream-back:latest
-#
-#  deploy:
-#    needs: [build-and-push]
-#    runs-on: ubuntu-latest
-#    if: github.ref == 'refs/heads/main'
-#    steps:
-#      - name: SSH to EC2
-#        uses: appleboy/ssh-action@v0.1.8
-#        with:
-#          host: ${{ secrets.EC2_HOST }}
-#          username: ${{ secrets.EC2_USER }}
-#          key: ${{ secrets.EC2_SSH_KEY }}
-#          script: |
-#            cd /home/ubuntu/fream-back/docker/prod
-#            docker-compose -f docker-compose.prod.yml pull app   # pull ghcr.io/junhyeong9812/fream-back:latest
-#            docker-compose -f docker-compose.prod.yml up -d app
-#            docker image prune -f
+#   deploy:
+#     needs: [build]
+#     runs-on: ubuntu-latest
+#     if: github.ref == 'refs/heads/main'
+#     steps:
+#       - name: SSH to EC2
+#         uses: appleboy/ssh-action@v1.0.3
+#         with:
+#           host: ${{ secrets.EC2_HOST }}
+#           username: ${{ secrets.EC2_USER }}
+#           key: ${{ secrets.EC2_SSH_KEY }}
+#           script: |
+#             cd /home/ubuntu/fream-back/docker/prod
+#             docker-compose -f docker-compose.prod.yml pull app
+#             docker-compose -f docker-compose.prod.yml up -d app
+#             docker image prune -f
