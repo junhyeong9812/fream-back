@@ -43,6 +43,18 @@ public class InquirySearchResultDto {
     private List<String> imageUrls = List.of();
 
     /**
+     * QueryDSL Projections.constructor 전용 생성자 (imageUrls 제외 13개 필드).
+     * 검색 쿼리는 user/profile 조인으로 작성자 정보를 채우고, imageUrls는 서비스에서 별도 설정한다.
+     */
+    public InquirySearchResultDto(Long id, String title, String content, String answer,
+                                  InquiryStatus status, InquiryCategory category, boolean isPrivate,
+                                  LocalDateTime createdDate, LocalDateTime modifiedDate,
+                                  Long userId, String email, String profileName, String name) {
+        this(id, title, content, answer, status, category, isPrivate, createdDate, modifiedDate,
+                userId, email, profileName, name, List.of());
+    }
+
+    /**
      * 엔티티에서 DTO 생성 (기본 정보만 포함)
      */
     public static InquirySearchResultDto from(Inquiry inquiry) {
