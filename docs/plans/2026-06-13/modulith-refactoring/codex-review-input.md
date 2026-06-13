@@ -1,0 +1,347 @@
+# 리뷰 요청: Spring Boot 모놀리스 그린빌드 + Spring Modulith 도입 변경
+
+아래는 Spring Boot 3.4 / Java 17 프로젝트(`fream-back`)에서 **컴파일·기동 불가였던 main을 그린으로 만들고 Spring Modulith를 도입**한 변경 diff입니다. 모듈리스 리팩토링의 Phase 0이며, 목표는 "런타임 동작 보존(순수 구조/버그수정)"입니다.
+
+## 가장 중요한 검토 포인트 (높은 확신의 정확성 결함만 보고)
+
+1. **SecurityConfig 인증 와이어링** (가장 중요): `LoginAuthenticationFilter`가 옛 4-인자(`userRepository, passwordEncoder, jwtTokenProvider, authRedisService`)에서 `AuthService` 1개를 받도록 리팩토링됐는데 SecurityConfig만 옛 호출을 유지해 컴파일이 깨져 있었음. SecurityConfig에 `AuthService`를 주입하고 `new LoginAuthenticationFilter(authService)`로 교정함.
+   - 이 변경이 **Spring 기동 시 순환참조**를 유발할 위험은? (SecurityConfig → AuthService → ? → SecurityConfig). `AuthService`는 @Service이며 UserRepository·PasswordEncoder·AuthRedisService·JwtTokenProvider 등에 의존. PasswordEncoder는 별도 EncoderConfig에서 정의.
+   - 로그인 동작상 의미가 바뀌는가? (필터는 이미 `authService.login(dto, ip)`를 호출하도록 작성돼 있음)
+2. **버그 수정 타당성**: (a) `OrderQueryController`에서 `order.getUpdatedAt()` → `getModifiedDate()` (BaseTimeEntity는 createdDate/modifiedDate 보유). (b) `PaymentRepository` JPQL `p.createdAt` → `p.createdDate`. (c) `AddressLoggingAspect`의 람다 캡처용 `final int index = i`.
+3. **테스트 인프라**: `application-test.yml`에 H2 `MODE=MySQL` 추가 — 엔티티의 MySQL 전용 `BIT(1) DEFAULT 1` columnDefinition 때문. 이 우회가 **실제 운영(MySQL) 동작과 달라 결함을 가릴 위험**은?
+4. **파일 이동**(accessLog 아스펙트 3개 → aop/aspect/, IpBlocking 2개 → 선언된 패키지 위치): package 선언과 파일 위치를 일치시킨 순수 이동. 깨진 참조 가능성?
+5. **build.gradle**: Spring Modulith BOM 1.3.12 + starter-core/test. Boot 3.4 호환성·의존성 적절성.
+
+신뢰도 높은 정확성 결함 위주로, 각 finding에 `file:line`을 달아주세요. 선재 이슈/린터성 지적은 제외.
+
+---
+
+## 변경 diff + 신규 테스트 파일
+
+diff --git a/build.gradle b/build.gradle
+index 15128c5..2360b95 100644
+--- a/build.gradle
++++ b/build.gradle
+@@ -23,7 +23,19 @@ repositories {
+ 	mavenCentral()
+ }
+ 
++dependencyManagement {
++	imports {
++		mavenBom "org.springframework.modulith:spring-modulith-bom:1.3.12"
++	}
++}
++
+ dependencies {
++	// ---------------------------
++	// Spring Modulith (모듈 경계 검증/문서화)
++	// ---------------------------
++	implementation 'org.springframework.modulith:spring-modulith-starter-core'
++	testImplementation 'org.springframework.modulith:spring-modulith-starter-test'
++
+ 	// ---------------------------
+ 	// Spring Boot Starter
+ 	// ---------------------------
+@@ -91,6 +103,10 @@ dependencies {
+ // 스프링 부트 3.4.x에서는 JUnit Platform이 기본 적용
+ tasks.named('test') {
+ 	useJUnitPlatform()
++	testLogging {
++		showStandardStreams = true
++		events "passed", "skipped", "failed"
++	}
+ }
+ 
+ //
+diff --git a/src/main/java/com/fream/back/domain/accessLog/aop/AccessLogExceptionAspect.java b/src/main/java/com/fream/back/domain/accessLog/aop/aspect/AccessLogExceptionAspect.java
+similarity index 100%
+rename from src/main/java/com/fream/back/domain/accessLog/aop/AccessLogExceptionAspect.java
+rename to src/main/java/com/fream/back/domain/accessLog/aop/aspect/AccessLogExceptionAspect.java
+diff --git a/src/main/java/com/fream/back/domain/accessLog/aop/AccessLogMethodLoggingAspect.java b/src/main/java/com/fream/back/domain/accessLog/aop/aspect/AccessLogMethodLoggingAspect.java
+similarity index 100%
+rename from src/main/java/com/fream/back/domain/accessLog/aop/AccessLogMethodLoggingAspect.java
+rename to src/main/java/com/fream/back/domain/accessLog/aop/aspect/AccessLogMethodLoggingAspect.java
+diff --git a/src/main/java/com/fream/back/domain/accessLog/aop/AccessLogPerformanceAspect.java b/src/main/java/com/fream/back/domain/accessLog/aop/aspect/AccessLogPerformanceAspect.java
+similarity index 100%
+rename from src/main/java/com/fream/back/domain/accessLog/aop/AccessLogPerformanceAspect.java
+rename to src/main/java/com/fream/back/domain/accessLog/aop/aspect/AccessLogPerformanceAspect.java
+diff --git a/src/main/java/com/fream/back/domain/address/aop/AddressLoggingAspect.java b/src/main/java/com/fream/back/domain/address/aop/AddressLoggingAspect.java
+index 25b42c3..b90c776 100644
+--- a/src/main/java/com/fream/back/domain/address/aop/AddressLoggingAspect.java
++++ b/src/main/java/com/fream/back/domain/address/aop/AddressLoggingAspect.java
+@@ -303,15 +303,16 @@ public class AddressLoggingAspect {
+         boolean first = true;
+ 
+         for (int i = 0; i < args.length; i++) {
++            final int index = i;
+             // includeParams가 설정되어 있으면 해당 인덱스만 포함
+             if (includeParams.length > 0) {
+-                boolean included = Arrays.stream(includeParams).anyMatch(idx -> idx == i);
++                boolean included = Arrays.stream(includeParams).anyMatch(idx -> idx == index);
+                 if (!included) continue;
+             }
+ 
+             // excludeParams에 포함된 인덱스는 제외
+             if (excludeParams.length > 0) {
+-                boolean excluded = Arrays.stream(excludeParams).anyMatch(idx -> idx == i);
++                boolean excluded = Arrays.stream(excludeParams).anyMatch(idx -> idx == index);
+                 if (excluded) continue;
+             }
+ 
+diff --git a/src/main/java/com/fream/back/domain/order/controller/query/OrderQueryController.java b/src/main/java/com/fream/back/domain/order/controller/query/OrderQueryController.java
+index 4044abc..d9c6f7f 100644
+--- a/src/main/java/com/fream/back/domain/order/controller/query/OrderQueryController.java
++++ b/src/main/java/com/fream/back/domain/order/controller/query/OrderQueryController.java
+@@ -1,10 +1,8 @@
+ package com.fream.back.domain.order.controller.query;
+ 
+-import com.fream.back.domain.order.dto.OrderStatusDto;
+ import com.fream.back.domain.order.entity.Order;
+ import com.fream.back.domain.order.entity.OrderStatus;
+ import com.fream.back.domain.order.repository.OrderRepository;
+-import com.fream.back.domain.order.service.query.OrderQueryService;
+ import com.fream.back.global.dto.ResponseDto;
+ import com.fream.back.global.utils.SecurityUtils;
+ import lombok.RequiredArgsConstructor;
+@@ -61,7 +59,7 @@ public class OrderQueryController {
+             statusData.put("status", order.getStatus().name());
+             statusData.put("statusDescription", getStatusDescription(order.getStatus()));
+             statusData.put("canCancel", canCancelOrder(order.getStatus()));
+-            statusData.put("lastUpdated", order.getUpdatedAt());
++            statusData.put("lastUpdated", order.getModifiedDate());
+             statusData.put("totalAmount", order.getTotalAmount());
+ 
+             // 결제 정보 추가
+diff --git a/src/main/java/com/fream/back/domain/payment/repository/PaymentRepository.java b/src/main/java/com/fream/back/domain/payment/repository/PaymentRepository.java
+index b32a700..d96b169 100644
+--- a/src/main/java/com/fream/back/domain/payment/repository/PaymentRepository.java
++++ b/src/main/java/com/fream/back/domain/payment/repository/PaymentRepository.java
+@@ -68,6 +68,6 @@ public interface PaymentRepository extends JpaRepository<Payment, Long> {
+     /**
+      * 특정 시간 이후 생성된 결제 조회 (모니터링용)
+      */
+-    @Query("SELECT p FROM Payment p WHERE p.createdAt >= :since")
++    @Query("SELECT p FROM Payment p WHERE p.createdDate >= :since")
+     List<Payment> findPaymentsCreatedSince(@Param("since") java.time.LocalDateTime since);
+ }
+\ No newline at end of file
+diff --git a/src/main/java/com/fream/back/global/config/security/SecurityConfig.java b/src/main/java/com/fream/back/global/config/security/SecurityConfig.java
+index 699393f..7b77732 100644
+--- a/src/main/java/com/fream/back/global/config/security/SecurityConfig.java
++++ b/src/main/java/com/fream/back/global/config/security/SecurityConfig.java
+@@ -2,6 +2,7 @@ package com.fream.back.global.config.security;
+ 
+ import com.fream.back.domain.user.redis.AuthRedisService;
+ import com.fream.back.domain.user.repository.UserRepository;
++import com.fream.back.domain.user.service.command.AuthService;
+ import com.fream.back.domain.user.security.oauth2.CustomOAuth2UserService;
+ import com.fream.back.domain.user.security.oauth2.OAuth2AuthenticationSuccessHandler;
+ import com.fream.back.global.config.security.filter.LoginAuthenticationFilter;
+@@ -31,14 +32,14 @@ public class SecurityConfig {
+     private final OAuth2AuthenticationSuccessHandler oAuth2AuthenticationSuccessHandler;
+     private final UserRepository userRepository;
+     private final PasswordEncoder passwordEncoder;
++    private final AuthService authService;
+ 
+     @Bean
+     public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
+         // 커스텀 필터들 생성
+         IpBlockingFilter ipBlockingFilter = new IpBlockingFilter(ipBlockingRedisService);
+         JwtAuthenticationFilter jwtFilter = new JwtAuthenticationFilter(jwtTokenProvider, authRedisService);
+-        LoginAuthenticationFilter loginFilter = new LoginAuthenticationFilter(
+-                userRepository, passwordEncoder, jwtTokenProvider, authRedisService);
++        LoginAuthenticationFilter loginFilter = new LoginAuthenticationFilter(authService);
+         LogoutAuthenticationFilter logoutFilter = new LogoutAuthenticationFilter(
+                 authRedisService, jwtTokenProvider);
+         TokenRefreshFilter refreshFilter = new TokenRefreshFilter(
+diff --git a/src/main/java/com/fream/back/global/config/security/redis/IpBlockingFilter.java b/src/main/java/com/fream/back/global/security/filter/IpBlockingFilter.java
+similarity index 100%
+rename from src/main/java/com/fream/back/global/config/security/redis/IpBlockingFilter.java
+rename to src/main/java/com/fream/back/global/security/filter/IpBlockingFilter.java
+diff --git a/src/main/java/com/fream/back/global/config/security/redis/IpBlockingRedisService.java b/src/main/java/com/fream/back/global/security/redis/IpBlockingRedisService.java
+similarity index 100%
+rename from src/main/java/com/fream/back/global/config/security/redis/IpBlockingRedisService.java
+rename to src/main/java/com/fream/back/global/security/redis/IpBlockingRedisService.java
+diff --git a/src/main/resources/application-test.yml b/src/main/resources/application-test.yml
+index 770d5b3..7d447cc 100644
+--- a/src/main/resources/application-test.yml
++++ b/src/main/resources/application-test.yml
+@@ -1,6 +1,7 @@
+ spring:
+   datasource:
+-    url: jdbc:h2:mem:testdb;DB_CLOSE_DELAY=-1
++    # MODE=MySQL: 엔티티에 MySQL 전용 columnDefinition(BIT(1) DEFAULT 1 등)이 있어 H2를 MySQL 호환 모드로 구동
++    url: jdbc:h2:mem:testdb;DB_CLOSE_DELAY=-1;MODE=MySQL
+     driver-class-name: org.h2.Driver
+   jpa:
+     hibernate:
+
+=== NEW FILE: src/test/java/com/fream/back/ModularityTests.java ===
+package com.fream.back;
+
+import org.junit.jupiter.api.Test;
+import org.springframework.modulith.core.ApplicationModules;
+
+/**
+ * Spring Modulith 경계 진단용 테스트.
+ *
+ * <p>도메인 패키지(com.fream.back.domain)의 각 하위 패키지를 모듈로 보고,
+ * 탐지된 모듈 목록과 모듈 경계 위반(순환 의존 등)을 출력한다.
+ * 리팩토링 초기 단계에서는 위반이 다수 존재하므로 {@code verify()} 실패를
+ * 빌드 실패로 두지 않고 메시지로 캡처하여 위반 백로그의 ground truth로 사용한다.
+ */
+class ModularityTests {
+
+    private static final String DOMAIN_BASE_PACKAGE = "com.fream.back.domain";
+
+    @Test
+    void captureModuleStructureAndViolations() {
+        ApplicationModules modules = ApplicationModules.of(DOMAIN_BASE_PACKAGE);
+
+        System.out.println("=== DETECTED MODULES START ===");
+        modules.forEach(module -> System.out.println(module.toString()));
+        System.out.println("=== DETECTED MODULES END ===");
+
+        try {
+            modules.verify();
+            System.out.println("=== NO MODULITH VIOLATIONS ===");
+        } catch (Throwable t) {
+            System.out.println("=== MODULITH VIOLATIONS START ===");
+            System.out.println(t.getMessage());
+            System.out.println("=== MODULITH VIOLATIONS END ===");
+        }
+    }
+}
+
+=== NEW FILE: src/test/java/com/fream/back/PersistenceSmokeTest.java ===
+package com.fream.back;
+
+import com.fream.back.global.config.QueryDslConfig;
+import jakarta.persistence.EntityManager;
+import org.junit.jupiter.api.Test;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.boot.test.autoconfigure.jdbc.AutoConfigureTestDatabase;
+import org.springframework.boot.test.autoconfigure.orm.jpa.DataJpaTest;
+import org.springframework.context.annotation.Import;
+import org.springframework.test.context.ActiveProfiles;
+
+import static org.junit.jupiter.api.Assertions.assertNotNull;
+
+/**
+ * 안전망 인프라 스모크 테스트.
+ *
+ * <p>전체 JPA 엔티티 모델이 H2(test 프로파일)에서 스키마를 생성하고
+ * Spring Data 레포지토리(QueryDSL 커스텀 구현 포함)가 정상 구성되는지 검증한다.
+ * 이게 통과해야 SCC 엔티티 영속성 기반 특성화 테스트를 쌓을 수 있다.
+ */
+@DataJpaTest
+@AutoConfigureTestDatabase(replace = AutoConfigureTestDatabase.Replace.NONE)
+@ActiveProfiles("test")
+@Import(QueryDslConfig.class)
+class PersistenceSmokeTest {
+
+    @Autowired
+    private EntityManager entityManager;
+
+    @Test
+    void jpaSliceBootsAndSchemaBuilds() {
+        assertNotNull(entityManager);
+    }
+}
+
+=== NEW FILE: src/test/java/com/fream/back/domain/characterization/OrderPaymentRelationshipTest.java ===
+package com.fream.back.domain.characterization;
+
+import com.fream.back.domain.order.entity.Order;
+import com.fream.back.domain.order.entity.OrderStatus;
+import com.fream.back.domain.payment.entity.GeneralPayment;
+import com.fream.back.domain.user.entity.User;
+import com.fream.back.global.config.QueryDslConfig;
+import org.junit.jupiter.api.Test;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.boot.test.autoconfigure.jdbc.AutoConfigureTestDatabase;
+import org.springframework.boot.test.autoconfigure.orm.jpa.DataJpaTest;
+import org.springframework.boot.test.autoconfigure.orm.jpa.TestEntityManager;
+import org.springframework.context.annotation.Import;
+import org.springframework.test.context.ActiveProfiles;
+
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
+
+/**
+ * SCC 특성화 테스트 — Order ↔ Payment ↔ User 엔티티 관계.
+ *
+ * <p>모듈리스 리팩토링은 이 크로스 도메인 FK 순환(order↔payment, payment→user)을
+ * ID 참조/이벤트로 끊을 예정이다. 본 테스트는 끊기 전 현재의 영속/연관 동작과
+ * 불변식(Payment는 항상 User를 가진다)을 고정해, 전환 중 회귀를 감지하는 그물이다.
+ */
+@DataJpaTest
+@AutoConfigureTestDatabase(replace = AutoConfigureTestDatabase.Replace.NONE)
+@ActiveProfiles("test")
+@Import(QueryDslConfig.class)
+class OrderPaymentRelationshipTest {
+
+    @Autowired
+    private TestEntityManager em;
+
+    @Test
+    void orderAndPayment_bidirectionalRelationship_persistsAndLoads() {
+        User buyer = newUser("buyer@test.com", "REF-BUYER");
+        em.persist(buyer);
+
+        Order order = Order.builder()
+                .user(buyer)
+                .totalAmount(10_000)
+                .status(OrderStatus.PENDING_PAYMENT)
+                .build();
+
+        GeneralPayment payment = GeneralPayment.builder()
+                .impUid("imp_001")
+                .paidAmount(10_000)
+                .build();
+        payment.assignUser(buyer);
+
+        // Order.payment(cascade ALL) ↔ Payment.order 양방향 설정
+        order.assignPayment(payment);
+
+        em.persist(order);
+        em.flush();
+        em.clear();
+
+        Order reloaded = em.find(Order.class, order.getId());
+        assertThat(reloaded.getPayment()).isNotNull();
+        assertThat(reloaded.getPayment().getId()).isNotNull();
+        assertThat(reloaded.getPayment().getOrder().getId()).isEqualTo(reloaded.getId());
+        assertThat(reloaded.getPayment().getUser().getId()).isEqualTo(buyer.getId());
+        assertThat(reloaded.getUser().getId()).isEqualTo(buyer.getId());
+    }
+
+    @Test
+    void payment_userIsMandatory_notNullConstraintHolds() {
+        Order order = Order.builder()
+                .totalAmount(1_000)
+                .status(OrderStatus.PENDING_PAYMENT)
+                .build();
+
+        GeneralPayment payment = GeneralPayment.builder()
+                .impUid("imp_no_user")
+                .paidAmount(1_000)
+                .build();
+        // 의도적으로 user 미지정 — payment.user_id 는 NOT NULL
+        order.assignPayment(payment);
+
+        assertThatThrownBy(() -> {
+            em.persist(order);
+            em.flush();
+        }).isInstanceOf(Exception.class);
+    }
+
+    private User newUser(String email, String referralCode) {
+        return User.builder()
+                .email(email)
+                .password("encoded-pw")
+                .referralCode(referralCode)
+                .phoneNumber("010-0000-0000")
+                .build();
+    }
+}
