@@ -14,6 +14,7 @@
 | [05. 리팩토링 로그](05-refactoring-log.md) | 이번에 구현한 내용(PR #1~#10)과 확립한 패턴 |
 | [06. bid/order 모델 이슈](06-bid-order-issue.md) | 입찰-주문 결합 문제 분석 + 재설계 권고 |
 | [07. trade(매칭) 재설계](07-trade-matching-design.md) | 도메인 결정 반영 목표 모델(통합 Bid + trade 모듈) + 마이그레이션 계획 |
+| [08. 의사결정·문제 로그](08-decisions-and-problems-log.md) | 발견한 문제 전체 + 내린 선택(의사결정) + 근거/위치 추적 |
 
 ## 현재 상태 요약 (2026-06 기준)
 
