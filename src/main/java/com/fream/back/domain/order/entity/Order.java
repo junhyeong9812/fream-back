@@ -47,6 +47,9 @@ public class Order extends BaseTimeEntity {
     @Enumerated(EnumType.STRING)
     private OrderStatus status; // 주문 상태 (결제대기, 결제완료 등)
 
+    @Column(length = 36)
+    private String matchId; // trade 매칭 식별자(UUID) — BidMatchedEvent로 생성된 거래의 양면 연결 키
+
     @OneToOne(mappedBy = "order", cascade = CascadeType.ALL, orphanRemoval = true)
     private WarehouseStorage warehouseStorage; // 창고 보관 정보
 

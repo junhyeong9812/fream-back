@@ -45,6 +45,9 @@ public class Sale  extends BaseTimeEntity {
     @Enumerated(EnumType.STRING)
     private SaleStatus status; // 판매 상태
 
+    @Column(length = 36)
+    private String matchId; // trade 매칭 식별자(UUID) — BidMatchedEvent로 생성된 거래의 양면 연결 키
+
     @OneToOne(mappedBy = "sale", cascade = CascadeType.ALL, orphanRemoval = true)
     private SaleBid saleBid; // Sale와 연결된 SaleBid
 
