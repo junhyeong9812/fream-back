@@ -2,6 +2,7 @@ package com.fream.back.domain.user.service.query;
 
 import com.fream.back.domain.user.dto.EmailFindRequestDto;
 import com.fream.back.domain.user.dto.LoginInfoDto;
+import com.fream.back.domain.user.entity.Profile;
 import com.fream.back.domain.user.entity.Role;
 import com.fream.back.domain.user.entity.User;
 import com.fream.back.domain.user.exception.UserErrorCode;
@@ -12,6 +13,11 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+
+import java.util.Collection;
+import java.util.List;
+import java.util.Map;
+import java.util.stream.Collectors;
 
 @Slf4j
 @Service
@@ -125,5 +131,39 @@ public class UserQueryService {
             log.error("이메일로 사용자 조회 중 시스템 오류: email={}", email, e);
             throw new UserException(UserErrorCode.USER_NOT_FOUND, "사용자 조회 처리 중 오류가 발생했습니다.", e);
         }
+    }
+
+    /**
+     * ID 목록으로 사용자 요약 정보를 일괄 조회한다(모듈 간 user 엔티티 직접 참조 대체용).
+     * fetch join으로 N+1을 방지하며, 결과는 id→요약 맵으로 반환한다.
+     */
+    @Transactional(readOnly = true)
+    public Map<Long, UserSummary> findUserSummaries(Collection<Long> ids) {
+        if (ids == null || ids.isEmpty()) {
+            return Map.of();
+        }
+        return userRepository.findAllWithProfileByIdIn(ids).stream()
+                .collect(Collectors.toMap(User::getId, this::toSummary));
+    }
+
+    /**
+     * 단일 사용자 요약 정보 조회. 없으면 {@link UserNotFoundException}.
+     */
+    @Transactional(readOnly = true)
+    public UserSummary findUserSummary(Long id) {
+        return userRepository.findAllWithProfileByIdIn(List.of(id)).stream()
+                .findFirst()
+                .map(this::toSummary)
+                .orElseThrow(() -> new UserNotFoundException("ID가 " + id + "인 사용자를 찾을 수 없습니다."));
+    }
+
+    private UserSummary toSummary(User user) {
+        Profile profile = user.getProfile();
+        return new UserSummary(
+                user.getId(),
+                user.getEmail(),
+                profile != null ? profile.getProfileName() : null,
+                profile != null ? profile.getName() : null
+        );
     }
 }
