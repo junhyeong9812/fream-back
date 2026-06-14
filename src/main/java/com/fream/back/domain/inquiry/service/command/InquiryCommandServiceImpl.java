@@ -13,8 +13,8 @@ import com.fream.back.domain.inquiry.exception.InquiryFileException;
 import com.fream.back.domain.inquiry.exception.InquiryNotFoundException;
 import com.fream.back.domain.inquiry.repository.InquiryImageRepository;
 import com.fream.back.domain.inquiry.repository.InquiryRepository;
-import com.fream.back.domain.user.entity.User;
-import com.fream.back.domain.user.repository.UserRepository;
+import com.fream.back.domain.user.service.query.UserQueryService;
+import com.fream.back.domain.user.service.query.UserSummary;
 import com.fream.back.global.utils.FileUtils;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -43,7 +43,7 @@ public class InquiryCommandServiceImpl implements InquiryCommandService {
 
     private final InquiryRepository inquiryRepository;
     private final InquiryImageRepository inquiryImageRepository;
-    private final UserRepository userRepository;
+    private final UserQueryService userQueryService;
     private final FileUtils fileUtils;
 
     private static final String IMAGE_PREFIX = "img_";
@@ -51,12 +51,11 @@ public class InquiryCommandServiceImpl implements InquiryCommandService {
     @Override
     public InquiryResponseDto createInquiry(Long userId, InquiryCreateRequestDto requestDto) {
         try {
-            // 사용자 조회
-            User user = userRepository.findById(userId)
-                    .orElseThrow(() -> new IllegalArgumentException("ID가 " + userId + "인 사용자를 찾을 수 없습니다."));
+            // 작성자 존재 확인 (없으면 UserNotFoundException)
+            UserSummary author = userQueryService.findUserSummary(userId);
 
-            // 1. 문의 엔티티 저장
-            Inquiry inquiry = requestDto.toEntity(user);
+            // 1. 문의 엔티티 저장 (작성자는 userId로만 참조)
+            Inquiry inquiry = requestDto.toEntity(userId);
             Inquiry savedInquiry = inquiryRepository.save(inquiry);
 
             // 2. 파일 저장 및 이미지 URL 처리
@@ -76,9 +75,9 @@ public class InquiryCommandServiceImpl implements InquiryCommandService {
                 );
             }
 
-            // 3. 응답 DTO 생성
+            // 3. 응답 DTO 생성 (작성자 정보 enrich)
             List<InquiryImage> images = inquiryImageRepository.findAllByInquiry_Id(savedInquiry.getId());
-            return InquiryResponseDto.from(savedInquiry, images);
+            return InquiryResponseDto.from(savedInquiry, images, author);
 
         } catch (IllegalArgumentException e) {
             throw e;
@@ -96,7 +95,7 @@ public class InquiryCommandServiceImpl implements InquiryCommandService {
                     .orElseThrow(() -> new InquiryNotFoundException("ID가 " + inquiryId + "인 문의를 찾을 수 없습니다."));
 
             // 본인 문의만 수정 가능
-            if (!inquiry.getUser().getId().equals(userId)) {
+            if (!inquiry.getUserId().equals(userId)) {
                 throw new InquiryException(InquiryErrorCode.INQUIRY_ACCESS_DENIED, "본인이 작성한 문의만 수정할 수 있습니다.");
             }
 
@@ -132,9 +131,10 @@ public class InquiryCommandServiceImpl implements InquiryCommandService {
                     requestDto.isPushNotification()
             );
 
-            // 4. 응답 DTO 생성
+            // 4. 응답 DTO 생성 (작성자 정보 enrich)
             List<InquiryImage> updatedImages = inquiryImageRepository.findAllByInquiry_Id(inquiry.getId());
-            return InquiryResponseDto.from(inquiry, updatedImages);
+            UserSummary author = userQueryService.findUserSummary(inquiry.getUserId());
+            return InquiryResponseDto.from(inquiry, updatedImages, author);
 
         } catch (InquiryNotFoundException | IllegalArgumentException e) {
             throw e;
@@ -154,7 +154,7 @@ public class InquiryCommandServiceImpl implements InquiryCommandService {
                     .orElseThrow(() -> new InquiryNotFoundException("ID가 " + inquiryId + "인 문의를 찾을 수 없습니다."));
 
             // 본인 문의 또는 관리자만 삭제 가능
-            if (!isAdmin && !inquiry.getUser().getId().equals(userId)) {
+            if (!isAdmin && !inquiry.getUserId().equals(userId)) {
                 throw new InquiryException(InquiryErrorCode.INQUIRY_ACCESS_DENIED, "본인이 작성한 문의만 삭제할 수 있습니다.");
             }
 
@@ -193,7 +193,7 @@ public class InquiryCommandServiceImpl implements InquiryCommandService {
 
             // 3. 응답 DTO 생성
             List<InquiryImage> images = inquiryImageRepository.findAllByInquiry_Id(inquiry.getId());
-            return InquiryResponseDto.from(inquiry, images);
+            return InquiryResponseDto.from(inquiry, images, userQueryService.findUserSummary(inquiry.getUserId()));
 
         } catch (InquiryNotFoundException e) {
             throw e;
@@ -221,7 +221,7 @@ public class InquiryCommandServiceImpl implements InquiryCommandService {
 
             // 4. 응답 DTO 생성
             List<InquiryImage> images = inquiryImageRepository.findAllByInquiry_Id(inquiry.getId());
-            return InquiryResponseDto.from(inquiry, images);
+            return InquiryResponseDto.from(inquiry, images, userQueryService.findUserSummary(inquiry.getUserId()));
 
         } catch (InquiryNotFoundException e) {
             throw e;

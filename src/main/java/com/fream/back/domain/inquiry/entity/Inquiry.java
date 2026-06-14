@@ -1,6 +1,5 @@
 package com.fream.back.domain.inquiry.entity;
 
-import com.fream.back.domain.user.entity.User;
 import com.fream.back.global.entity.BaseTimeEntity;
 import jakarta.persistence.*;
 import lombok.AllArgsConstructor;
@@ -33,9 +32,8 @@ public class Inquiry extends BaseTimeEntity {
     @Column(columnDefinition = "TEXT")
     private String answer; // 관리자 답변
 
-    @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "user_id", nullable = false)
-    private User user; // 문의 작성자
+    @Column(name = "user_id", nullable = false)
+    private Long userId; // 문의 작성자 ID (user 모듈과의 FK 결합 제거 — ID 참조)
 
     @Enumerated(EnumType.STRING)
     @Column(nullable = false)

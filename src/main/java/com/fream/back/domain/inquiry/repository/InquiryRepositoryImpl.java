@@ -5,12 +5,10 @@ import com.fream.back.domain.inquiry.dto.InquirySearchResultDto;
 import com.fream.back.domain.inquiry.entity.InquiryCategory;
 import com.fream.back.domain.inquiry.entity.InquiryStatus;
 import com.fream.back.domain.inquiry.entity.QInquiry;
-import com.fream.back.domain.user.entity.QUser;
 import com.querydsl.core.BooleanBuilder;
 import com.querydsl.core.Tuple;
 import com.querydsl.core.types.Projections;
 import com.querydsl.core.types.dsl.BooleanExpression;
-import com.querydsl.jpa.impl.JPAQuery;
 import com.querydsl.jpa.impl.JPAQueryFactory;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
@@ -27,7 +25,10 @@ import java.util.stream.Collectors;
 
 /**
  * 1대1 문의 커스텀 리포지토리 구현체
- * QueryDSL을 활용한 복잡한 쿼리 구현
+ * QueryDSL을 활용한 복잡한 쿼리 구현.
+ *
+ * <p>user 모듈과의 조인을 제거하고 작성자 식별자(userId)만 조회한다.
+ * 작성자 상세(email·profileName·name)는 서비스 계층에서 user 모듈 API로 enrich한다.
  */
 @RequiredArgsConstructor
 public class InquiryRepositoryImpl implements InquiryRepositoryCustom {
@@ -37,7 +38,6 @@ public class InquiryRepositoryImpl implements InquiryRepositoryCustom {
     @Override
     public Page<InquirySearchResultDto> searchInquiries(InquirySearchCondition condition, Pageable pageable) {
         QInquiry inquiry = QInquiry.inquiry;
-        QUser user = QUser.user;
 
         // 검색 조건 빌더
         BooleanBuilder builder = new BooleanBuilder();
@@ -54,7 +54,7 @@ public class InquiryRepositoryImpl implements InquiryRepositoryCustom {
 
         // 사용자 ID 조건
         if (condition.getUserId() != null) {
-            builder.and(inquiry.user.id.eq(condition.getUserId()));
+            builder.and(inquiry.userId.eq(condition.getUserId()));
         }
 
         // 키워드 검색 (제목 또는 내용)
@@ -77,14 +77,13 @@ public class InquiryRepositoryImpl implements InquiryRepositoryCustom {
 
         // 비공개 문의 필터링 (관리자가 아닌 경우)
         if (!condition.isAdmin()) {
-            builder.and(inquiry.isPrivate.eq(false).or(inquiry.user.id.eq(condition.getUserId())));
+            builder.and(inquiry.isPrivate.eq(false).or(inquiry.userId.eq(condition.getUserId())));
         }
 
         // 쿼리 실행: 결과 카운트 조회
         Long total = queryFactory
                 .select(inquiry.count())
                 .from(inquiry)
-                .leftJoin(inquiry.user, user)
                 .where(builder)
                 .fetchOne();
 
@@ -93,27 +92,10 @@ public class InquiryRepositoryImpl implements InquiryRepositoryCustom {
             return new PageImpl<>(List.of(), pageable, 0);
         }
 
-        // 쿼리 실행: 결과 데이터 조회
+        // 쿼리 실행: 결과 데이터 조회 (작성자 상세는 서비스에서 enrich)
         List<InquirySearchResultDto> content = queryFactory
-                .select(Projections.constructor(
-                        InquirySearchResultDto.class,
-                        inquiry.id,
-                        inquiry.title,
-                        inquiry.content,
-                        inquiry.answer,
-                        inquiry.status,
-                        inquiry.category,
-                        inquiry.isPrivate,
-                        inquiry.createdDate,
-                        inquiry.modifiedDate,
-                        user.id.as("userId"),
-                        user.email,
-                        user.profile.profileName,
-                        user.profile.Name
-                ))
+                .select(searchResultProjection(inquiry))
                 .from(inquiry)
-                .leftJoin(inquiry.user, user)
-                .leftJoin(user.profile)
                 .where(builder)
                 .offset(pageable.getOffset())
                 .limit(pageable.getPageSize())
@@ -126,28 +108,10 @@ public class InquiryRepositoryImpl implements InquiryRepositoryCustom {
     @Override
     public InquirySearchResultDto findInquiryWithUserDetails(Long inquiryId) {
         QInquiry inquiry = QInquiry.inquiry;
-        QUser user = QUser.user;
 
         return queryFactory
-                .select(Projections.constructor(
-                        InquirySearchResultDto.class,
-                        inquiry.id,
-                        inquiry.title,
-                        inquiry.content,
-                        inquiry.answer,
-                        inquiry.status,
-                        inquiry.category,
-                        inquiry.isPrivate,
-                        inquiry.createdDate,
-                        inquiry.modifiedDate,
-                        user.id.as("userId"),
-                        user.email,
-                        user.profile.profileName,
-                        user.profile.Name
-                ))
+                .select(searchResultProjection(inquiry))
                 .from(inquiry)
-                .leftJoin(inquiry.user, user)
-                .leftJoin(user.profile)
                 .where(inquiry.id.eq(inquiryId))
                 .fetchOne();
     }
@@ -155,7 +119,6 @@ public class InquiryRepositoryImpl implements InquiryRepositoryCustom {
     @Override
     public Page<InquirySearchResultDto> findUnansweredInquiriesOrderByOldest(Pageable pageable) {
         QInquiry inquiry = QInquiry.inquiry;
-        QUser user = QUser.user;
 
         // 답변되지 않은 문의 조건
         BooleanExpression condition = inquiry.status.ne(InquiryStatus.ANSWERED);
@@ -174,25 +137,8 @@ public class InquiryRepositoryImpl implements InquiryRepositoryCustom {
 
         // 데이터 조회
         List<InquirySearchResultDto> content = queryFactory
-                .select(Projections.constructor(
-                        InquirySearchResultDto.class,
-                        inquiry.id,
-                        inquiry.title,
-                        inquiry.content,
-                        inquiry.answer,
-                        inquiry.status,
-                        inquiry.category,
-                        inquiry.isPrivate,
-                        inquiry.createdDate,
-                        inquiry.modifiedDate,
-                        user.id.as("userId"),
-                        user.email,
-                        user.profile.profileName,
-                        user.profile.Name
-                ))
+                .select(searchResultProjection(inquiry))
                 .from(inquiry)
-                .leftJoin(inquiry.user, user)
-                .leftJoin(user.profile)
                 .where(condition)
                 .offset(pageable.getOffset())
                 .limit(pageable.getPageSize())
@@ -205,7 +151,6 @@ public class InquiryRepositoryImpl implements InquiryRepositoryCustom {
     @Override
     public Page<InquirySearchResultDto> findByTitleOrContentContaining(String keyword, Pageable pageable) {
         QInquiry inquiry = QInquiry.inquiry;
-        QUser user = QUser.user;
 
         // 검색 조건
         BooleanExpression condition = inquiry.title.containsIgnoreCase(keyword)
@@ -225,25 +170,8 @@ public class InquiryRepositoryImpl implements InquiryRepositoryCustom {
 
         // 데이터 조회
         List<InquirySearchResultDto> content = queryFactory
-                .select(Projections.constructor(
-                        InquirySearchResultDto.class,
-                        inquiry.id,
-                        inquiry.title,
-                        inquiry.content,
-                        inquiry.answer,
-                        inquiry.status,
-                        inquiry.category,
-                        inquiry.isPrivate,
-                        inquiry.createdDate,
-                        inquiry.modifiedDate,
-                        user.id.as("userId"),
-                        user.email,
-                        user.profile.profileName,
-                        user.profile.Name
-                ))
+                .select(searchResultProjection(inquiry))
                 .from(inquiry)
-                .leftJoin(inquiry.user, user)
-                .leftJoin(user.profile)
                 .where(condition)
                 .offset(pageable.getOffset())
                 .limit(pageable.getPageSize())
@@ -251,6 +179,25 @@ public class InquiryRepositoryImpl implements InquiryRepositoryCustom {
                 .fetch();
 
         return new PageImpl<>(content, pageable, total);
+    }
+
+    /**
+     * 문의 필드 + userId만 투영(작성자 상세는 서비스 enrich). 4개 조회 메서드 공통.
+     */
+    private com.querydsl.core.types.ConstructorExpression<InquirySearchResultDto> searchResultProjection(QInquiry inquiry) {
+        return Projections.constructor(
+                InquirySearchResultDto.class,
+                inquiry.id,
+                inquiry.title,
+                inquiry.content,
+                inquiry.answer,
+                inquiry.status,
+                inquiry.category,
+                inquiry.isPrivate,
+                inquiry.createdDate,
+                inquiry.modifiedDate,
+                inquiry.userId
+        );
     }
 
     @Override

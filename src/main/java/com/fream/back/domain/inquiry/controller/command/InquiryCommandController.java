@@ -6,7 +6,6 @@ import com.fream.back.domain.inquiry.dto.InquiryResponseDto;
 import com.fream.back.domain.inquiry.dto.InquiryUpdateRequestDto;
 import com.fream.back.domain.inquiry.entity.InquiryStatus;
 import com.fream.back.domain.inquiry.service.command.InquiryCommandService;
-import com.fream.back.domain.user.entity.User;
 import com.fream.back.domain.user.service.query.UserQueryService;
 import com.fream.back.global.dto.ResponseDto;
 import com.fream.back.global.utils.SecurityUtils;
@@ -50,8 +49,7 @@ public class InquiryCommandController {
 
         // 로그인한 사용자 정보 가져오기
         String email = SecurityUtils.extractEmailFromSecurityContext();
-        User user = userQueryService.findByEmail(email);
-        Long userId = user.getId();
+        Long userId = userQueryService.findUserIdByEmail(email);
 
         log.info("문의 생성 요청: 사용자 ID={}, 제목={}", userId, requestDto.getTitle());
 
@@ -77,8 +75,7 @@ public class InquiryCommandController {
 
         // 로그인한 사용자 정보 가져오기
         String email = SecurityUtils.extractEmailFromSecurityContext();
-        User user = userQueryService.findByEmail(email);
-        Long userId = user.getId();
+        Long userId = userQueryService.findUserIdByEmail(email);
 
         log.info("문의 수정 요청: 문의 ID={}, 사용자 ID={}", inquiryId, userId);
 
@@ -100,9 +97,8 @@ public class InquiryCommandController {
 
         // 로그인한 사용자 정보 가져오기
         String email = SecurityUtils.extractEmailFromSecurityContext();
-        User user = userQueryService.findByEmail(email);
-        Long userId = user.getId();
-        boolean isAdmin = user.getRole() != null && user.getRole().name().equals("ADMIN");
+        Long userId = userQueryService.findUserIdByEmail(email);
+        boolean isAdmin = userQueryService.isAdmin(email);
 
         log.info("문의 삭제 요청: 문의 ID={}, 사용자 ID={}, 관리자 여부={}", inquiryId, userId, isAdmin);
 

@@ -8,7 +8,6 @@ import com.fream.back.domain.inquiry.entity.InquiryStatus;
 import com.fream.back.domain.inquiry.exception.InquiryErrorCode;
 import com.fream.back.domain.inquiry.exception.InquiryException;
 import com.fream.back.domain.inquiry.service.query.InquiryQueryService;
-import com.fream.back.domain.user.entity.User;
 import com.fream.back.domain.user.service.query.UserQueryService;
 import com.fream.back.global.dto.ResponseDto;
 import com.fream.back.global.utils.FileUtils;
@@ -62,9 +61,8 @@ public class InquiryQueryController {
 
         // 로그인한 사용자 정보 가져오기
         String email = SecurityUtils.extractEmailFromSecurityContext();
-        User user = userQueryService.findByEmail(email);
-        Long userId = user.getId();
-        boolean isAdmin = user.getRole() != null && user.getRole().name().equals("ADMIN");
+        Long userId = userQueryService.findUserIdByEmail(email);
+        boolean isAdmin = userQueryService.isAdmin(email);
 
         log.info("문의 상세 조회 요청: 문의 ID={}, 사용자 ID={}", inquiryId, userId);
 
@@ -87,8 +85,7 @@ public class InquiryQueryController {
 
         // 로그인한 사용자 정보 가져오기
         String email = SecurityUtils.extractEmailFromSecurityContext();
-        User user = userQueryService.findByEmail(email);
-        Long userId = user.getId();
+        Long userId = userQueryService.findUserIdByEmail(email);
 
         log.info("내 문의 목록 조회 요청: 사용자 ID={}", userId);
 
@@ -279,9 +276,8 @@ public class InquiryQueryController {
             // 권한 확인 - 비공개 문의의 이미지는 작성자와 관리자만 조회 가능
             // 로그인한 사용자 정보 가져오기
             String email = SecurityUtils.extractEmailFromSecurityContext();
-            User user = userQueryService.findByEmail(email);
-            Long userId = user.getId();
-            boolean isAdmin = user.getRole() != null && user.getRole().name().equals("ADMIN");
+            Long userId = userQueryService.findUserIdByEmail(email);
+            boolean isAdmin = userQueryService.isAdmin(email);
 
             // 권한 체크를 위한 문의 조회
             inquiryQueryService.getInquiry(inquiryId, userId, isAdmin);

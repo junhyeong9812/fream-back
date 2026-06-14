@@ -4,6 +4,7 @@ import com.fream.back.domain.inquiry.entity.Inquiry;
 import com.fream.back.domain.inquiry.entity.InquiryCategory;
 import com.fream.back.domain.inquiry.entity.InquiryImage;
 import com.fream.back.domain.inquiry.entity.InquiryStatus;
+import com.fream.back.domain.user.service.query.UserSummary;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Getter;
@@ -49,9 +50,10 @@ public class InquiryResponseDto {
     private List<String> answerImageUrls = new ArrayList<>();
 
     /**
-     * 엔티티와 이미지 리스트에서 DTO 생성
+     * 엔티티와 이미지 리스트에서 DTO 생성.
+     * 작성자 정보는 user 모듈의 {@link UserSummary}로 주입받는다(엔티티 직접 참조 제거).
      */
-    public static InquiryResponseDto from(Inquiry inquiry, List<InquiryImage> images) {
+    public static InquiryResponseDto from(Inquiry inquiry, List<InquiryImage> images, UserSummary author) {
         // 질문 이미지와 답변 이미지 분리
         List<String> questionImages = images.stream()
                 .filter(img -> !img.isAnswer())
@@ -75,21 +77,19 @@ public class InquiryResponseDto {
                 .answeredBy(inquiry.getAnsweredBy())
                 .createdDate(inquiry.getCreatedDate())
                 .modifiedDate(inquiry.getModifiedDate())
-                .userId(inquiry.getUser().getId())
-                .userEmail(inquiry.getUser().getEmail())
-                .userProfileName(inquiry.getUser().getProfile() != null ?
-                        inquiry.getUser().getProfile().getProfileName() : null)
-                .userName(inquiry.getUser().getProfile() != null ?
-                        inquiry.getUser().getProfile().getName() : null)
+                .userId(inquiry.getUserId())
+                .userEmail(author != null ? author.email() : null)
+                .userProfileName(author != null ? author.profileName() : null)
+                .userName(author != null ? author.name() : null)
                 .questionImageUrls(questionImages)
                 .answerImageUrls(answerImages)
                 .build();
     }
 
     /**
-     * 엔티티에서 DTO 생성 (이미지 없이)
+     * 엔티티에서 DTO 생성 (이미지 없이).
      */
-    public static InquiryResponseDto from(Inquiry inquiry) {
+    public static InquiryResponseDto from(Inquiry inquiry, UserSummary author) {
         return InquiryResponseDto.builder()
                 .id(inquiry.getId())
                 .title(inquiry.getTitle())
@@ -102,12 +102,10 @@ public class InquiryResponseDto {
                 .answeredBy(inquiry.getAnsweredBy())
                 .createdDate(inquiry.getCreatedDate())
                 .modifiedDate(inquiry.getModifiedDate())
-                .userId(inquiry.getUser().getId())
-                .userEmail(inquiry.getUser().getEmail())
-                .userProfileName(inquiry.getUser().getProfile() != null ?
-                        inquiry.getUser().getProfile().getProfileName() : null)
-                .userName(inquiry.getUser().getProfile() != null ?
-                        inquiry.getUser().getProfile().getName() : null)
+                .userId(inquiry.getUserId())
+                .userEmail(author != null ? author.email() : null)
+                .userProfileName(author != null ? author.profileName() : null)
+                .userName(author != null ? author.name() : null)
                 .build();
     }
 }
