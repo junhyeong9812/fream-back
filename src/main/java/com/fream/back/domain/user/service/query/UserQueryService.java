@@ -134,6 +134,16 @@ public class UserQueryService {
     }
 
     /**
+     * 이메일 사용자의 역할명 조회(모듈 간 user 엔티티 직접 참조 대체용). 없으면 {@link UserNotFoundException}.
+     */
+    @Transactional(readOnly = true)
+    public String getRoleName(String email) {
+        return userRepository.findByEmail(email)
+                .map(u -> u.getRole() != null ? u.getRole().name() : null)
+                .orElseThrow(() -> new UserNotFoundException(email));
+    }
+
+    /**
      * 이메일 사용자가 관리자인지 여부(모듈 간 user 엔티티 직접 참조 대체용). 사용자 없으면 false.
      */
     @Transactional(readOnly = true)

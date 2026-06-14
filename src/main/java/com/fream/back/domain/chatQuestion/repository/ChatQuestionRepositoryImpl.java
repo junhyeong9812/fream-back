@@ -32,7 +32,7 @@ public class ChatQuestionRepositoryImpl implements ChatQuestionRepositoryCustom 
 
         return queryFactory
                 .selectFrom(chatQuestion)
-                .where(chatQuestion.user.id.eq(userId))
+                .where(chatQuestion.userId.eq(userId))
                 .orderBy(chatQuestion.createdAt.desc())
                 .limit(limit)
                 .fetch();
@@ -46,7 +46,7 @@ public class ChatQuestionRepositoryImpl implements ChatQuestionRepositoryCustom 
                 .selectFrom(chatQuestion)
                 .where(
                         chatQuestion.clientIp.eq(clientIp)
-                                .and(chatQuestion.user.isNull())
+                                .and(chatQuestion.userId.isNull())
                 )
                 .orderBy(chatQuestion.createdAt.desc())
                 .limit(limit)

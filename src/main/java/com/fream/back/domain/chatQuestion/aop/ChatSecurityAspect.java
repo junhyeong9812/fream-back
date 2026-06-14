@@ -4,7 +4,6 @@ import com.fream.back.domain.chatQuestion.aop.annotation.ChatSecurity;
 import com.fream.back.domain.chatQuestion.dto.chat.QuestionRequestDto;
 import com.fream.back.domain.chatQuestion.exception.ChatPermissionException;
 import com.fream.back.domain.chatQuestion.exception.ChatQuestionErrorCode;
-import com.fream.back.domain.user.entity.User;
 import com.fream.back.domain.user.service.query.UserQueryService;
 import com.fream.back.global.utils.SecurityUtils;
 import jakarta.servlet.http.HttpServletRequest;
@@ -217,9 +216,9 @@ public class ChatSecurityAspect {
      */
     private void checkUserRoles(String userEmail, String[] requiredRoles) {
         try {
-            User user = userQueryService.findByEmail(userEmail);
+            String roleName = userQueryService.getRoleName(userEmail);
             boolean hasRequiredRole = Arrays.stream(requiredRoles)
-                    .anyMatch(role -> user.getRole().name().equals(role));
+                    .anyMatch(role -> roleName != null && roleName.equals(role));
 
             if (!hasRequiredRole) {
                 throw new ChatPermissionException(ChatQuestionErrorCode.ADMIN_PERMISSION_REQUIRED,

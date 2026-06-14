@@ -12,7 +12,6 @@ import com.fream.back.domain.chatQuestion.exception.InvalidQuestionException;
 import com.fream.back.domain.chatQuestion.repository.ChatQuestionRepository;
 import com.fream.back.domain.faq.dto.FAQResponseDto;
 import com.fream.back.domain.faq.service.query.FAQQueryService;
-import com.fream.back.domain.user.entity.User;
 import com.fream.back.domain.user.service.query.UserQueryService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -56,7 +55,7 @@ public class ChatService {
 
         try {
             // 사용자 정보 조회
-            User user = userQueryService.findByEmail(email);
+            Long userId = userQueryService.findUserIdByEmail(email);
 
             // FAQ 데이터 가져오기
             List<FAQResponseDto> faqList = faqQueryService.getAllFAQs();
@@ -67,10 +66,10 @@ public class ChatService {
             String answer = gptResponse.getAnswer();
 
             // 질문 저장
-            ChatQuestion chatQuestion = saveChatQuestion(user, question, answer);
+            ChatQuestion chatQuestion = saveChatQuestion(userId, question, answer);
 
             // GPT 사용량 로그 기록 (별도 트랜잭션으로 처리)
-            gptUsageService.logGPTUsage(gptResponse, user, "FAQ_CHAT", chatQuestion);
+            gptUsageService.logGPTUsage(gptResponse, userId, "FAQ_CHAT", chatQuestion);
 
             // 응답 반환
             return QuestionResponseDto.builder()
@@ -122,13 +121,13 @@ public class ChatService {
      * @param answer 답변 내용
      * @return 저장된 ChatQuestion 엔티티
      */
-    private ChatQuestion saveChatQuestion(User user, String question, String answer) {
+    private ChatQuestion saveChatQuestion(Long userId, String question, String answer) {
         try {
             ChatQuestion chatQuestion = ChatQuestion.builder()
                     .question(question)
                     .answer(answer)
                     .isAnswered(true)
-                    .user(user)
+                    .userId(userId)
                     .build();
 
             return chatQuestionRepository.save(chatQuestion);
@@ -153,10 +152,10 @@ public class ChatService {
                     email, pageable.getPageNumber(), pageable.getPageSize());
 
             // 사용자 정보 조회
-            User user = userQueryService.findByEmail(email);
+            Long userId = userQueryService.findUserIdByEmail(email);
 
             // 사용자의 채팅 기록 조회
-            Page<ChatQuestion> chatQuestions = chatQuestionRepository.findByUserIdOrderByCreatedAtDesc(user.getId(), pageable);
+            Page<ChatQuestion> chatQuestions = chatQuestionRepository.findByUserIdOrderByCreatedAtDesc(userId, pageable);
             log.debug("사용자 채팅 기록 조회 완료: 총 {}개 항목, 전체 {}페이지 중 {}페이지",
                     chatQuestions.getNumberOfElements(),
                     chatQuestions.getTotalPages(),
@@ -195,10 +194,10 @@ public class ChatService {
     public int getChatHistoryPageCount(String email, int size) {
         try {
             // 사용자 정보 조회
-            User user = userQueryService.findByEmail(email);
+            Long userId = userQueryService.findUserIdByEmail(email);
 
             // 전체 레코드 수 조회
-            long totalRecords = chatQuestionRepository.countByUserId(user.getId());
+            long totalRecords = chatQuestionRepository.countByUserId(userId);
             log.debug("사용자 채팅 기록 총 개수 조회: 총 {}개 항목", totalRecords);
 
             // 페이지 수 계산 (나머지가 있으면 1 페이지 추가)
@@ -229,10 +228,10 @@ public class ChatService {
     public List<ChatHistoryDto> getRecentQuestions(String email, int limit) {
         try {
             // 사용자 정보 조회
-            User user = userQueryService.findByEmail(email);
+            Long userId = userQueryService.findUserIdByEmail(email);
 
             // 최근 질문 조회 (QueryDSL 사용)
-            List<ChatQuestion> recentQuestions = chatQuestionRepository.findRecentQuestionsByUserId(user.getId(), limit);
+            List<ChatQuestion> recentQuestions = chatQuestionRepository.findRecentQuestionsByUserId(userId, limit);
 
             // DTO로 변환하여 반환
             return recentQuestions.stream()
