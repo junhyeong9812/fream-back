@@ -11,11 +11,9 @@ import com.fream.back.domain.notice.exception.NoticeFileException;
 import com.fream.back.domain.notice.exception.NoticeNotFoundException;
 import com.fream.back.domain.notice.repository.NoticeImageRepository;
 import com.fream.back.domain.notice.repository.NoticeRepository;
-import com.fream.back.domain.notification.dto.NotificationRequestDTO;
-import com.fream.back.domain.notification.entity.NotificationCategory;
-import com.fream.back.domain.notification.entity.NotificationType;
-import com.fream.back.domain.notification.service.command.NotificationCommandService;
+import com.fream.back.domain.notification.event.NotificationBroadcastRequestedEvent;
 import com.fream.back.global.utils.FileUtils;
+import org.springframework.context.ApplicationEventPublisher;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.dao.DataAccessException;
@@ -50,7 +48,7 @@ public class NoticeCommandService {
     // 의존성 주입
     private final NoticeRepository noticeRepository;
     private final NoticeImageRepository noticeImageRepository;
-    private final NotificationCommandService notificationCommandService;
+    private final ApplicationEventPublisher eventPublisher;
     private final FileUtils fileUtils;
 
     /**
@@ -486,13 +484,9 @@ public class NoticeCommandService {
         log.debug("공지사항 알림 발송 시작: notice_id={}, title={}", notice.getId(), notice.getTitle());
 
         try {
-            NotificationRequestDTO requestDTO = NotificationRequestDTO.builder()
-                    .category(NotificationCategory.SHOPPING)  // 쇼핑 카테고리
-                    .type(NotificationType.ANNOUNCEMENT)     // 공지사항 타입
-                    .message("새로운 공지사항: " + notice.getTitle())
-                    .build();
-
-            notificationCommandService.createNotificationForAll(requestDTO);
+            // notification 내부에 직접 의존하지 않고 이벤트를 발행(notification이 수신해 발송)
+            eventPublisher.publishEvent(new NotificationBroadcastRequestedEvent(
+                    "SHOPPING", "ANNOUNCEMENT", "새로운 공지사항: " + notice.getTitle()));
             log.debug("공지사항 알림 발송 완료: notice_id={}", notice.getId());
         } catch (Exception e) {
             log.error("공지사항 알림 발송 중 오류 발생: notice_id={}", notice.getId(), e);
