@@ -94,7 +94,7 @@ public class GPTUsageLogRepositoryImpl implements GPTUsageLogRepositoryCustom {
         return queryFactory
                 .select(gptUsageLog.totalTokens.sum())
                 .from(gptUsageLog)
-                .where(gptUsageLog.user.id.eq(userId))
+                .where(gptUsageLog.userId.eq(userId))
                 .fetchOne();
     }
 }

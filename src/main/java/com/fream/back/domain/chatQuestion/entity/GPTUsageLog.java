@@ -1,6 +1,5 @@
 package com.fream.back.domain.chatQuestion.entity;
 
-import com.fream.back.domain.user.entity.User;
 import com.fream.back.global.entity.BaseTimeEntity;
 import jakarta.persistence.*;
 import lombok.AllArgsConstructor;
@@ -19,9 +18,8 @@ public class GPTUsageLog extends BaseTimeEntity {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "user_id")
-    private User user;  // 사용자 (null일 경우 관리자 또는 시스템 사용)
+    @Column(name = "user_id")
+    private Long userId;  // 사용자 ID (null=관리자/시스템, user 모듈 결합 제거)
 
     @Column(nullable = false)
     private String requestType;  // 요청 유형 (채팅 응답, 데이터 분석 등)

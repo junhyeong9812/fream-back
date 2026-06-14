@@ -1,6 +1,5 @@
 package com.fream.back.domain.chatQuestion.entity;
 
-import com.fream.back.domain.user.entity.User;
 import com.fream.back.global.entity.BaseTimeEntity;
 import jakarta.persistence.*;
 import lombok.AllArgsConstructor;
@@ -27,9 +26,8 @@ public class ChatQuestion extends BaseTimeEntity {
     @Column(nullable = false, columnDefinition = "TEXT")
     private String answer;
 
-    @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "user_id", nullable = false)
-    private User user;
+    @Column(name = "user_id", nullable = false)
+    private Long userId; // 질문 작성자 ID (user 모듈 결합 제거 — ID 참조)
 
     @Column(nullable = false)
     private Boolean isAnswered;

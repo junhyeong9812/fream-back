@@ -13,7 +13,8 @@ import com.fream.back.domain.chatQuestion.exception.ChatQueryException;
 import com.fream.back.domain.chatQuestion.exception.ChatQuestionErrorCode;
 import com.fream.back.domain.chatQuestion.exception.GPTUsageException;
 import com.fream.back.domain.chatQuestion.repository.GPTUsageLogRepository;
-import com.fream.back.domain.user.entity.User;
+import com.fream.back.domain.user.service.query.UserQueryService;
+import com.fream.back.domain.user.service.query.UserSummary;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.dao.DataAccessException;
@@ -40,6 +41,7 @@ import java.util.stream.Collectors;
 public class GPTUsageService {
 
     private final GPTUsageLogRepository gptUsageLogRepository;
+    private final UserQueryService userQueryService;
     private static final DateTimeFormatter FORMATTER = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss");
 
     /**
@@ -52,7 +54,7 @@ public class GPTUsageService {
      * @param chatQuestion 채팅 질문 엔티티
      */
     @Transactional(rollbackFor = Exception.class)
-    public void logGPTUsage(GPTResponseDto response, User user, String requestType, ChatQuestion chatQuestion) {
+    public void logGPTUsage(GPTResponseDto response, Long userId, String requestType, ChatQuestion chatQuestion) {
         if (response == null || response.getUsage() == null) {
             log.warn("GPT 사용량 기록 실패: 응답 객체가 null이거나 사용량 정보가 없습니다.");
             return;
@@ -66,7 +68,7 @@ public class GPTUsageService {
 
             // 사용량 로그 저장
             GPTUsageLog usageLog = GPTUsageLog.builder()
-                    .user(user)
+                    .userId(userId)
                     .requestType(requestType)
                     .promptTokens(promptTokens)
                     .completionTokens(completionTokens)
@@ -81,7 +83,7 @@ public class GPTUsageService {
             log.info("GPT 사용량 기록 완료: 모델={}, 총 토큰={}, 사용자={}, 요청 ID={}",
                     response.getModel(),
                     totalTokens,
-                    (user != null ? user.getEmail() : "시스템"),
+                    userId,
                     response.getId());
 
         } catch (Exception e) {
@@ -226,7 +228,14 @@ public class GPTUsageService {
     public Page<GPTUsageLogDto> getUsageLogs(Pageable pageable) {
         try {
             Page<GPTUsageLog> logs = gptUsageLogRepository.findAllByOrderByCreatedDateDesc(pageable);
-            return logs.map(this::convertToDto);
+            // 작성자 email은 user 모듈 요약 API로 배치 enrich(N+1 회피)
+            List<Long> userIds = logs.getContent().stream()
+                    .map(GPTUsageLog::getUserId)
+                    .filter(java.util.Objects::nonNull)
+                    .distinct()
+                    .collect(Collectors.toList());
+            Map<Long, UserSummary> summaries = userQueryService.findUserSummaries(userIds);
+            return logs.map(l -> convertToDto(l, summaries));
         } catch (DataAccessException e) {
             log.error("GPT 사용량 로그 조회 중 데이터베이스 오류 발생: {}", e.getMessage(), e);
             throw new ChatQueryException(ChatQuestionErrorCode.USAGE_STATS_QUERY_ERROR,
@@ -244,8 +253,12 @@ public class GPTUsageService {
      * @param log GPT 사용량 로그 엔티티
      * @return GPT 사용량 로그 DTO
      */
-    private GPTUsageLogDto convertToDto(GPTUsageLog log) {
-        String userName = log.getUser() != null ? log.getUser().getEmail() : "System";
+    private GPTUsageLogDto convertToDto(GPTUsageLog log, Map<Long, UserSummary> summaries) {
+        String userName = "System";
+        if (log.getUserId() != null) {
+            UserSummary summary = summaries.get(log.getUserId());
+            userName = summary != null ? summary.email() : "Unknown(" + log.getUserId() + ")";
+        }
         String questionContent = extractQuestionContent(log.getChatQuestion());
 
         return GPTUsageLogDto.builder()
