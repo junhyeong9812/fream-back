@@ -11,6 +11,7 @@ import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
 import java.time.LocalDateTime;
+import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
 
@@ -87,6 +88,12 @@ public interface UserRepository extends JpaRepository<User, Long>, JpaSpecificat
      */
     @Query("SELECT u FROM User u WHERE u.createdDate >= :since")
     List<User> findRecentlyJoinedUsers(@Param("since") LocalDateTime since);
+
+    /**
+     * ID 목록으로 사용자+프로필 일괄 조회 (모듈 간 요약 정보 제공용, N+1 방지 fetch join)
+     */
+    @Query("SELECT u FROM User u LEFT JOIN FETCH u.profile WHERE u.id IN :ids")
+    List<User> findAllWithProfileByIdIn(@Param("ids") Collection<Long> ids);
 }
 
 
