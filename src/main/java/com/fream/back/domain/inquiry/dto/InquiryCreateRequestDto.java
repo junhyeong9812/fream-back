@@ -3,7 +3,6 @@ package com.fream.back.domain.inquiry.dto;
 import com.fream.back.domain.inquiry.entity.Inquiry;
 import com.fream.back.domain.inquiry.entity.InquiryCategory;
 import com.fream.back.domain.inquiry.entity.InquiryStatus;
-import com.fream.back.domain.user.entity.User;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Size;
@@ -48,12 +47,12 @@ public class InquiryCreateRequestDto {
     /**
      * DTO를 엔티티로 변환
      */
-    public Inquiry toEntity(User user) {
+    public Inquiry toEntity(Long userId) {
         return Inquiry.builder()
                 .title(title)
                 .content(content)
                 .category(category)
-                .user(user)
+                .userId(userId)
                 .status(InquiryStatus.REQUESTED) // 초기 상태: 질문요청
                 .isPrivate(isPrivate)
                 .pushNotification(pushNotification)

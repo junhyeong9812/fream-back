@@ -3,6 +3,7 @@ package com.fream.back.domain.inquiry.dto;
 import com.fream.back.domain.inquiry.entity.Inquiry;
 import com.fream.back.domain.inquiry.entity.InquiryCategory;
 import com.fream.back.domain.inquiry.entity.InquiryStatus;
+import com.fream.back.domain.user.service.query.UserSummary;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Getter;
@@ -43,19 +44,31 @@ public class InquirySearchResultDto {
     private List<String> imageUrls = List.of();
 
     /**
-     * QueryDSL Projections.constructor 전용 생성자 (imageUrls 제외 13개 필드).
-     * 검색 쿼리는 user/profile 조인으로 작성자 정보를 채우고, imageUrls는 서비스에서 별도 설정한다.
+     * QueryDSL Projections.constructor 전용 생성자 (문의 필드 + userId만, 10개).
+     * user 모듈과의 조인을 제거했으므로 작성자 상세(email·profileName·name)는
+     * 서비스에서 {@link #applyAuthor(UserSummary)}로 별도 enrich한다.
      */
     public InquirySearchResultDto(Long id, String title, String content, String answer,
                                   InquiryStatus status, InquiryCategory category, boolean isPrivate,
-                                  LocalDateTime createdDate, LocalDateTime modifiedDate,
-                                  Long userId, String email, String profileName, String name) {
+                                  LocalDateTime createdDate, LocalDateTime modifiedDate, Long userId) {
         this(id, title, content, answer, status, category, isPrivate, createdDate, modifiedDate,
-                userId, email, profileName, name, List.of());
+                userId, null, null, null, List.of());
     }
 
     /**
-     * 엔티티에서 DTO 생성 (기본 정보만 포함)
+     * user 모듈 요약 정보로 작성자 상세를 채운다(검색 결과 enrich).
+     */
+    public void applyAuthor(UserSummary author) {
+        if (author == null) {
+            return;
+        }
+        this.email = author.email();
+        this.profileName = author.profileName();
+        this.name = author.name();
+    }
+
+    /**
+     * 엔티티에서 DTO 생성 (문의 + userId만, 작성자 상세는 {@link #applyAuthor(UserSummary)}로 enrich).
      */
     public static InquirySearchResultDto from(Inquiry inquiry) {
         return InquirySearchResultDto.builder()
@@ -68,12 +81,7 @@ public class InquirySearchResultDto {
                 .isPrivate(inquiry.isPrivate())
                 .createdDate(inquiry.getCreatedDate())
                 .modifiedDate(inquiry.getModifiedDate())
-                .userId(inquiry.getUser().getId())
-                .email(inquiry.getUser().getEmail())
-                .profileName(inquiry.getUser().getProfile() != null ?
-                        inquiry.getUser().getProfile().getProfileName() : null)
-                .name(inquiry.getUser().getProfile() != null ?
-                        inquiry.getUser().getProfile().getName() : null)
+                .userId(inquiry.getUserId())
                 .build();
     }
 

@@ -134,6 +134,26 @@ public class UserQueryService {
     }
 
     /**
+     * 이메일 사용자가 관리자인지 여부(모듈 간 user 엔티티 직접 참조 대체용). 사용자 없으면 false.
+     */
+    @Transactional(readOnly = true)
+    public boolean isAdmin(String email) {
+        return userRepository.findByEmail(email)
+                .map(u -> u.getRole() == Role.ADMIN)
+                .orElse(false);
+    }
+
+    /**
+     * 이메일로 사용자 ID 조회(모듈 간 user 엔티티 직접 참조 대체용). 없으면 {@link UserNotFoundException}.
+     */
+    @Transactional(readOnly = true)
+    public Long findUserIdByEmail(String email) {
+        return userRepository.findByEmail(email)
+                .map(User::getId)
+                .orElseThrow(() -> new UserNotFoundException(email));
+    }
+
+    /**
      * ID 목록으로 사용자 요약 정보를 일괄 조회한다(모듈 간 user 엔티티 직접 참조 대체용).
      * fetch join으로 N+1을 방지하며, 결과는 id→요약 맵으로 반환한다.
      */

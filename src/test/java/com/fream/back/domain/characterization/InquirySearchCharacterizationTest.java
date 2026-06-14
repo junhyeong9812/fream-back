@@ -5,9 +5,13 @@ import com.fream.back.domain.inquiry.dto.InquirySearchResultDto;
 import com.fream.back.domain.inquiry.entity.Inquiry;
 import com.fream.back.domain.inquiry.entity.InquiryCategory;
 import com.fream.back.domain.inquiry.entity.InquiryStatus;
+import com.fream.back.domain.inquiry.repository.InquiryImageRepository;
 import com.fream.back.domain.inquiry.repository.InquiryRepository;
+import com.fream.back.domain.inquiry.service.query.InquiryQueryServiceImpl;
 import com.fream.back.domain.user.entity.Profile;
 import com.fream.back.domain.user.entity.User;
+import com.fream.back.domain.user.repository.UserRepository;
+import com.fream.back.domain.user.service.query.UserQueryService;
 import com.fream.back.global.config.QueryDslConfig;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -22,12 +26,11 @@ import org.springframework.test.context.ActiveProfiles;
 import static org.assertj.core.api.Assertions.assertThat;
 
 /**
- * 특성화 테스트 — inquiry 검색 쿼리의 크로스 도메인(QUser/Profile) 조인 투영.
+ * 특성화 테스트 — inquiry 검색 결과의 작성자 정보 enrich.
  *
- * <p>{@code InquiryRepositoryImpl.searchInquiries}는 현재 user·profile 테이블을 조인해
- * 작성자의 email·profileName·name을 {@link InquirySearchResultDto}로 투영한다.
- * Inquiry→User FK를 Long userId로 끊는 리팩토링 시 이 조인을 user 모듈 API 조회로
- * 대체해야 하므로, 그 전에 현재 투영 동작(어떤 user 필드가 어떻게 채워지는지)을 고정한다.
+ * <p>FK→ID 전환 후: 리포지토리는 userId만 조회하고, 서비스가 user 모듈 요약 API로 작성자
+ * 상세(email·profileName·name)를 enrich한다. 전환 전(조인 투영)과 동일한 관찰 가능 동작
+ * (검색 결과에 작성자 정보가 채워짐)을 보존하는지 검증한다.
  */
 @DataJpaTest
 @AutoConfigureTestDatabase(replace = AutoConfigureTestDatabase.Replace.NONE)
@@ -41,8 +44,14 @@ class InquirySearchCharacterizationTest {
     @Autowired
     private InquiryRepository inquiryRepository;
 
+    @Autowired
+    private InquiryImageRepository inquiryImageRepository;
+
+    @Autowired
+    private UserRepository userRepository;
+
     @Test
-    void searchInquiries_projectsAuthorUserAndProfileInfo() {
+    void searchInquiries_throughService_enrichesAuthorUserAndProfileInfo() {
         User author = User.builder()
                 .email("inquirer@test.com")
                 .password("pw")
@@ -63,7 +72,7 @@ class InquirySearchCharacterizationTest {
                 .content("배송이 언제 오나요")
                 .category(InquiryCategory.DELIVERY)
                 .status(InquiryStatus.REQUESTED)
-                .user(author)
+                .userId(author.getId())
                 .isPrivate(false)
                 .build();
         em.persist(inquiry);
@@ -71,7 +80,10 @@ class InquirySearchCharacterizationTest {
         em.flush();
         em.clear();
 
-        Page<InquirySearchResultDto> page = inquiryRepository.searchInquiries(
+        InquiryQueryServiceImpl service = new InquiryQueryServiceImpl(
+                inquiryRepository, inquiryImageRepository, new UserQueryService(userRepository));
+
+        Page<InquirySearchResultDto> page = service.getInquiries(
                 InquirySearchCondition.forAdmin(), PageRequest.of(0, 10));
 
         assertThat(page.getTotalElements()).isEqualTo(1);
@@ -79,7 +91,7 @@ class InquirySearchCharacterizationTest {
         // 문의 정보
         assertThat(dto.getTitle()).isEqualTo("배송 문의");
         assertThat(dto.getCategory()).isEqualTo(InquiryCategory.DELIVERY);
-        // 크로스 도메인 조인으로 채워지는 작성자 정보 (리팩토링이 보존해야 할 핵심)
+        // 서비스 enrich로 채워지는 작성자 정보 (조인 투영과 동일 결과 보존)
         assertThat(dto.getUserId()).isEqualTo(author.getId());
         assertThat(dto.getEmail()).isEqualTo("inquirer@test.com");
         assertThat(dto.getProfileName()).isEqualTo("inquirer-profile");
